@@ -1,12 +1,12 @@
 use super::Token;
 
 #[derive(Debug)]
-pub struct Tokens<'a> {
+pub struct Tokens {
 
 }
 
-impl<'a> Iterator for Tokens<'a> {
-    type Item = Token<'a>;
+impl Iterator for Tokens {
+    type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
         todo!()
