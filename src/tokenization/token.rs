@@ -9,3 +9,4 @@ pub enum Token {
     Identifier(String),
     Number(f64)
 }
+
