@@ -1,3 +1,7 @@
-# The Flick Programming Language
+## The Flick Programming Language
 
-THE. NEXT. BIG. THING. 🤯
+
+### License
+
+Flick uses the [MIT](LICENSE) license.
+
