@@ -30,7 +30,6 @@ impl<'a> Iterator for Tokens<'a> {
             '-' => (Token::Punctuation(Dash), 1),
             '$' => (Token::Punctuation(Dollar), 1),
             '.' => (Token::Punctuation(Dot), 1),
-            '"' => (Token::Punctuation(DoubleQuote), 1),
             '=' => (Token::Punctuation(Equals), 1),
             '!' => (Token::Punctuation(Exclamation), 1),
             '#' => (Token::Punctuation(Hashtag), 1),
@@ -52,6 +51,7 @@ impl<'a> Iterator for Tokens<'a> {
             '[' => (Token::Punctuation(OpenBracket(Square)), 1),
             ']' => (Token::Punctuation(CloseBracket(Square)), 1),
 
+            '"' => self.read_string_literal(),
             c if c.is_ascii_digit() => self.read_numeric_literal(),
             c if c.is_ascii_alphabetic() || c == '_' => self.read_identifier_or_kw(),
 
@@ -64,6 +64,19 @@ impl<'a> Iterator for Tokens<'a> {
 }
 
 impl<'a> Tokens<'a> {
+    fn read_string_literal(&mut self) -> (Token<'a>, usize) {
+        use super::Literal::Str;
+
+        let source_len = self.unparsed[1..]  // ignore first quote
+            .find('"')
+            .unwrap()
+            + 1 // add back first quote (ignored before)
+            + 1; // include second quote (.find() is exclusive)
+
+        let str = &self.unparsed[1..source_len - 1];
+        (Token::Literal(Str(str)), source_len)
+    }
+
     fn read_numeric_literal(&mut self) -> (Token<'a>, usize) {
         use super::Literal::Int;
 
@@ -83,7 +96,6 @@ impl<'a> Tokens<'a> {
         let num = self.unparsed[..source_len].parse().unwrap();
         (Token::Literal(Int(num)), source_len)
     }
-
 
     fn read_identifier_or_kw(&mut self) -> (Token<'a>, usize) {
         use super::Keyword::*;
@@ -156,6 +168,7 @@ mod tests {
     proptest! {
         #[test]
         fn doesnt_crash_parsing_random_char(s in "\\PC") {
+            prop_assume!(s != "\"");
             let _: Vec<_> = Tokens { unparsed: &s }.collect();
         }
 
@@ -176,6 +189,14 @@ mod tests {
         fn parses_identifier(n in "[a-zA-Z_][a-zA-Z0-9_]*") {
             let tokens: Vec<_> = Tokens { unparsed: &n }.collect();
             let expected = vec![Token::Identifier(&n)];
+            prop_assert_eq!(tokens, expected)
+        }
+
+        #[test]
+        fn parses_string_without_escapes(n in "\"[a-zA-Z0-9_]*\"") {
+            use super::super::Literal::Str;
+            let tokens: Vec<_> = Tokens { unparsed: &n }.collect();
+            let expected = vec![Token::Literal(Str(&n[1..n.len()-1]))];
             prop_assert_eq!(tokens, expected)
         }
     }
