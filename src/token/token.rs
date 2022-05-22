@@ -9,24 +9,24 @@ pub enum Token<'a> {
 
 #[derive(Debug, PartialEq)]
 pub enum Keyword {
-    Int,
-    Float,
-    Str,
-    Bool,
-    Map,
     Arr,
+    Bool,
+    Float,
+    Int,
+    Map,
     Set,
+    Str,
 
-    Or,
     And,
-    Not,
-    True,
     False,
+    Not,
+    Or,
+    True,
 
-    If,
     Fn,
-    While,
     For,
+    If,
+    While,
 }
 
 #[derive(Debug, PartialEq)]

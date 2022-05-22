@@ -92,22 +92,24 @@ impl<'a> Tokens<'a> {
 
         let name = &self.unparsed[..first_non_alphanum];
         let token = match name {
-            "int" => Token::Keyword(Int),
-            "float" => Token::Keyword(Float),
-            "str" => Token::Keyword(Str),
-            "bool" => Token::Keyword(Bool),
-            "map" => Token::Keyword(Map),
             "arr" => Token::Keyword(Arr),
+            "bool" => Token::Keyword(Bool),
+            "float" => Token::Keyword(Float),
+            "int" => Token::Keyword(Int),
+            "map" => Token::Keyword(Map),
             "set" => Token::Keyword(Set),
-            "or" => Token::Keyword(Or),
+            "str" => Token::Keyword(Str),
+
             "and" => Token::Keyword(And),
-            "not" => Token::Keyword(Not),
-            "true" => Token::Keyword(True),
             "false" => Token::Keyword(False),
-            "if" => Token::Keyword(If),
+            "not" => Token::Keyword(Not),
+            "or" => Token::Keyword(Or),
+            "true" => Token::Keyword(True),
+
             "fn" => Token::Keyword(Fn),
-            "while" => Token::Keyword(While),
             "for" => Token::Keyword(For),
+            "if" => Token::Keyword(If),
+            "while" => Token::Keyword(While),
 
             _ => Token::Identifier(name)
         };
