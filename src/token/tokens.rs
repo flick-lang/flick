@@ -123,6 +123,26 @@ mod tests {
     use proptest::prelude::*;
 
     #[test]
+    fn parses_short_program() {
+        use super::super::Punctuation::*;
+        use super::super::Bracket::*;
+        use super::super::Literal::*;
+        let source = "call(3)\nprint(5)";
+        let tokens: Vec<_> = Tokens { unparsed: source }.collect();
+        let expected = vec![
+            Token::Identifier("call"),
+            Token::Punctuation(OpenBracket(Round)),
+            Token::Literal(Int(3)),
+            Token::Punctuation(CloseBracket(Round)),
+            Token::Identifier("print"),
+            Token::Punctuation(OpenBracket(Round)),
+            Token::Literal(Int(5)),
+            Token::Punctuation(CloseBracket(Round)),
+        ];
+        assert_eq!(tokens, expected)
+    }
+
+    #[test]
     fn parses_keyword() {
         use super::super::Keyword::*;
         let tokens: Vec<_> = Tokens { unparsed: "if" }.collect();
