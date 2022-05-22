@@ -8,7 +8,7 @@ pub struct Tokens<'a> {
 
 
 impl<'a> Iterator for Tokens<'a> {
-    type Item = Token<'a>;
+    type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
         use super::Punctuation::*;
@@ -64,7 +64,7 @@ impl<'a> Iterator for Tokens<'a> {
 }
 
 impl<'a> Tokens<'a> {
-    fn read_string_literal(&mut self) -> (Token<'a>, usize) {
+    fn read_string_literal(&mut self) -> (Token, usize) {
         use super::Literal::Str;
 
         let source_len = self.unparsed[1..]  // ignore first quote
@@ -74,10 +74,10 @@ impl<'a> Tokens<'a> {
             + 1; // include second quote (.find() is exclusive)
 
         let str = &self.unparsed[1..source_len - 1];
-        (Token::Literal(Str(str)), source_len)
+        (Token::Literal(Str(str.to_string())), source_len)
     }
 
-    fn read_numeric_literal(&mut self) -> (Token<'a>, usize) {
+    fn read_numeric_literal(&mut self) -> (Token, usize) {
         use super::Literal::Int;
 
         let source_len = self.unparsed
@@ -97,7 +97,7 @@ impl<'a> Tokens<'a> {
         (Token::Literal(Int(num)), source_len)
     }
 
-    fn read_identifier_or_kw(&mut self) -> (Token<'a>, usize) {
+    fn read_identifier_or_kw(&mut self) -> (Token, usize) {
         use super::Keyword::*;
 
         let source_len = self.unparsed
@@ -125,7 +125,7 @@ impl<'a> Tokens<'a> {
             "if" => Token::Keyword(If),
             "while" => Token::Keyword(While),
 
-            _ => Token::Identifier(name)
+            _ => Token::Identifier(name.to_string())
         };
         (token, source_len)
     }
@@ -144,12 +144,12 @@ mod tests {
         let source = "call(3)\nprint(5)";
         let tokens: Vec<_> = Tokens { unparsed: source }.collect();
         let expected = vec![
-            Token::Identifier("call"),
+            Token::Identifier("call".to_string()),
             Token::Punctuation(OpenBracket(Round)),
             Token::Literal(Int(3)),
             Token::Punctuation(CloseBracket(Round)),
             Token::Punctuation(Newline),
-            Token::Identifier("print"),
+            Token::Identifier("print".to_string()),
             Token::Punctuation(OpenBracket(Round)),
             Token::Literal(Int(5)),
             Token::Punctuation(CloseBracket(Round)),
@@ -188,7 +188,7 @@ mod tests {
         #[test]
         fn parses_identifier(n in "[a-zA-Z_][a-zA-Z0-9_]*") {
             let tokens: Vec<_> = Tokens { unparsed: &n }.collect();
-            let expected = vec![Token::Identifier(&n)];
+            let expected = vec![Token::Identifier(n)];
             prop_assert_eq!(tokens, expected)
         }
 
@@ -196,7 +196,7 @@ mod tests {
         fn parses_string_without_escapes(n in "\"[a-zA-Z0-9_]*\"") {
             use super::super::Literal::Str;
             let tokens: Vec<_> = Tokens { unparsed: &n }.collect();
-            let expected = vec![Token::Literal(Str(&n[1..n.len()-1]))];
+            let expected = vec![Token::Literal(Str(n[1..n.len()-1].to_string()))];
             prop_assert_eq!(tokens, expected)
         }
     }

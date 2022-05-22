@@ -1,8 +1,8 @@
 #[derive(Debug, PartialEq)]
-pub enum Token<'a> {
+pub enum Token {
     Keyword(Keyword),
-    Identifier(&'a str),
-    Literal(Literal<'a>),
+    Identifier(String),
+    Literal(Literal),
     Punctuation(Punctuation),
     Unknown(char),
 }
@@ -30,10 +30,10 @@ pub enum Keyword {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum Literal<'a> {
+pub enum Literal {
     Float(f64),
     Int(usize),
-    Str(&'a str),
+    Str(String),
 }
 
 #[derive(Debug, PartialEq)]
