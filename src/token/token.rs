@@ -1,10 +1,13 @@
-pub enum Token {
+#[derive(Debug, PartialEq)]
+pub enum Token<'a> {
     Keyword(Keyword),
-    Identifier(String),
-    Literal(Literal),
+    Identifier(&'a str),
+    Literal(Literal<'a>),
     Punctuation(Punctuation),
+    Unknown(char),
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Keyword {
     Int,
     Float,
@@ -26,12 +29,14 @@ pub enum Keyword {
     For,
 }
 
-pub enum Literal {
+#[derive(Debug, PartialEq)]
+pub enum Literal<'a> {
     Float(f64),
-    Int(isize),
-    Str(String),
+    Int(usize),
+    Str(&'a str),
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Punctuation {
     Ampersand,
     Asterisk,
@@ -54,13 +59,12 @@ pub enum Punctuation {
 
     OpenBracket(Bracket),
     CloseBracket(Bracket),
-
-    Unknown(char),
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Bracket {
+    Angle,
+    Curly,
     Round,
     Square,
-    Curly,
-    Angle,
 }
