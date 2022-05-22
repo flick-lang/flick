@@ -51,7 +51,7 @@ impl<'a> Iterator for Tokens<'a> {
             ']' => (Token::Punctuation(CloseBracket(Square)), 1),
 
             c if c.is_ascii_digit() => self.read_numeric_literal(),
-            c if c.is_ascii_alphabetic() || c == '_' => self.read_identifier(),
+            c if c.is_ascii_alphabetic() || c == '_' => self.read_identifier_or_kw(),
 
             c => (Token::Unknown(c), c.len_utf8()),
         };
@@ -83,21 +83,50 @@ impl<'a> Tokens<'a> {
     }
 
 
-    fn read_identifier(&mut self) -> (Token<'a>, usize) {
+    fn read_identifier_or_kw(&mut self) -> (Token<'a>, usize) {
+        use super::Keyword::*;
+
         let first_non_alphanum = self.unparsed
             .find(|c: char| !c.is_ascii_alphanumeric() && c != '_')
             .unwrap_or(self.unparsed.len());
 
         let name = &self.unparsed[..first_non_alphanum];
-        (Token::Identifier(name), first_non_alphanum)
+        let token = match name {
+            "int" => Token::Keyword(Int),
+            "float" => Token::Keyword(Float),
+            "str" => Token::Keyword(Str),
+            "bool" => Token::Keyword(Bool),
+            "map" => Token::Keyword(Map),
+            "arr" => Token::Keyword(Arr),
+            "set" => Token::Keyword(Set),
+            "or" => Token::Keyword(Or),
+            "and" => Token::Keyword(And),
+            "not" => Token::Keyword(Not),
+            "true" => Token::Keyword(True),
+            "false" => Token::Keyword(False),
+            "if" => Token::Keyword(If),
+            "fn" => Token::Keyword(Fn),
+            "while" => Token::Keyword(While),
+            "for" => Token::Keyword(For),
+
+            _ => Token::Identifier(name)
+        };
+        (token, first_non_alphanum)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::super::Literal::*;
     use super::*;
     use proptest::prelude::*;
+
+    #[test]
+    fn parses_keyword() {
+        use super::super::Keyword::*;
+        let tokens: Vec<_> = Tokens { unparsed: "if" }.collect();
+        let expected = vec![Token::Keyword(If)];
+        assert_eq!(tokens, expected);
+    }
 
     proptest! {
         #[test]
@@ -112,6 +141,7 @@ mod tests {
 
         #[test]
         fn parses_number(n in any::<usize>().prop_map(|n| n.to_string())) {
+            use super::super::Literal::*;
             let tokens: Vec<_> = Tokens { unparsed: &n }.collect();
             let expected_tokens = vec![Token::Literal(Int(n.parse().unwrap()))];
             prop_assert_eq!(tokens, expected_tokens)
