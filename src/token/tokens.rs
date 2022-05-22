@@ -145,15 +145,15 @@ mod tests {
         fn parses_number(n in any::<usize>().prop_map(|n| n.to_string())) {
             use super::super::Literal::*;
             let tokens: Vec<_> = Tokens { unparsed: &n }.collect();
-            let expected_tokens = vec![Token::Literal(Int(n.parse().unwrap()))];
-            prop_assert_eq!(tokens, expected_tokens)
+            let expected = vec![Token::Literal(Int(n.parse().unwrap()))];
+            prop_assert_eq!(tokens, expected)
         }
 
         #[test]
         fn parses_identifier(n in "[a-zA-Z_][a-zA-Z0-9_]*") {
             let tokens: Vec<_> = Tokens { unparsed: &n }.collect();
-            let expected_tokens = vec![Token::Identifier(&n)];
-            prop_assert_eq!(tokens, expected_tokens)
+            let expected = vec![Token::Identifier(&n)];
+            prop_assert_eq!(tokens, expected)
         }
     }
 }
