@@ -52,6 +52,7 @@ pub enum Punctuation {
     Equals,
     Exclamation,
     Hashtag,
+    Newline,
     Percent,
     Pipe,
     Plus,

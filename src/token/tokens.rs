@@ -14,7 +14,7 @@ impl<'a> Iterator for Tokens<'a> {
         use super::Punctuation::*;
         use super::Bracket::*;
         // skip whitespace
-        let i = self.unparsed.find(|c: char| !c.is_ascii_whitespace())?;
+        let i = self.unparsed.find(|c: char| !c.is_ascii_whitespace() || c == '\n')?;
         self.unparsed = &self.unparsed[i..];
 
         let c = self.unparsed.chars().next()?;
@@ -34,6 +34,7 @@ impl<'a> Iterator for Tokens<'a> {
             '=' => (Token::Punctuation(Equals), 1),
             '!' => (Token::Punctuation(Exclamation), 1),
             '#' => (Token::Punctuation(Hashtag), 1),
+            '\n' => (Token::Punctuation(Newline), 1),
             '%' => (Token::Punctuation(Percent), 1),
             '|' => (Token::Punctuation(Pipe), 1),
             '+' => (Token::Punctuation(Plus), 1),
@@ -125,7 +126,7 @@ mod tests {
 
     #[test]
     fn parses_short_program() {
-        use super::super::Punctuation::{OpenBracket, CloseBracket};
+        use super::super::Punctuation::{OpenBracket, CloseBracket, Newline};
         use super::super::Bracket::Round;
         use super::super::Literal::Int;
         let source = "call(3)\nprint(5)";
@@ -135,6 +136,7 @@ mod tests {
             Token::Punctuation(OpenBracket(Round)),
             Token::Literal(Int(3)),
             Token::Punctuation(CloseBracket(Round)),
+            Token::Punctuation(Newline),
             Token::Identifier("print"),
             Token::Punctuation(OpenBracket(Round)),
             Token::Literal(Int(5)),
