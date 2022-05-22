@@ -31,7 +31,7 @@ impl<'a> Iterator for Tokens<'a> {
             '$' => (Token::Punctuation(Dollar), 1),
             '.' => (Token::Punctuation(Dot), 1),
             '"' => (Token::Punctuation(DoubleQuote), 1),
-            '=' => (Token::Punctuation(Equal), 1),
+            '=' => (Token::Punctuation(Equals), 1),
             '!' => (Token::Punctuation(Exclamation), 1),
             '#' => (Token::Punctuation(Hashtag), 1),
             '%' => (Token::Punctuation(Percent), 1),

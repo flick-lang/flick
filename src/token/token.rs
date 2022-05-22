@@ -49,7 +49,7 @@ pub enum Punctuation {
     Dollar,
     Dot,
     DoubleQuote,
-    Equal,
+    Equals,
     Exclamation,
     Hashtag,
     Percent,
