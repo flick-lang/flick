@@ -44,6 +44,7 @@ pub enum Punctuation {
     Backslash,
     Caret,
     Colon,
+    Comma,
     Dash,
     Dollar,
     Dot,

@@ -26,6 +26,7 @@ impl<'a> Iterator for Tokens<'a> {
             '\\' => (Token::Punctuation(Backslash), 1),
             '^' => (Token::Punctuation(Caret), 1),
             ':' => (Token::Punctuation(Colon), 1),
+            ',' => (Token::Punctuation(Comma), 1),
             '-' => (Token::Punctuation(Dash), 1),
             '$' => (Token::Punctuation(Dollar), 1),
             '.' => (Token::Punctuation(Dot), 1),
