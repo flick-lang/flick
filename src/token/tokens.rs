@@ -37,7 +37,7 @@ impl<'a> Iterator for Tokens<'a> {
             '|' => (Token::Punctuation(Pipe), 1),
             '+' => (Token::Punctuation(Plus), 1),
             '?' => (Token::Punctuation(Question), 1),
-            '\'' =>(Token::Punctuation(SingleQuote), 1),
+            '\'' => (Token::Punctuation(SingleQuote), 1),
             '/' => (Token::Punctuation(Slash), 1),
             '~' => (Token::Punctuation(Tilde), 1),
 
@@ -50,8 +50,8 @@ impl<'a> Iterator for Tokens<'a> {
             '[' => (Token::Punctuation(OpenBracket(Square)), 1),
             ']' => (Token::Punctuation(CloseBracket(Square)), 1),
 
-            c if c.is_ascii_digit() => self.take_numeric_literal(),
-            c if c.is_ascii_alphabetic() || c == '_' => self.take_identifier(),
+            c if c.is_ascii_digit() => self.read_numeric_literal(),
+            c if c.is_ascii_alphabetic() || c == '_' => self.read_identifier(),
 
             c => (Token::Unknown(c), c.len_utf8()),
         };
@@ -62,7 +62,7 @@ impl<'a> Iterator for Tokens<'a> {
 }
 
 impl<'a> Tokens<'a> {
-    fn take_numeric_literal(&mut self) -> (Token<'a>, usize) {
+    fn read_numeric_literal(&mut self) -> (Token<'a>, usize) {
         use super::Literal::*;
 
         let non_numeric_index = self.unparsed
@@ -83,7 +83,7 @@ impl<'a> Tokens<'a> {
     }
 
 
-    fn take_identifier(&mut self) -> (Token<'a>, usize) {
+    fn read_identifier(&mut self) -> (Token<'a>, usize) {
         let first_non_alphanum = self.unparsed
             .find(|c: char| !c.is_ascii_alphanumeric() && c != '_')
             .unwrap_or(self.unparsed.len());
