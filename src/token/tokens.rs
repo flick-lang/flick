@@ -65,12 +65,12 @@ impl<'a> Tokens<'a> {
     fn read_numeric_literal(&mut self) -> (Token<'a>, usize) {
         use super::Literal::*;
 
-        let non_numeric_index = self.unparsed
+        let source_len = self.unparsed
             .find(|c: char| !c.is_ascii_digit())
             .unwrap_or(self.unparsed.len());
 
 
-        if let Some(non_numeric) = self.unparsed.chars().nth(non_numeric_index) {
+        if let Some(non_numeric) = self.unparsed.chars().nth(source_len) {
             match non_numeric {
                 'e' | 'E' => todo!(),
                 '.' => todo!(),
@@ -78,19 +78,19 @@ impl<'a> Tokens<'a> {
             }
         }
 
-        let num = self.unparsed[..non_numeric_index].parse().unwrap();
-        (Token::Literal(Int(num)), non_numeric_index)
+        let num = self.unparsed[..source_len].parse().unwrap();
+        (Token::Literal(Int(num)), source_len)
     }
 
 
     fn read_identifier_or_kw(&mut self) -> (Token<'a>, usize) {
         use super::Keyword::*;
 
-        let first_non_alphanum = self.unparsed
+        let source_len = self.unparsed
             .find(|c: char| !c.is_ascii_alphanumeric() && c != '_')
             .unwrap_or(self.unparsed.len());
 
-        let name = &self.unparsed[..first_non_alphanum];
+        let name = &self.unparsed[..source_len];
         let token = match name {
             "arr" => Token::Keyword(Arr),
             "bool" => Token::Keyword(Bool),
@@ -113,7 +113,7 @@ impl<'a> Tokens<'a> {
 
             _ => Token::Identifier(name)
         };
-        (token, first_non_alphanum)
+        (token, source_len)
     }
 }
 
