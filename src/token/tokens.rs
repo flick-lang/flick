@@ -64,7 +64,7 @@ impl<'a> Iterator for Tokens<'a> {
 
 impl<'a> Tokens<'a> {
     fn read_numeric_literal(&mut self) -> (Token<'a>, usize) {
-        use super::Literal::*;
+        use super::Literal::Int;
 
         let source_len = self.unparsed
             .find(|c: char| !c.is_ascii_digit())
@@ -125,9 +125,9 @@ mod tests {
 
     #[test]
     fn parses_short_program() {
-        use super::super::Punctuation::*;
-        use super::super::Bracket::*;
-        use super::super::Literal::*;
+        use super::super::Punctuation::{OpenBracket, CloseBracket};
+        use super::super::Bracket::Round;
+        use super::super::Literal::Int;
         let source = "call(3)\nprint(5)";
         let tokens: Vec<_> = Tokens { unparsed: source }.collect();
         let expected = vec![
@@ -145,7 +145,7 @@ mod tests {
 
     #[test]
     fn parses_keyword() {
-        use super::super::Keyword::*;
+        use super::super::Keyword::If;
         let tokens: Vec<_> = Tokens { unparsed: "if" }.collect();
         let expected = vec![Token::Keyword(If)];
         assert_eq!(tokens, expected);
@@ -164,7 +164,7 @@ mod tests {
 
         #[test]
         fn parses_number(n in any::<usize>().prop_map(|n| n.to_string())) {
-            use super::super::Literal::*;
+            use super::super::Literal::Int;
             let tokens: Vec<_> = Tokens { unparsed: &n }.collect();
             let expected = vec![Token::Literal(Int(n.parse().unwrap()))];
             prop_assert_eq!(tokens, expected)
