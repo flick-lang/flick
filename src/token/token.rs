@@ -41,6 +41,7 @@ pub enum Punctuation {
     Ampersand,
     Asterisk,
     At,
+    Backslash,
     Caret,
     Colon,
     Dash,
@@ -55,6 +56,7 @@ pub enum Punctuation {
     Plus,
     Question,
     SingleQuote,
+    Slash,
     Tilde,
 
     OpenBracket(Bracket),

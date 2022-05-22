@@ -14,17 +14,16 @@ impl<'a> Iterator for Tokens<'a> {
         use super::Punctuation::*;
         use super::Bracket::*;
         // skip whitespace
-        let i = self.unparsed.find(|c: char| !c.is_whitespace())?;
+        let i = self.unparsed.find(|c: char| !c.is_ascii_whitespace())?;
         self.unparsed = &self.unparsed[i..];
 
         let c = self.unparsed.chars().next()?;
 
         let (token, source_len) = match c {
-            c if c.is_numeric() => self.take_numeric_literal(),
-            c if c.is_alphabetic() || c == '_' => self.take_identifier(),
             '&' => (Token::Punctuation(Ampersand), 1),
             '*' => (Token::Punctuation(Asterisk), 1),
             '@' => (Token::Punctuation(At), 1),
+            '\\' => (Token::Punctuation(Backslash), 1),
             '^' => (Token::Punctuation(Caret), 1),
             ':' => (Token::Punctuation(Colon), 1),
             '-' => (Token::Punctuation(Dash), 1),
@@ -39,6 +38,7 @@ impl<'a> Iterator for Tokens<'a> {
             '+' => (Token::Punctuation(Plus), 1),
             '?' => (Token::Punctuation(Question), 1),
             '\'' =>(Token::Punctuation(SingleQuote), 1),
+            '/' => (Token::Punctuation(Slash), 1),
             '~' => (Token::Punctuation(Tilde), 1),
 
             '<' => (Token::Punctuation(OpenBracket(Angle)), 1),
@@ -50,7 +50,10 @@ impl<'a> Iterator for Tokens<'a> {
             '[' => (Token::Punctuation(OpenBracket(Square)), 1),
             ']' => (Token::Punctuation(CloseBracket(Square)), 1),
 
-            _ => panic!(),
+            c if c.is_ascii_digit() => self.take_numeric_literal(),
+            c if c.is_ascii_alphabetic() || c == '_' => self.take_identifier(),
+
+            c => (Token::Unknown(c), c.len_utf8()),
         };
 
         self.unparsed = &self.unparsed[source_len..];
@@ -63,7 +66,7 @@ impl<'a> Tokens<'a> {
         use super::Literal::*;
 
         let non_numeric_index = self.unparsed
-            .find(|c: char| !c.is_numeric())
+            .find(|c: char| !c.is_ascii_digit())
             .unwrap_or(self.unparsed.len());
 
 
@@ -82,7 +85,7 @@ impl<'a> Tokens<'a> {
 
     fn take_identifier(&mut self) -> (Token<'a>, usize) {
         let first_non_alphanum = self.unparsed
-            .find(|c: char| !c.is_alphanumeric() && c != '_')
+            .find(|c: char| !c.is_ascii_alphanumeric() && c != '_')
             .unwrap_or(self.unparsed.len());
 
         let name = &self.unparsed[..first_non_alphanum];
@@ -97,23 +100,27 @@ mod tests {
     use proptest::prelude::*;
 
     proptest! {
-        // #[test]
-        // fn doesnt_crash_with_random_input(s in "\\PC*") {
-        //     let tokens: Vec<Token> = Tokens { unparsed: &s }.collect();
-        //     // let expected_tokens = vec![]
-        // }
+        #[test]
+        fn doesnt_crash_parsing_random_char(s in "\\PC") {
+            let _: Vec<_> = Tokens { unparsed: &s }.collect();
+        }
 
         // #[test]
-        // fn parses_digit(n in "[0-9]") {
-        //     let tokens: Vec<_> = Tokens { unparsed: &n }.collect();
-        //     let expected_tokens = vec![Literal(Int(n.parse().unwrap()))];
-        //     prop_assert_eq!(tokens, expected_tokens)
+        // fn doesnt_crash_parsing_random_char(s in "\\PC*") {
+        //     let _: Vec<_> = Tokens { unparsed: &s }.collect();
         // }
 
         #[test]
         fn parses_number(n in any::<usize>().prop_map(|n| n.to_string())) {
             let tokens: Vec<_> = Tokens { unparsed: &n }.collect();
             let expected_tokens = vec![Token::Literal(Int(n.parse().unwrap()))];
+            prop_assert_eq!(tokens, expected_tokens)
+        }
+
+        #[test]
+        fn parses_identifier(n in "[a-zA-Z_][a-zA-Z0-9_]*") {
+            let tokens: Vec<_> = Tokens { unparsed: &n }.collect();
+            let expected_tokens = vec![Token::Identifier(&n)];
             prop_assert_eq!(tokens, expected_tokens)
         }
     }
