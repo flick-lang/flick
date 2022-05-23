@@ -67,14 +67,60 @@ impl<'a> Tokens<'a> {
     fn read_string_literal(&mut self) -> (Token, usize) {
         use super::Literal::Str;
 
-        let source_len = self.unparsed[1..]  // ignore first quote
-            .find('"')
-            .unwrap()
-            + 1 // add back first quote (ignored before)
-            + 1; // include second quote (.find() is exclusive)
+        let mut contents = String::new();
 
-        let str = &self.unparsed[1..source_len - 1];
-        (Token::Literal(Str(str.to_string())), source_len)
+        // We skip the first quote in the iterator
+        let mut iter = self.unparsed.chars().skip(1).enumerate();
+
+        let source_len = loop {
+            match iter.next() {
+                Some((i, c)) => match c {
+                    '\\' => match iter.next() {
+                        Some((_, c)) => {
+                            let c = match c {
+                                'n' => '\n',
+                                'r' => '\r',
+                                't' => '\t',
+                                '\\' => '\\',
+                                '0' => '\0',
+                                '"' => '"',
+                                // iter.take(2).collect() does not work because it consumer iter, which means we can't use it for the next iteration
+                                // we could implement own trait on iterator, like "take_without_owning" that doesn't create a struct and instead just
+                                // calls next 4 times and returns that? or a custom function that creates a new iterator that references original iterator
+                                // TODO: ALSO, this is duplicated code so let's NOT duplicate it
+                                'u' => {
+                                    // If this panics, EOF was reached before all 4 unicode bytes
+                                    let mut hex = String::with_capacity(4);
+                                    for _ in 0..4 {
+                                        hex.push(iter.next().unwrap().1)
+                                    }
+                                    // This can panic in two places
+                                    char::from_u32(u32::from_str_radix(&hex, 16).unwrap()).unwrap()
+                                },
+                                'x' => {
+                                    // If this panics, EOF was reached before all 4 unicode bytes
+                                    let mut hex = String::with_capacity(4);
+                                    for _ in 0..2 {
+                                        hex.push(iter.next().unwrap().1)
+                                    }
+                                    // This can panic in two places
+                                    char::from_u32(u32::from_str_radix(&hex, 16).unwrap()).unwrap()
+                                },
+                                _ => panic!("Unknown character escape")
+                            };
+                            contents.push(c);
+                        }
+                        None => {}
+                    },
+                    '"' => break i,
+                    c => contents.push(c)
+                },
+                None => panic!("no closing quote before EOF")
+            }
+        };
+
+        // Plus two because of the closing quotes on both sides
+        (Token::Literal(Str(contents)), source_len+2)
     }
 
     fn read_numeric_literal(&mut self) -> (Token, usize) {
