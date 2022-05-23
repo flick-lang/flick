@@ -43,7 +43,7 @@ impl<'a> Iterator for Tokens<'a> {
             '~' => (Token::Punctuation(Tilde), 1),
 
             '<' => (Token::Punctuation(OpenBracket(Angle)), 1),
-            '>' => (Token::Punctuation(OpenBracket(Angle)), 1),
+            '>' => (Token::Punctuation(CloseBracket(Angle)), 1),
             '{' => (Token::Punctuation(OpenBracket(Curly)), 1),
             '}' => (Token::Punctuation(CloseBracket(Curly)), 1),
             '(' => (Token::Punctuation(OpenBracket(Round)), 1),
@@ -201,6 +201,39 @@ mod tests {
             Token::Punctuation(CloseBracket(Round)),
         ];
         assert_eq!(tokens, expected)
+    }
+
+
+    #[test]
+    fn parses_map_statement() {
+        use super::super::Keyword::{self, Map};
+        use super::super::Bracket::{Angle, Curly};
+        use super::super::Literal;
+        use super::super::Punctuation::{Equals, OpenBracket, CloseBracket, Comma, Colon};
+
+        let source = "map<str, int> m = {\"hi\": 2, \"bye\": 100}";
+        let tokens: Vec<_> = Tokens { unparsed: source }.collect();
+        let expected = vec![
+            Token::Keyword(Map),
+            Token::Punctuation(OpenBracket(Angle)),
+            Token::Keyword(Keyword::Str),
+            Token::Punctuation(Comma),
+            Token::Keyword(Keyword::Int),
+            Token::Punctuation(CloseBracket(Angle)),
+            Token::Identifier("m".to_string()),
+            Token::Punctuation(Equals),
+            Token::Punctuation(OpenBracket(Curly)),
+            Token::Literal(Literal::Str("hi".to_string())),
+            Token::Punctuation(Colon),
+            Token::Literal(Literal::Int(2)),
+            Token::Punctuation(Comma),
+            Token::Literal(Literal::Str("bye".to_string())),
+            Token::Punctuation(Colon),
+            Token::Literal(Literal::Int(100)),
+            Token::Punctuation(CloseBracket(Curly)),
+        ];
+
+        assert_eq!(tokens, expected);
     }
 
     #[test]
