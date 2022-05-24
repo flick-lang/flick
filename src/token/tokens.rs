@@ -246,7 +246,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn doesnt_crash_parsing_random_char(s in "\\PC") {
+        fn doesnt_crash_parsing_random_chars(s in r"\\PC") {
             prop_assume!(s != "\"");
             let _: Vec<_> = Tokens { unparsed: &s }.collect();
         }
@@ -257,7 +257,7 @@ mod tests {
         // }
 
         #[test]
-        fn parses_number(n in any::<usize>().prop_map(|n| n.to_string())) {
+        fn parses_numbers(n in any::<usize>().prop_map(|n| n.to_string())) {
             use super::super::Literal::Int;
             let tokens: Vec<_> = Tokens { unparsed: &n }.collect();
             let expected = vec![Token::Literal(Int(n.parse().unwrap()))];
@@ -265,18 +265,30 @@ mod tests {
         }
 
         #[test]
-        fn parses_identifier(n in "[a-zA-Z_][a-zA-Z0-9_]*") {
+        fn parses_identifiers(n in "[a-zA-Z_][a-zA-Z0-9_]*") {
             let tokens: Vec<_> = Tokens { unparsed: &n }.collect();
             let expected = vec![Token::Identifier(n)];
             prop_assert_eq!(tokens, expected)
         }
 
         #[test]
-        fn parses_string_without_escapes(n in "\"[a-zA-Z0-9_]*\"") {
+        fn parses_strings_without_escapes(n in r#""[a-zA-Z0-9_]*""#) {
             use super::super::Literal::Str;
             let tokens: Vec<_> = Tokens { unparsed: &n }.collect();
             let expected = vec![Token::Literal(Str(n[1..n.len()-1].to_string()))];
             prop_assert_eq!(tokens, expected)
         }
+
+        // #[test]
+        // // TODO: Another problem is that this regex generates invalid unicode escape sequences
+        // fn doesnt_crash_parsing_strings_with_escapes(n in r#""((\\[ntr\\0"])|(\\x[0-9A-Fa-f]{2})|(\\u[0-9A-Fa-f]{4})|[A-Za-z0-9_])*""#) {
+        //     // TODO: Problem here is that n is unescaped so expected becomes unescaped
+        //     // use super::super::Literal::Str;
+        //     // let tokens: Vec<_> = Tokens { unparsed: &n }.collect();
+        //     // let expected = vec![Token::Literal(Str(n[1..n.len()-1].to_string()))];
+        //     // prop_assert_eq!(tokens, expected)
+        //
+        //     let _: Vec<_> = Tokens { unparsed: &n }.collect();
+        // }
     }
 }
