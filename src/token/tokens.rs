@@ -246,7 +246,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn doesnt_crash_parsing_random_chars(s in r"\\PC") {
+        fn doesnt_crash_parsing_random_chars(s in r"\PC") {
             prop_assume!(s != "\"");
             let _: Vec<_> = Tokens { unparsed: &s }.collect();
         }
