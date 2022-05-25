@@ -67,7 +67,7 @@ impl<'a> Iterator for Tokens<'a> {
             (']', _) => (Token::Punctuation(CloseBracket(Square)), 1),
 
             (c, _) if c.is_ascii_digit() => self.read_numeric_literal(),
-            (c, _) if c.is_ascii_alphabetic() || c == '_' => self.read_identifier_or_kw(),
+            (c, _) if c.is_alphabetic() || c == '_' => self.read_identifier_or_kw(),
 
             (c, _) => panic!("Unknown character '{}'", c),
         };
@@ -171,7 +171,7 @@ impl<'a> Tokens<'a> {
     fn read_identifier_or_kw(&mut self) -> (Token, usize) {
         let source_len = self
             .unparsed
-            .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+            .find(|c: char| !(c.is_alphabetic() || c.is_ascii_digit() || c == '_'))
             .unwrap_or(self.unparsed.len());
 
         let name = &self.unparsed[..source_len];
