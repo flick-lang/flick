@@ -70,57 +70,48 @@ impl<'a> Tokens<'a> {
         let mut contents = String::new();
 
         // We skip the first quote in the iterator
-        let mut iter = self.unparsed.chars().skip(1).enumerate();
+        let mut iter = self.unparsed.chars().enumerate().skip(1);
 
-        let source_len = loop {
+        let source_len = loop {  // loop is broken when quote is read
             match iter.next() {
+                None => Self::eof_before_closing_quote(),
                 Some((i, c)) => match c {
-                    '\\' => match iter.next() {
-                        Some((_, c)) => {
-                            let c = match c {
-                                'n' => '\n',
-                                'r' => '\r',
-                                't' => '\t',
-                                '\\' => '\\',
-                                '0' => '\0',
-                                '"' => '"',
-                                // iter.take(2).collect() does not work because it consumer iter, which means we can't use it for the next iteration
-                                // we could implement own trait on iterator, like "take_without_owning" that doesn't create a struct and instead just
-                                // calls next 4 times and returns that? or a custom function that creates a new iterator that references original iterator
-                                // TODO: ALSO, this is duplicated code so let's NOT duplicate it
-                                'u' => {
-                                    // If this panics, EOF was reached before all 4 unicode bytes
-                                    let mut hex = String::with_capacity(4);
-                                    for _ in 0..4 {
-                                        hex.push(iter.next().unwrap().1)
-                                    }
-                                    // This can panic in two places
-                                    char::from_u32(u32::from_str_radix(&hex, 16).unwrap()).unwrap()
-                                },
-                                'x' => {
-                                    // If this panics, EOF was reached before all 4 unicode bytes
-                                    let mut hex = String::with_capacity(4);
-                                    for _ in 0..2 {
-                                        hex.push(iter.next().unwrap().1)
-                                    }
-                                    // This can panic in two places
-                                    char::from_u32(u32::from_str_radix(&hex, 16).unwrap()).unwrap()
-                                },
-                                _ => panic!("Unknown character escape")
-                            };
-                            contents.push(c);
-                        }
-                        None => {}
-                    },
-                    '"' => break i,
+                    '"' => break i + 1,
+                    '\\' => contents.push(Self::parse_escape_in_str_literal(&mut iter)),
                     c => contents.push(c)
                 },
-                None => panic!("no closing quote before EOF")
             }
         };
 
         // Plus two because of the closing quotes on both sides
-        (Token::Literal(Str(contents)), source_len+2)
+        (Token::Literal(Str(contents)), source_len)
+    }
+
+    fn parse_escape_in_str_literal(iter: &mut impl Iterator<Item=(usize, char)>) -> char {
+        match iter.next() {
+            Some((_, c)) => {
+                match c {
+                    'n' => '\n',
+                    'r' => '\r',
+                    't' => '\t',
+                    '\\' => '\\',
+                    '0' => '\0',
+                    '"' => '"',
+                    'u' => Self::parse_hex_str(iter.take(4).map(|(_, c)| c).collect()),
+                    'x' => Self::parse_hex_str(iter.take(2).map(|(_, c)| c).collect()),
+                    c => panic!("Unknown character escape '{}'", c),
+                }
+            }
+            None => Self::eof_before_closing_quote(),
+        }
+    }
+
+    fn parse_hex_str(hex_str: String) -> char {
+        char::from_u32(u32::from_str_radix(&hex_str, 16).unwrap()).unwrap()
+    }
+
+    fn eof_before_closing_quote() -> ! {
+        panic!("no closing quote before EOF");
     }
 
     fn read_numeric_literal(&mut self) -> (Token, usize) {
