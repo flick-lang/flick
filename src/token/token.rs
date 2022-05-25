@@ -4,7 +4,6 @@ pub enum Token {
     Identifier(String),
     Literal(Literal),
     Punctuation(Punctuation),
-    Unknown(char),
 }
 
 #[derive(Debug, PartialEq)]

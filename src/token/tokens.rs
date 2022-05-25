@@ -55,7 +55,7 @@ impl<'a> Iterator for Tokens<'a> {
             c if c.is_ascii_digit() => self.read_numeric_literal(),
             c if c.is_ascii_alphabetic() || c == '_' => self.read_identifier_or_kw(),
 
-            c => (Token::Unknown(c), c.len_utf8()),
+            c => panic!("Unknown character '{}'", c)
         };
 
         self.unparsed = &self.unparsed[source_len..];
