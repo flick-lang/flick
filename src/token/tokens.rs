@@ -6,7 +6,6 @@ pub struct Tokens<'a> {
     pub(crate) unparsed: &'a str,
 }
 
-
 impl<'a> Iterator for Tokens<'a> {
     type Item = Token;
 
@@ -17,45 +16,47 @@ impl<'a> Iterator for Tokens<'a> {
         let i = self.unparsed.find(|c: char| !c.is_ascii_whitespace() || c == '\n')?;
         self.unparsed = &self.unparsed[i..];
 
-        let c = self.unparsed.chars().next()?;
+        let mut iter = self.unparsed.chars().peekable();
 
-        let (token, source_len) = match c {
-            '&' => (Token::Punctuation(Ampersand), 1),
-            '*' => (Token::Punctuation(Asterisk), 1),
-            '@' => (Token::Punctuation(At), 1),
-            '\\' => (Token::Punctuation(Backslash), 1),
-            '^' => (Token::Punctuation(Caret), 1),
-            ':' => (Token::Punctuation(Colon), 1),
-            ',' => (Token::Punctuation(Comma), 1),
-            '-' => (Token::Punctuation(Dash), 1),
-            '$' => (Token::Punctuation(Dollar), 1),
-            '.' => (Token::Punctuation(Dot), 1),
-            '=' => (Token::Punctuation(Equals), 1),
-            '!' => (Token::Punctuation(Exclamation), 1),
-            '#' => (Token::Punctuation(Hashtag), 1),
-            '\n' => (Token::Punctuation(Newline), 1),
-            '%' => (Token::Punctuation(Percent), 1),
-            '|' => (Token::Punctuation(Pipe), 1),
-            '+' => (Token::Punctuation(Plus), 1),
-            '?' => (Token::Punctuation(Question), 1),
-            '\'' => (Token::Punctuation(SingleQuote), 1),
-            '/' => (Token::Punctuation(Slash), 1),
-            '~' => (Token::Punctuation(Tilde), 1),
+        let (token, source_len) = match (iter.next()?, iter.peek()) {
+            ('/', Some('/')) => self.read_comment(),
+            ('"', _) => self.read_string_literal(),
 
-            '<' => (Token::Punctuation(OpenBracket(Angle)), 1),
-            '>' => (Token::Punctuation(CloseBracket(Angle)), 1),
-            '{' => (Token::Punctuation(OpenBracket(Curly)), 1),
-            '}' => (Token::Punctuation(CloseBracket(Curly)), 1),
-            '(' => (Token::Punctuation(OpenBracket(Round)), 1),
-            ')' => (Token::Punctuation(CloseBracket(Round)), 1),
-            '[' => (Token::Punctuation(OpenBracket(Square)), 1),
-            ']' => (Token::Punctuation(CloseBracket(Square)), 1),
+            ('&', _) => (Token::Punctuation(Ampersand), 1),
+            ('*', _) => (Token::Punctuation(Asterisk), 1),
+            ('@', _) => (Token::Punctuation(At), 1),
+            ('\\', _) => (Token::Punctuation(Backslash), 1),
+            ('^', _) => (Token::Punctuation(Caret), 1),
+            (':', _) => (Token::Punctuation(Colon), 1),
+            (',', _) => (Token::Punctuation(Comma), 1),
+            ('-', _) => (Token::Punctuation(Dash), 1),
+            ('$', _) => (Token::Punctuation(Dollar), 1),
+            ('.', _) => (Token::Punctuation(Dot), 1),
+            ('=', _) => (Token::Punctuation(Equals), 1),
+            ('!', _) => (Token::Punctuation(Exclamation), 1),
+            ('#', _) => (Token::Punctuation(Hashtag), 1),
+            ('\n', _) => (Token::Punctuation(Newline), 1),
+            ('%', _) => (Token::Punctuation(Percent), 1),
+            ('|', _) => (Token::Punctuation(Pipe), 1),
+            ('+', _) => (Token::Punctuation(Plus), 1),
+            ('?', _) => (Token::Punctuation(Question), 1),
+            ('\'', _) => (Token::Punctuation(SingleQuote), 1),
+            ('/', _) => (Token::Punctuation(Slash), 1),
+            ('~', _) => (Token::Punctuation(Tilde), 1),
 
-            '"' => self.read_string_literal(),
-            c if c.is_ascii_digit() => self.read_numeric_literal(),
-            c if c.is_ascii_alphabetic() || c == '_' => self.read_identifier_or_kw(),
+            ('<', _) => (Token::Punctuation(OpenBracket(Angle)), 1),
+            ('>', _) => (Token::Punctuation(CloseBracket(Angle)), 1),
+            ('{', _) => (Token::Punctuation(OpenBracket(Curly)), 1),
+            ('}', _) => (Token::Punctuation(CloseBracket(Curly)), 1),
+            ('(', _) => (Token::Punctuation(OpenBracket(Round)), 1),
+            (')', _) => (Token::Punctuation(CloseBracket(Round)), 1),
+            ('[', _) => (Token::Punctuation(OpenBracket(Square)), 1),
+            (']', _) => (Token::Punctuation(CloseBracket(Square)), 1),
 
-            c => panic!("Unknown character '{}'", c)
+            (c, _) if c.is_ascii_digit() => self.read_numeric_literal(),
+            (c, _) if c.is_ascii_alphabetic() || c == '_' => self.read_identifier_or_kw(),
+
+            (c, _) => panic!("Unknown character '{}'", c)
         };
 
         self.unparsed = &self.unparsed[source_len..];
@@ -64,6 +65,20 @@ impl<'a> Iterator for Tokens<'a> {
 }
 
 impl<'a> Tokens<'a> {
+    fn read_comment(&mut self) -> (Token, usize) {
+        use super::Comment::{Docstring, Regular};
+
+        let source_len = self.unparsed.find('\n').unwrap_or(self.unparsed.len());
+
+        let n_slashes = self.unparsed.find(|c| c != '/').unwrap_or(self.unparsed.len());
+        let comment_body = self.unparsed[n_slashes..source_len].trim().to_string();
+
+        match n_slashes {
+            3 => (Token::Comment(Docstring(comment_body)), source_len),
+            _ => (Token::Comment(Regular(comment_body)), source_len),
+        }
+    }
+
     fn read_string_literal(&mut self) -> (Token, usize) {
         use super::Literal::Str;
 
@@ -173,6 +188,43 @@ impl<'a> Tokens<'a> {
 mod tests {
     use super::*;
     use proptest::prelude::*;
+
+    #[test]
+    fn parses_regular_comment() {
+        use super::super::Comment::Regular;
+        let tokens: Vec<_> = Tokens { unparsed: "//       It is way too late for this       " }.collect();
+        let expected = vec![Token::Comment(Regular("It is way too late for this".to_string()))];
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn parses_more_than_three_slashes_as_regular_comment() {
+        use super::super::Comment::Regular;
+        let tokens: Vec<_> = Tokens { unparsed: "/////////////////////               Thomas is the best coder in the world!         " }.collect();
+        let expected = vec![Token::Comment(Regular("Thomas is the best coder in the world!".to_string()))];
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn parses_docstring_comment() {
+        use super::super::Comment::Docstring;
+        let tokens: Vec<_> = Tokens { unparsed: "/// Max is the best coder in the world!" }.collect();
+        let expected = vec![Token::Comment(Docstring("Max is the best coder in the world!".to_string()))];
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn parses_multiline_comment() {
+        use super::super::Comment::{Docstring, Regular};
+        use super::super::Punctuation::Newline;
+        let tokens: Vec<_> = Tokens { unparsed: "/// Line 1\n// Line 2" }.collect();
+        let expected = vec![
+            Token::Comment(Docstring("Line 1".to_string())),
+            Token::Punctuation(Newline),
+            Token::Comment(Regular("Line 2".to_string()))
+        ];
+        assert_eq!(tokens, expected);
+    }
 
     #[test]
     fn parses_escape_characters() {

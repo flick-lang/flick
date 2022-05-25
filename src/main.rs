@@ -6,7 +6,7 @@ mod token;
 mod program;
 
 fn main() {
-    let program = Program::from_file("examples/floats.fl");
+    let program = Program::from_file("examples/comments.fl");
     for token in program.tokens() {
         println!("{:?}", token);
     }
