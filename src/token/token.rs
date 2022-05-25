@@ -54,7 +54,6 @@ pub enum Punctuation {
     Dash,
     Dollar,
     Dot,
-    DoubleQuote,
     Equals,
     Exclamation,
     Hashtag,
