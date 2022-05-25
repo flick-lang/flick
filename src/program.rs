@@ -12,7 +12,7 @@ impl Program {
         Self { source: String::from(source) }
     }
 
-    pub fn from_file<P: AsRef<Path>>(path: P) -> Self {
+    pub fn from_file(path: impl AsRef<Path>) -> Self {
         let mut source = String::new();
         File::open(path).unwrap().read_to_string(&mut source).unwrap();  // todo error check
         Self { source }
