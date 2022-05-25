@@ -17,14 +17,6 @@ pub struct Tokens<'a> {
     pub(crate) unparsed: &'a str,
 }
 
-impl<'a> Tokens<'a> {
-    // Note: this function isn't public -> it can't be used outside this file
-    // This is mostly to make writing the tests easier
-    fn new(unparsed: &'a str) -> Self {
-        Self { unparsed }
-    }
-}
-
 impl<'a> Iterator for Tokens<'a> {
     type Item = Token;
 
@@ -37,7 +29,9 @@ impl<'a> Iterator for Tokens<'a> {
 
         let mut iter = self.unparsed.chars().peekable();
 
-        let (token, source_len) = match (iter.next()?, iter.peek()) {
+        let cur = iter.next()?;
+        let next = iter.peek();
+        let (token, source_len) = match (cur, next) {
             ('/', Some('/')) => self.read_comment(),
             ('"', _) => self.read_string_literal(),
 
@@ -107,13 +101,13 @@ impl<'a> Tokens<'a> {
         let mut iter = self.unparsed.chars().enumerate().skip(1).peekable();
 
         let source_len = loop {
-            match (iter.next(), iter.peek()) {
-                (Some((i, c)), Some(_)) => match c {
+            match iter.next() {
+                Some((i, c)) => match c {
                     '"' => break i + 1,
                     '\\' => contents.push(Self::parse_escape_in_str_literal(&mut iter)),
                     c => contents.push(c),
                 },
-                _ => panic!("no closing quote before EOF"),
+                _ => Self::eof_before_closing_quote(),
             }
         };
 
@@ -133,8 +127,12 @@ impl<'a> Tokens<'a> {
                 'x' => Self::parse_hex_str(iter.take(2).map(|(_, c)| c).collect()),
                 c => panic!("Unknown character escape '{}'", c),
             },
-            None => unreachable!("calling function, read_string_literal, ensures iter.next()"),
+            None => Self::eof_before_closing_quote(),
         }
+    }
+
+    fn eof_before_closing_quote() -> ! {
+        panic!("no closing quote before EOF")
     }
 
     fn parse_hex_str(hex_str: String) -> char {
@@ -209,40 +207,44 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
 
+    macro_rules! assert_source_has_expected_output {
+        ($source:expr, $expected:expr) => {{
+            let tokens: Vec<_> = Tokens { unparsed: $source }.collect();
+            assert_eq!(tokens, $expected)
+        }};
+    }
+
+    macro_rules! prop_assert_source_has_expected_output {
+        ($source:expr, $expected:expr) => {{
+            let tokens: Vec<_> = Tokens { unparsed: $source }.collect();
+            prop_assert_eq!(tokens, $expected)
+        }};
+    }
+
     #[test]
     fn parses_regular_comment() {
-        let tokens: Vec<_> = Tokens::new("//      It is way too late for this     ").collect();
-
-        let expected = vec![Token::Comment(Regular(
-            "It is way too late for this".to_string(),
-        ))];
-
-        assert_eq!(tokens, expected);
+        let source = "//      It is way too late    ";
+        let expected = vec![Token::Comment(Regular("It is way too late".to_string()))];
+        assert_source_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_more_than_three_slashes_as_regular_comment() {
-        let tokens: Vec<_> = Tokens::new("///////////  Thomas is the best!    ").collect();
-
+        let source = "///////////  Thomas is the best!    ";
         let expected = vec![Token::Comment(Regular("Thomas is the best!".to_string()))];
-
-        assert_eq!(tokens, expected);
+        assert_source_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_docstring_comment() {
-        let tokens: Vec<_> = Tokens::new("/// Max is the best coder in the world!").collect();
-
-        let expected = vec![Token::Comment(Docstring(
-            "Max is the best coder in the world!".to_string(),
-        ))];
-
-        assert_eq!(tokens, expected);
+        let source = "/// Max is the best! ";
+        let expected = vec![Token::Comment(Docstring("Max is the best!".to_string()))];
+        assert_source_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_multiline_comment() {
-        let tokens: Vec<_> = Tokens::new("/// Line 1\n// Line 2").collect();
+        let source = "/// Line 1\n// Line 2";
 
         let expected = vec![
             Token::Comment(Docstring("Line 1".to_string())),
@@ -250,39 +252,38 @@ mod tests {
             Token::Comment(Regular("Line 2".to_string())),
         ];
 
-        assert_eq!(tokens, expected);
+        assert_source_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_escape_characters() {
-        let tokens: Vec<_> = Tokens::new(r#""\\\n\r\t\0\"""#).collect();
+        let source = r#""\\\n\r\t\0\"""#;
         let expected = vec![Token::Literal(StrLiteral("\\\n\r\t\0\"".to_string()))];
-        assert_eq!(tokens, expected);
+        assert_source_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_hex_escape_characters() {
         // print(''.join(["\\" + str(hex(ord(c)))[1:] for c in 'flick']))
-        let tokens: Vec<_> = Tokens::new(r#""\x66\x6c\x69\x63\x6b""#).collect();
+        let source = r#""\x66\x6c\x69\x63\x6b""#;
         let expected = vec![Token::Literal(StrLiteral("flick".to_string()))];
-        assert_eq!(tokens, expected);
+        assert_source_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_unicode_escape_characters() {
-        let tokens: Vec<_> = Tokens::new(r#""\u2702\u0046\u002f""#).collect();
+        let source = r#""\u2702\u0046\u002f""#;
 
         let expected = vec![Token::Literal(StrLiteral(
             "\u{2702}\u{0046}\u{002f}".to_string(),
         ))];
 
-        assert_eq!(tokens, expected);
+        assert_source_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_short_program() {
-        let tokens: Vec<_> = Tokens::new("call(3)\nprint(5)").collect();
-
+        let source = "call(3)\nprint(5)";
         let expected = vec![
             Token::Identifier("call".to_string()),
             Token::Punctuation(OpenBracket(Round)),
@@ -295,12 +296,12 @@ mod tests {
             Token::Punctuation(CloseBracket(Round)),
         ];
 
-        assert_eq!(tokens, expected)
+        assert_source_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_map_statement() {
-        let tokens: Vec<_> = Tokens::new("map<str, int> m = {\"hi\": 2, \"bye\": 100}").collect();
+        let source = "map<str, int> m = {\"hi\": 2, \"bye\": 100}";
 
         let expected = vec![
             Token::Keyword(Map),
@@ -322,75 +323,71 @@ mod tests {
             Token::Punctuation(CloseBracket(Curly)),
         ];
 
-        assert_eq!(tokens, expected);
+        assert_source_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_keyword() {
-        let tokens: Vec<_> = Tokens::new("if").collect();
+        let source = "if";
         let expected = vec![Token::Keyword(If)];
-        assert_eq!(tokens, expected);
+        assert_source_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_floats_in_scientific_notation_with_big_e() {
-        let tokens: Vec<_> = Tokens::new("1.1E12").collect();
+        let source = "1.1E12";
         let expected = vec![Token::Literal(FloatLiteral(1.1E12))];
-        assert_eq!(tokens, expected);
+        assert_source_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_floats_in_scientific_notation_with_small_e() {
-        let tokens: Vec<_> = Tokens::new("3.9993e12").collect();
+        let source = "3.9993e12";
         let expected = vec![Token::Literal(FloatLiteral(3.9993e12))];
-        assert_eq!(tokens, expected);
+        assert_source_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_floats_in_scientific_notation_with_positive_e() {
-        let tokens: Vec<_> = Tokens::new("123456789E+11").collect();
+        let source = "123456789E+11";
         let expected = vec![Token::Literal(FloatLiteral(123456789E+11))];
-        assert_eq!(tokens, expected);
+        assert_source_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_floats_in_scientific_notation_with_negative_e() {
-        let tokens: Vec<_> = Tokens::new("6.67430e-11").collect();
+        let source = "6.67430e-11";
         let expected = vec![Token::Literal(FloatLiteral(6.67430e-11))];
-        assert_eq!(tokens, expected);
+        assert_source_has_expected_output!(source, expected)
     }
 
     proptest! {
         #[test]
-        fn parses_numbers(n in any::<usize>().prop_map(|n| n.to_string())) {
-            let tokens: Vec<_> = Tokens::new(&n).collect();
-            let expected = vec![Token::Literal(IntLiteral(n.parse().unwrap()))];
-            prop_assert_eq!(tokens, expected)
+        fn parses_numbers(source in any::<usize>().prop_map(|n| n.to_string())) {
+            let expected = vec![Token::Literal(IntLiteral(source.parse().unwrap()))];
+            prop_assert_source_has_expected_output!(&source, expected)
         }
 
         #[test]
-        fn parses_float(mut n in proptest::num::f64::POSITIVE.prop_map(|n| n.to_string())) {
-            if !n.contains(|c| c == '.' || c == 'E' || c == 'e') {
-                n.push('.'); // To avoid getting parsed as int
+        fn parses_float(mut source in proptest::num::f64::POSITIVE.prop_map(|f| f.to_string())) {
+            if !source.contains(|c| c == '.' || c == 'E' || c == 'e') {
+                source.push('.'); // To avoid getting parsed as int
             }
 
-            let tokens: Vec<_> = Tokens::new(&n).collect();
-            let expected = vec![Token::Literal(FloatLiteral(n.parse().unwrap()))];
-            prop_assert_eq!(tokens, expected)
+            let expected = vec![Token::Literal(FloatLiteral(source.parse().unwrap()))];
+            prop_assert_source_has_expected_output!(&source, expected)
         }
 
         #[test]
-        fn parses_identifiers(n in "[a-zA-Z_][a-zA-Z0-9_]*") {
-            let tokens: Vec<_> = Tokens::new(&n).collect();
-            let expected = vec![Token::Identifier(n)];
-            prop_assert_eq!(tokens, expected)
+        fn parses_identifiers(source in "[a-zA-Z_][a-zA-Z0-9_]*") {
+            let expected = vec![Token::Identifier(source.clone())];
+            prop_assert_source_has_expected_output!(&source, expected)
         }
 
         #[test]
-        fn parses_strings_without_escapes(n in r#""[a-zA-Z0-9_]*""#) {
-            let tokens: Vec<_> = Tokens::new(&n).collect();
-            let expected = vec![Token::Literal(StrLiteral(n[1..n.len()-1].to_string()))];
-            prop_assert_eq!(tokens, expected)
+        fn parses_strings_without_escapes(source in r#""[a-zA-Z0-9_]*""#) {
+            let expected = vec![Token::Literal(StrLiteral(source[1..source.len()-1].to_string()))];
+            prop_assert_source_has_expected_output!(&source, expected)
         }
     }
 }

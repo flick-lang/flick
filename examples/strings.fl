@@ -1,2 +1,2 @@
-x = "before_quote\"end_q\u00e9uote"
-y = "hex newline \x0a"
+str x = "before_quote\"end_q\u00e9uote"
+str y = "hex newline \x0a"
