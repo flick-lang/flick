@@ -1,16 +1,16 @@
-use crate::token::Bracket::{Angle, Curly, Round, Square};
-use crate::token::Comment::{Docstring, Regular};
-use crate::token::Keyword::{
+use crate::lexer::Bracket::{Angle, Curly, Round, Square};
+use crate::lexer::Comment::{Docstring, Regular};
+use crate::lexer::Keyword::{
     And, Arr, Bool, False, Float as FloatKeyword, Fn, For, If, Int as IntKeyword, Map, Not, Or,
     Set, Str as StrKeyword, True, While,
 };
-use crate::token::Literal::{Float as FloatLiteral, Int as IntLiteral, Str as StrLiteral};
-use crate::token::Punctuation::{
+use crate::lexer::Literal::{Float as FloatLiteral, Int as IntLiteral, Str as StrLiteral};
+use crate::lexer::Punctuation::{
     Ampersand, Asterisk, At, Backslash, Caret, CloseBracket, Colon, Comma, Dash, Dollar, Dot,
     Equals, Exclamation, Hashtag, Newline, OpenBracket, Percent, Pipe, Plus, Question, SingleQuote,
     Slash, Tilde,
 };
-use crate::token::Token;
+use crate::lexer::Token;
 
 #[derive(Debug)]
 pub struct Tokens<'a> {

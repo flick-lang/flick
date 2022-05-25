@@ -6,8 +6,8 @@
 )]
 use crate::program::Program;
 
+mod lexer;
 mod program;
-mod token;
 
 fn main() {
     let program = Program::from_file("examples/comments.fl");
