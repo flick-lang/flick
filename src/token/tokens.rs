@@ -115,30 +115,31 @@ impl<'a> Tokens<'a> {
     }
 
     fn read_numeric_literal(&mut self) -> (Token, usize) {
-        use super::Literal::Int;
+        use super::Literal::{Int, Float};
 
+        // While we never check the very first digit, we know it is going to be a digit because otherwise this function would never have been called
         let source_len = self.unparsed
-            .find(|c: char| !c.is_ascii_digit())
+            .chars()
+            .zip(self.unparsed.chars().skip(1))
+            .enumerate()
+            .find(|&(_, (prev, cur))| !(cur.is_ascii_digit() || cur == '.' || cur == 'E' || cur == 'e' || ((cur == '-' || cur == '+') && (prev == 'E' || prev == 'e'))))
+            .map(|(i, _)| i+1)
             .unwrap_or(self.unparsed.len());
 
+        let num = &self.unparsed[..source_len];
 
-        if let Some(non_numeric) = self.unparsed.chars().nth(source_len) {
-            match non_numeric {
-                'e' | 'E' => todo!(),
-                '.' => todo!(),
-                _ => {}
-            }
+        if num.contains(|c| c == 'E' || c == 'e' || c == '.') {
+            (Token::Literal(Float(num.parse().unwrap())), source_len)
+        } else {
+            (Token::Literal(Int(num.parse().unwrap())), source_len)
         }
-
-        let num = self.unparsed[..source_len].parse().unwrap();
-        (Token::Literal(Int(num)), source_len)
     }
 
     fn read_identifier_or_kw(&mut self) -> (Token, usize) {
         use super::Keyword::*;
 
         let source_len = self.unparsed
-            .find(|c: char| !c.is_ascii_alphanumeric() && c != '_')
+            .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
             .unwrap_or(self.unparsed.len());
 
         let name = &self.unparsed[..source_len];
@@ -260,12 +261,45 @@ mod tests {
         assert_eq!(tokens, expected);
     }
 
+    #[test]
+    fn parses_float_in_scientific_notation() {
+        use super::super::Literal::Float;
+        let tokens: Vec<_> = Tokens { unparsed: "1.1E12" }.collect();
+        let expected = vec![Token::Literal(Float(1.1E12))];
+        assert_eq!(tokens, expected);
+
+        let tokens: Vec<_> = Tokens { unparsed: "123456789E-11" }.collect();
+        let expected = vec![Token::Literal(Float(123456789E-11))];
+        assert_eq!(tokens, expected);
+
+        let tokens: Vec<_> = Tokens { unparsed: "3.9993e12" }.collect();
+        let expected = vec![Token::Literal(Float(3.9993e12))];
+        assert_eq!(tokens, expected);
+
+        let tokens: Vec<_> = Tokens { unparsed: "6.67430e-11" }.collect();
+        let expected = vec![Token::Literal(Float(6.67430e-11))];
+        assert_eq!(tokens, expected);
+    }
+
     proptest! {
         #[test]
         fn parses_numbers(n in any::<usize>().prop_map(|n| n.to_string())) {
             use super::super::Literal::Int;
             let tokens: Vec<_> = Tokens { unparsed: &n }.collect();
             let expected = vec![Token::Literal(Int(n.parse().unwrap()))];
+            prop_assert_eq!(tokens, expected)
+        }
+
+        #[test]
+        fn parses_float(mut n in proptest::num::f64::POSITIVE.prop_map(|n| n.to_string())) {
+            use super::super::Literal::Float;
+
+            if !n.contains(|c| c == '.' || c == 'E' || c == 'e') {
+                n.push('.'); // To avoid getting parsed as int
+            }
+
+            let tokens: Vec<_> = Tokens { unparsed: &n }.collect();
+            let expected = vec![Token::Literal(Float(n.parse().unwrap()))];
             prop_assert_eq!(tokens, expected)
         }
 
