@@ -133,8 +133,7 @@ impl<'a> Tokens<'a> {
                 'x' => Self::parse_hex_str(iter.take(2).map(|(_, c)| c).collect()),
                 c => panic!("Unknown character escape '{}'", c),
             },
-            // Unreachable because read_string_literal ensures that there is a next character
-            None => unreachable!(),
+            None => unreachable!("calling function, read_string_literal, ensures iter.next()"),
         }
     }
 
