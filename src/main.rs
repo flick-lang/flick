@@ -6,7 +6,7 @@ mod token;
 mod program;
 
 fn main() {
-    let program = Program::new("call(3)\nprint(5)\nx = \"before_quote\\\"end_q\\u00e9uote\"\ny = \"hex newline \\x0a\"");
+    let program = Program::from_file("examples/strings.fl");
     for token in program.tokens() {
         println!("{:?}", token);
     }
