@@ -177,16 +177,23 @@ mod tests {
     #[test]
     fn parses_escape_characters() {
         use super::super::Literal::Str;
-
         let tokens: Vec<_> = Tokens { unparsed: r#""\\\n\r\t\0\"""# }.collect();
         let expected = vec![Token::Literal(Str("\\\n\r\t\0\"".to_string()))];
         assert_eq!(tokens, expected);
+    }
 
+    #[test]
+    fn parses_hex_escape_characters() {
+        use super::super::Literal::Str;
         // print(''.join(["\\" + str(hex(ord(c)))[1:] for c in 'flick']))
         let tokens: Vec<_> = Tokens { unparsed: r#""\x66\x6c\x69\x63\x6b""# }.collect();
         let expected = vec![Token::Literal(Str("flick".to_string()))];
         assert_eq!(tokens, expected);
+    }
 
+    #[test]
+    fn parses_unicode_escape_characters() {
+        use super::super::Literal::Str;
         let tokens: Vec<_> = Tokens { unparsed: r#""\u2702\u0046\u002f""# }.collect();
         let expected = vec![Token::Literal(Str("\u{2702}\u{0046}\u{002f}".to_string()))];
         assert_eq!(tokens, expected);
@@ -255,20 +262,32 @@ mod tests {
     }
 
     #[test]
-    fn parses_floats_in_scientific_notation() {
+    fn parses_floats_in_scientific_notation_with_big_e() {
         use super::super::Literal::Float;
         let tokens: Vec<_> = Tokens { unparsed: "1.1E12" }.collect();
         let expected = vec![Token::Literal(Float(1.1E12))];
         assert_eq!(tokens, expected);
+    }
 
-        let tokens: Vec<_> = Tokens { unparsed: "123456789E-11" }.collect();
-        let expected = vec![Token::Literal(Float(123456789E-11))];
-        assert_eq!(tokens, expected);
-
+    #[test]
+    fn parses_floats_in_scientific_notation_with_small_e() {
+        use super::super::Literal::Float;
         let tokens: Vec<_> = Tokens { unparsed: "3.9993e12" }.collect();
         let expected = vec![Token::Literal(Float(3.9993e12))];
         assert_eq!(tokens, expected);
+    }
 
+    #[test]
+    fn parses_floats_in_scientific_notation_with_positive_e() {
+        use super::super::Literal::Float;
+        let tokens: Vec<_> = Tokens { unparsed: "123456789E+11" }.collect();
+        let expected = vec![Token::Literal(Float(123456789E+11))];
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn parses_floats_in_scientific_notation_with_negative_e() {
+        use super::super::Literal::Float;
         let tokens: Vec<_> = Tokens { unparsed: "6.67430e-11" }.collect();
         let expected = vec![Token::Literal(Float(6.67430e-11))];
         assert_eq!(tokens, expected);
