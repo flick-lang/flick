@@ -85,12 +85,13 @@ impl<'a> Iterator for Tokens<'a> {
 
 impl<'a> Tokens<'a> {
     fn read_comment(&mut self) -> (Token, usize) {
-        let source_len = self.unparsed.find('\n').unwrap_or(self.unparsed.len());
-
         let n_slashes = self
             .unparsed
             .find(|c| c != '/')
             .unwrap_or(self.unparsed.len());
+
+        let source_len = self.unparsed.find('\n').unwrap_or(self.unparsed.len());
+
         let comment_body = self.unparsed[n_slashes..source_len].trim().to_string();
 
         match n_slashes {
@@ -102,22 +103,20 @@ impl<'a> Tokens<'a> {
     fn read_string_literal(&mut self) -> (Token, usize) {
         let mut contents = String::new();
 
-        // We skip the first quote in the iterator
-        let mut iter = self.unparsed.chars().enumerate().skip(1);
+        // We skip the first quote
+        let mut iter = self.unparsed.chars().enumerate().skip(1).peekable();
 
         let source_len = loop {
-            // loop is broken when quote is read
-            match iter.next() {
-                None => Self::eof_before_closing_quote(),
-                Some((i, c)) => match c {
+            match (iter.next(), iter.peek()) {
+                (Some((i, c)), Some(_)) => match c {
                     '"' => break i + 1,
                     '\\' => contents.push(Self::parse_escape_in_str_literal(&mut iter)),
                     c => contents.push(c),
                 },
+                _ => panic!("no closing quote before EOF"),
             }
         };
 
-        // Plus two because of the closing quotes on both sides
         (Token::Literal(StrLiteral(contents)), source_len)
     }
 
@@ -134,16 +133,13 @@ impl<'a> Tokens<'a> {
                 'x' => Self::parse_hex_str(iter.take(2).map(|(_, c)| c).collect()),
                 c => panic!("Unknown character escape '{}'", c),
             },
-            None => Self::eof_before_closing_quote(),
+            // Unreachable because read_string_literal ensures that there is a next character
+            None => unreachable!(),
         }
     }
 
     fn parse_hex_str(hex_str: String) -> char {
         char::from_u32(u32::from_str_radix(&hex_str, 16).unwrap()).unwrap()
-    }
-
-    fn eof_before_closing_quote() -> ! {
-        panic!("no closing quote before EOF");
     }
 
     fn read_numeric_literal(&mut self) -> (Token, usize) {
@@ -182,6 +178,7 @@ impl<'a> Tokens<'a> {
             .unwrap_or(self.unparsed.len());
 
         let name = &self.unparsed[..source_len];
+
         let token = match name {
             "arr" => Token::Keyword(Arr),
             "bool" => Token::Keyword(Bool),
@@ -215,12 +212,11 @@ mod tests {
 
     #[test]
     fn parses_regular_comment() {
-        let tokens: Vec<_> = Tokens::new("//      It is way too late for this     \n").collect();
+        let tokens: Vec<_> = Tokens::new("//      It is way too late for this     ").collect();
 
-        let expected = vec![
-            Token::Comment(Regular("It is way too late for this".to_string())),
-            Token::Punctuation(Newline),
-        ];
+        let expected = vec![Token::Comment(Regular(
+            "It is way too late for this".to_string(),
+        ))];
 
         assert_eq!(tokens, expected);
     }
@@ -236,12 +232,11 @@ mod tests {
 
     #[test]
     fn parses_docstring_comment() {
-        let tokens: Vec<_> = Tokens::new("/// Max is the best coder in the world!\n").collect();
+        let tokens: Vec<_> = Tokens::new("/// Max is the best coder in the world!").collect();
 
-        let expected = vec![
-            Token::Comment(Docstring("Max is the best coder in the world!".to_string())),
-            Token::Punctuation(Newline),
-        ];
+        let expected = vec![Token::Comment(Docstring(
+            "Max is the best coder in the world!".to_string(),
+        ))];
 
         assert_eq!(tokens, expected);
     }
@@ -276,12 +271,11 @@ mod tests {
 
     #[test]
     fn parses_unicode_escape_characters() {
-        let tokens: Vec<_> = Tokens::new("\"\\u2702\\u0046\\u002f\"\n").collect();
+        let tokens: Vec<_> = Tokens::new(r#""\u2702\u0046\u002f""#).collect();
 
-        let expected = vec![
-            Token::Literal(StrLiteral("\u{2702}\u{0046}\u{002f}".to_string())),
-            Token::Punctuation(Newline),
-        ];
+        let expected = vec![Token::Literal(StrLiteral(
+            "\u{2702}\u{0046}\u{002f}".to_string(),
+        ))];
 
         assert_eq!(tokens, expected);
     }
