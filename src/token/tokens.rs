@@ -273,11 +273,7 @@ mod tests {
     #[test]
     fn parses_unicode_escape_characters() {
         let source = r#""\u2702\u0046\u002f""#;
-
-        let expected = vec![Token::Literal(StrLiteral(
-            "\u{2702}\u{0046}\u{002f}".to_string(),
-        ))];
-
+        let expected = vec![Token::Literal(StrLiteral("✂F/".to_string()))];
         assert_source_has_expected_output!(source, expected)
     }
 
