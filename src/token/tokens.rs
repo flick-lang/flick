@@ -183,6 +183,31 @@ mod tests {
     use proptest::prelude::*;
 
     #[test]
+    fn parses_unicode_escape_seq() {
+        use super::super::Literal::Str;
+        let tokens: Vec<_> = Tokens { unparsed: r#""\u2702\u0046\u002f""# }.collect();
+        let expected = vec![Token::Literal(Str("\u{2702}\u{0046}\u{002f}".to_string()))];
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn parses_hex_escape_seq() {
+        use super::super::Literal::Str;
+        // print(''.join(["\\" + str(hex(ord(c)))[1:] for c in 'flick']))
+        let tokens: Vec<_> = Tokens { unparsed: r#""\x66\x6c\x69\x63\x6b""# }.collect();
+        let expected = vec![Token::Literal(Str("flick".to_string()))];
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn parses_escape_characters() {
+        use super::super::Literal::Str;
+        let tokens: Vec<_> = Tokens { unparsed: r#""\\\n\r\t\0\"""# }.collect();
+        let expected = vec![Token::Literal(Str("\\\n\r\t\0\"".to_string()))];
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
     fn parses_short_program() {
         use super::super::Punctuation::{OpenBracket, CloseBracket, Newline};
         use super::super::Bracket::Round;
@@ -278,17 +303,5 @@ mod tests {
             let expected = vec![Token::Literal(Str(n[1..n.len()-1].to_string()))];
             prop_assert_eq!(tokens, expected)
         }
-
-        // #[test]
-        // // TODO: Another problem is that this regex generates invalid unicode escape sequences
-        // fn doesnt_crash_parsing_strings_with_escapes(n in r#""((\\[ntr\\0"])|(\\x[0-9A-Fa-f]{2})|(\\u[0-9A-Fa-f]{4})|[A-Za-z0-9_])*""#) {
-        //     // TODO: Problem here is that n is unescaped so expected becomes unescaped
-        //     // use super::super::Literal::Str;
-        //     // let tokens: Vec<_> = Tokens { unparsed: &n }.collect();
-        //     // let expected = vec![Token::Literal(Str(n[1..n.len()-1].to_string()))];
-        //     // prop_assert_eq!(tokens, expected)
-        //
-        //     let _: Vec<_> = Tokens { unparsed: &n }.collect();
-        // }
     }
 }
