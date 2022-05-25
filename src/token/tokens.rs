@@ -262,17 +262,6 @@ mod tests {
 
     proptest! {
         #[test]
-        fn doesnt_crash_parsing_random_chars(s in r"\PC") {
-            prop_assume!(s != "\"");
-            let _: Vec<_> = Tokens { unparsed: &s }.collect();
-        }
-
-        // #[test]
-        // fn doesnt_crash_parsing_random_char(s in "\\PC*") {
-        //     let _: Vec<_> = Tokens { unparsed: &s }.collect();
-        // }
-
-        #[test]
         fn parses_numbers(n in any::<usize>().prop_map(|n| n.to_string())) {
             use super::super::Literal::Int;
             let tokens: Vec<_> = Tokens { unparsed: &n }.collect();
