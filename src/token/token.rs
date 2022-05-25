@@ -4,13 +4,13 @@ pub enum Token {
     Identifier(String),
     Literal(Literal),
     Punctuation(Punctuation),
-    Comment(Comment)
+    Comment(Comment),
 }
 
 #[derive(Debug, PartialEq)]
 pub enum Comment {
     Regular(String),
-    Docstring(String)
+    Docstring(String),
 }
 
 #[derive(Debug, PartialEq)]
