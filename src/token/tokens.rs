@@ -175,27 +175,20 @@ mod tests {
     use proptest::prelude::*;
 
     #[test]
-    fn parses_unicode_escape_seq() {
+    fn parses_escape_characters() {
         use super::super::Literal::Str;
-        let tokens: Vec<_> = Tokens { unparsed: r#""\u2702\u0046\u002f""# }.collect();
-        let expected = vec![Token::Literal(Str("\u{2702}\u{0046}\u{002f}".to_string()))];
-        assert_eq!(tokens, expected);
-    }
 
-    #[test]
-    fn parses_hex_escape_seq() {
-        use super::super::Literal::Str;
+        let tokens: Vec<_> = Tokens { unparsed: r#""\\\n\r\t\0\"""# }.collect();
+        let expected = vec![Token::Literal(Str("\\\n\r\t\0\"".to_string()))];
+        assert_eq!(tokens, expected);
+
         // print(''.join(["\\" + str(hex(ord(c)))[1:] for c in 'flick']))
         let tokens: Vec<_> = Tokens { unparsed: r#""\x66\x6c\x69\x63\x6b""# }.collect();
         let expected = vec![Token::Literal(Str("flick".to_string()))];
         assert_eq!(tokens, expected);
-    }
 
-    #[test]
-    fn parses_escape_characters() {
-        use super::super::Literal::Str;
-        let tokens: Vec<_> = Tokens { unparsed: r#""\\\n\r\t\0\"""# }.collect();
-        let expected = vec![Token::Literal(Str("\\\n\r\t\0\"".to_string()))];
+        let tokens: Vec<_> = Tokens { unparsed: r#""\u2702\u0046\u002f""# }.collect();
+        let expected = vec![Token::Literal(Str("\u{2702}\u{0046}\u{002f}".to_string()))];
         assert_eq!(tokens, expected);
     }
 
@@ -262,7 +255,7 @@ mod tests {
     }
 
     #[test]
-    fn parses_float_in_scientific_notation() {
+    fn parses_floats_in_scientific_notation() {
         use super::super::Literal::Float;
         let tokens: Vec<_> = Tokens { unparsed: "1.1E12" }.collect();
         let expected = vec![Token::Literal(Float(1.1E12))];
