@@ -13,4 +13,4 @@ codegen-units = 1
 proptest = "1.0.0"
 
 [dependencies]
-owo-colors = { version = "3.4.0", features = ["supports-colors"] }
+colored = "2.0.0"

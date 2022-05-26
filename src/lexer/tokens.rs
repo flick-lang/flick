@@ -1,6 +1,7 @@
 use crate::lexer;
 use crate::lexer::Bracket::{Angle, Curly, Round, Square};
 use crate::lexer::Comment::{Docstring, Regular};
+use crate::lexer::ErrorKind::{FloatParsing, UnknownChar};
 use crate::lexer::Keyword::{
     And, Arr, Bool, False, Float as FloatKeyword, Fn, For, If, Int as IntKeyword, Map, Not, Or,
     Set, Str as StrKeyword, True, While,
@@ -70,7 +71,7 @@ impl<'a> Iterator for Tokens<'a> {
             (c, _) if c.is_ascii_digit() => self.read_numeric_literal(),
             (c, _) if c.is_alphabetic() || c == '_' => self.read_identifier_or_kw(),
 
-            (c, _) => (Err(Error::UnknownChar(c)), c.len_utf8()),
+            (c, _) => (Err(Error::new(UnknownChar(c))), c.len_utf8()),
         };
 
         self.unparsed = &self.unparsed[source_len..];
@@ -159,17 +160,17 @@ impl<'a> Tokens<'a> {
 
         let num = &self.unparsed[..source_len];
 
-        if num.contains(|c| c == 'E' || c == 'e' || c == '.') {
-            (
-                Ok(Token::Literal(FloatLiteral(num.parse().unwrap()))),
-                source_len,
-            )
+        let res = if num.contains(|c| c == 'E' || c == 'e' || c == '.') {
+            match num.parse() {
+                Ok(n) => Ok(Token::Literal(FloatLiteral(n))),
+                _ => Err(Error::new(FloatParsing(num.to_string()))),
+            }
         } else {
-            (
-                Ok(Token::Literal(IntLiteral(num.parse().unwrap()))),
-                source_len,
-            )
-        }
+            let n = num.parse().unwrap();
+            Ok(Token::Literal(IntLiteral(n)))
+        };
+
+        (res, source_len)
     }
 
     fn read_identifier_or_kw(&mut self) -> (lexer::Result<Token>, usize) {
@@ -242,7 +243,7 @@ mod tests {
     #[test]
     fn err_given_unknown_char() {
         let source = "∂";
-        let expected = vec![Err(Error::UnknownChar('∂'))];
+        let expected = vec![Err(Error::new(UnknownChar('∂')))];
         assert_source_has_expected_output!(source, expected)
     }
 
