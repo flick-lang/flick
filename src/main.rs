@@ -14,11 +14,7 @@ fn main() {
     for token in program.tokens() {
         match token {
             Ok(t) => println!("{:?}", t),
-            // Err(e) => handle_error(e),
-            Err(e) => {
-                eprintln!("{}", e);
-                // std::process::exit(1);
-            }
+            Err(e) => eprintln!("{}", e),
         }
     }
 }
