@@ -9,7 +9,8 @@ edition = "2021"
 lto = "fat"
 codegen-units = 1
 
-[dependencies]
-
 [dev-dependencies]
 proptest = "1.0.0"
+
+[dependencies]
+owo-colors = { version = "3.4.0", features = ["supports-colors"] }
