@@ -280,6 +280,7 @@ mod tests {
     #[test]
     fn parses_short_program() {
         let source = "call(3)\nprint(5)";
+
         let expected = vec![
             Token::Identifier("call".to_string()),
             Token::Punctuation(OpenBracket(Round)),
@@ -355,6 +356,13 @@ mod tests {
         let source = "6.67430e-11";
         let expected = vec![Token::Literal(FloatLiteral(6.67430e-11))];
         assert_source_has_expected_output!(source, expected)
+    }
+
+    #[test]
+    fn parses_identifier_with_non_ascii_chars() {
+        let source = "çaí";
+        let expected = vec![Token::Identifier(source.to_string())];
+        assert_source_has_expected_output!(source, expected);
     }
 
     proptest! {
