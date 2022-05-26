@@ -242,8 +242,22 @@ mod tests {
 
     #[test]
     fn err_given_unknown_char() {
-        let source = "∂";
-        let expected = vec![Err(Error::new(UnknownChar('∂')))];
+        let source = '∂';
+        let expected = vec![Err(Error::new(UnknownChar(source)))];
+        assert_source_has_expected_output!(&source.to_string(), expected)
+    }
+
+    #[test]
+    fn err_given_float_with_multiple_e() {
+        let source = "1.2312E-33333E+9999";
+        let expected = vec![Err(Error::new(FloatParsing(source.to_string())))];
+        assert_source_has_expected_output!(source, expected)
+    }
+
+    #[test]
+    fn err_given_float_with_multiple_decimals() {
+        let source = "123.456.789";
+        let expected = vec![Err(Error::new(FloatParsing(source.to_string())))];
         assert_source_has_expected_output!(source, expected)
     }
 
