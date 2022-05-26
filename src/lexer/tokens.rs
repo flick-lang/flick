@@ -1,3 +1,4 @@
+use crate::lexer;
 use crate::lexer::Bracket::{Angle, Curly, Round, Square};
 use crate::lexer::Comment::{Docstring, Regular};
 use crate::lexer::Keyword::{
@@ -10,7 +11,7 @@ use crate::lexer::Punctuation::{
     Equals, Exclamation, Hashtag, Newline, OpenBracket, Percent, Pipe, Plus, Question, SingleQuote,
     Slash, Tilde,
 };
-use crate::lexer::Token;
+use crate::lexer::{Error, Token};
 
 #[derive(Debug)]
 pub struct Tokens<'a> {
@@ -18,7 +19,7 @@ pub struct Tokens<'a> {
 }
 
 impl<'a> Iterator for Tokens<'a> {
-    type Item = Token;
+    type Item = lexer::Result<Token>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // skip whitespace
@@ -31,54 +32,54 @@ impl<'a> Iterator for Tokens<'a> {
 
         let cur = iter.next()?;
         let next = iter.peek();
-        let (token, source_len) = match (cur, next) {
+        let (token_or_err, source_len) = match (cur, next) {
             ('/', Some('/')) => self.read_comment(),
             ('"', _) => self.read_string_literal(),
 
-            ('&', _) => (Token::Punctuation(Ampersand), 1),
-            ('*', _) => (Token::Punctuation(Asterisk), 1),
-            ('@', _) => (Token::Punctuation(At), 1),
-            ('\\', _) => (Token::Punctuation(Backslash), 1),
-            ('^', _) => (Token::Punctuation(Caret), 1),
-            (':', _) => (Token::Punctuation(Colon), 1),
-            (',', _) => (Token::Punctuation(Comma), 1),
-            ('-', _) => (Token::Punctuation(Dash), 1),
-            ('$', _) => (Token::Punctuation(Dollar), 1),
-            ('.', _) => (Token::Punctuation(Dot), 1),
-            ('=', _) => (Token::Punctuation(Equals), 1),
-            ('!', _) => (Token::Punctuation(Exclamation), 1),
-            ('#', _) => (Token::Punctuation(Hashtag), 1),
-            ('\n', _) => (Token::Punctuation(Newline), 1),
-            ('%', _) => (Token::Punctuation(Percent), 1),
-            ('|', _) => (Token::Punctuation(Pipe), 1),
-            ('+', _) => (Token::Punctuation(Plus), 1),
-            ('?', _) => (Token::Punctuation(Question), 1),
-            ('\'', _) => (Token::Punctuation(SingleQuote), 1),
-            ('/', _) => (Token::Punctuation(Slash), 1),
-            ('~', _) => (Token::Punctuation(Tilde), 1),
+            ('&', _) => (Ok(Token::Punctuation(Ampersand)), 1),
+            ('*', _) => (Ok(Token::Punctuation(Asterisk)), 1),
+            ('@', _) => (Ok(Token::Punctuation(At)), 1),
+            ('\\', _) => (Ok(Token::Punctuation(Backslash)), 1),
+            ('^', _) => (Ok(Token::Punctuation(Caret)), 1),
+            (':', _) => (Ok(Token::Punctuation(Colon)), 1),
+            (',', _) => (Ok(Token::Punctuation(Comma)), 1),
+            ('-', _) => (Ok(Token::Punctuation(Dash)), 1),
+            ('$', _) => (Ok(Token::Punctuation(Dollar)), 1),
+            ('.', _) => (Ok(Token::Punctuation(Dot)), 1),
+            ('=', _) => (Ok(Token::Punctuation(Equals)), 1),
+            ('!', _) => (Ok(Token::Punctuation(Exclamation)), 1),
+            ('#', _) => (Ok(Token::Punctuation(Hashtag)), 1),
+            ('\n', _) => (Ok(Token::Punctuation(Newline)), 1),
+            ('%', _) => (Ok(Token::Punctuation(Percent)), 1),
+            ('|', _) => (Ok(Token::Punctuation(Pipe)), 1),
+            ('+', _) => (Ok(Token::Punctuation(Plus)), 1),
+            ('?', _) => (Ok(Token::Punctuation(Question)), 1),
+            ('\'', _) => (Ok(Token::Punctuation(SingleQuote)), 1),
+            ('/', _) => (Ok(Token::Punctuation(Slash)), 1),
+            ('~', _) => (Ok(Token::Punctuation(Tilde)), 1),
 
-            ('<', _) => (Token::Punctuation(OpenBracket(Angle)), 1),
-            ('>', _) => (Token::Punctuation(CloseBracket(Angle)), 1),
-            ('{', _) => (Token::Punctuation(OpenBracket(Curly)), 1),
-            ('}', _) => (Token::Punctuation(CloseBracket(Curly)), 1),
-            ('(', _) => (Token::Punctuation(OpenBracket(Round)), 1),
-            (')', _) => (Token::Punctuation(CloseBracket(Round)), 1),
-            ('[', _) => (Token::Punctuation(OpenBracket(Square)), 1),
-            (']', _) => (Token::Punctuation(CloseBracket(Square)), 1),
+            ('<', _) => (Ok(Token::Punctuation(OpenBracket(Angle))), 1),
+            ('>', _) => (Ok(Token::Punctuation(CloseBracket(Angle))), 1),
+            ('{', _) => (Ok(Token::Punctuation(OpenBracket(Curly))), 1),
+            ('}', _) => (Ok(Token::Punctuation(CloseBracket(Curly))), 1),
+            ('(', _) => (Ok(Token::Punctuation(OpenBracket(Round))), 1),
+            (')', _) => (Ok(Token::Punctuation(CloseBracket(Round))), 1),
+            ('[', _) => (Ok(Token::Punctuation(OpenBracket(Square))), 1),
+            (']', _) => (Ok(Token::Punctuation(CloseBracket(Square))), 1),
 
             (c, _) if c.is_ascii_digit() => self.read_numeric_literal(),
             (c, _) if c.is_alphabetic() || c == '_' => self.read_identifier_or_kw(),
 
-            (c, _) => panic!("Unknown character '{}'", c),
+            (c, _) => (Err(Error::UnknownChar(c)), c.len_utf8()),
         };
 
         self.unparsed = &self.unparsed[source_len..];
-        Some(token)
+        Some(token_or_err)
     }
 }
 
 impl<'a> Tokens<'a> {
-    fn read_comment(&mut self) -> (Token, usize) {
+    fn read_comment(&mut self) -> (lexer::Result<Token>, usize) {
         let n_slashes = self
             .unparsed
             .find(|c| c != '/')
@@ -89,12 +90,12 @@ impl<'a> Tokens<'a> {
         let comment_body = self.unparsed[n_slashes..source_len].trim().to_string();
 
         match n_slashes {
-            3 => (Token::Comment(Docstring(comment_body)), source_len),
-            _ => (Token::Comment(Regular(comment_body)), source_len),
+            3 => (Ok(Token::Comment(Docstring(comment_body))), source_len),
+            _ => (Ok(Token::Comment(Regular(comment_body))), source_len),
         }
     }
 
-    fn read_string_literal(&mut self) -> (Token, usize) {
+    fn read_string_literal(&mut self) -> (lexer::Result<Token>, usize) {
         let mut contents = String::new();
 
         // We skip the first quote
@@ -111,7 +112,7 @@ impl<'a> Tokens<'a> {
             }
         };
 
-        (Token::Literal(StrLiteral(contents)), source_len)
+        (Ok(Token::Literal(StrLiteral(contents))), source_len)
     }
 
     fn parse_escape_in_str_literal(iter: &mut impl Iterator<Item = (usize, char)>) -> char {
@@ -139,7 +140,7 @@ impl<'a> Tokens<'a> {
         char::from_u32(u32::from_str_radix(&hex_str, 16).unwrap()).unwrap()
     }
 
-    fn read_numeric_literal(&mut self) -> (Token, usize) {
+    fn read_numeric_literal(&mut self) -> (lexer::Result<Token>, usize) {
         // While we never check the very first digit, we know it is going to be a digit because otherwise this function would never have been called
         let source_len = self
             .unparsed
@@ -160,15 +161,18 @@ impl<'a> Tokens<'a> {
 
         if num.contains(|c| c == 'E' || c == 'e' || c == '.') {
             (
-                Token::Literal(FloatLiteral(num.parse().unwrap())),
+                Ok(Token::Literal(FloatLiteral(num.parse().unwrap()))),
                 source_len,
             )
         } else {
-            (Token::Literal(IntLiteral(num.parse().unwrap())), source_len)
+            (
+                Ok(Token::Literal(IntLiteral(num.parse().unwrap()))),
+                source_len,
+            )
         }
     }
 
-    fn read_identifier_or_kw(&mut self) -> (Token, usize) {
+    fn read_identifier_or_kw(&mut self) -> (lexer::Result<Token>, usize) {
         let source_len = self
             .unparsed
             .find(|c: char| !(c.is_alphabetic() || c.is_ascii_digit() || c == '_'))
@@ -198,7 +202,7 @@ impl<'a> Tokens<'a> {
 
             _ => Token::Identifier(name.to_string()),
         };
-        (token, source_len)
+        (Ok(token), source_len)
     }
 }
 
@@ -214,6 +218,13 @@ mod tests {
         }};
     }
 
+    macro_rules! assert_source_all_ok_and_has_expected_output {
+        ($source:expr, $expected:expr) => {{
+            let expected: Vec<_> = $expected.into_iter().map(|t| Ok(t)).collect();
+            assert_source_has_expected_output!($source, expected)
+        }};
+    }
+
     macro_rules! prop_assert_source_has_expected_output {
         ($source:expr, $expected:expr) => {{
             let tokens: Vec<_> = Tokens { unparsed: $source }.collect();
@@ -221,25 +232,39 @@ mod tests {
         }};
     }
 
+    macro_rules! prop_assert_source_all_ok_and_has_expected_output {
+        ($source:expr, $expected:expr) => {{
+            let expected: Vec<_> = $expected.into_iter().map(|t| Ok(t)).collect();
+            prop_assert_source_has_expected_output!($source, expected)
+        }};
+    }
+
+    #[test]
+    fn err_given_unknown_char() {
+        let source = "∂";
+        let expected = vec![Err(Error::UnknownChar('∂'))];
+        assert_source_has_expected_output!(source, expected)
+    }
+
     #[test]
     fn parses_regular_comment() {
         let source = "//      It is way too late    ";
         let expected = vec![Token::Comment(Regular("It is way too late".to_string()))];
-        assert_source_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_more_than_three_slashes_as_regular_comment() {
         let source = "///////////  Thomas is the best!    ";
         let expected = vec![Token::Comment(Regular("Thomas is the best!".to_string()))];
-        assert_source_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_docstring_comment() {
         let source = "/// Max is the best! ";
         let expected = vec![Token::Comment(Docstring("Max is the best!".to_string()))];
-        assert_source_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(source, expected)
     }
 
     #[test]
@@ -252,14 +277,14 @@ mod tests {
             Token::Comment(Regular("Line 2".to_string())),
         ];
 
-        assert_source_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_escape_characters() {
         let source = r#""\\\n\r\t\0\"""#;
         let expected = vec![Token::Literal(StrLiteral("\\\n\r\t\0\"".to_string()))];
-        assert_source_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(source, expected)
     }
 
     #[test]
@@ -267,14 +292,14 @@ mod tests {
         // print(''.join(["\\" + str(hex(ord(c)))[1:] for c in 'flick']))
         let source = r#""\x66\x6c\x69\x63\x6b""#;
         let expected = vec![Token::Literal(StrLiteral("flick".to_string()))];
-        assert_source_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_unicode_escape_characters() {
         let source = r#""\u2702\u0046\u002f""#;
         let expected = vec![Token::Literal(StrLiteral("✂F/".to_string()))];
-        assert_source_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(source, expected)
     }
 
     #[test]
@@ -293,7 +318,7 @@ mod tests {
             Token::Punctuation(CloseBracket(Round)),
         ];
 
-        assert_source_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(source, expected)
     }
 
     #[test]
@@ -320,56 +345,56 @@ mod tests {
             Token::Punctuation(CloseBracket(Curly)),
         ];
 
-        assert_source_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_keyword() {
         let source = "if";
         let expected = vec![Token::Keyword(If)];
-        assert_source_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_floats_in_scientific_notation_with_big_e() {
         let source = "1.1E12";
         let expected = vec![Token::Literal(FloatLiteral(1.1E12))];
-        assert_source_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_floats_in_scientific_notation_with_small_e() {
         let source = "3.9993e12";
         let expected = vec![Token::Literal(FloatLiteral(3.9993e12))];
-        assert_source_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_floats_in_scientific_notation_with_positive_e() {
         let source = "123456789E+11";
         let expected = vec![Token::Literal(FloatLiteral(123456789E+11))];
-        assert_source_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_floats_in_scientific_notation_with_negative_e() {
         let source = "6.67430e-11";
         let expected = vec![Token::Literal(FloatLiteral(6.67430e-11))];
-        assert_source_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_identifier_with_non_ascii_chars() {
         let source = "çaí";
         let expected = vec![Token::Identifier(source.to_string())];
-        assert_source_has_expected_output!(source, expected);
+        assert_source_all_ok_and_has_expected_output!(source, expected);
     }
 
     proptest! {
         #[test]
         fn parses_numbers(source in any::<usize>().prop_map(|n| n.to_string())) {
             let expected = vec![Token::Literal(IntLiteral(source.parse().unwrap()))];
-            prop_assert_source_has_expected_output!(&source, expected)
+            prop_assert_source_all_ok_and_has_expected_output!(&source, expected)
         }
 
         #[test]
@@ -379,19 +404,19 @@ mod tests {
             }
 
             let expected = vec![Token::Literal(FloatLiteral(source.parse().unwrap()))];
-            prop_assert_source_has_expected_output!(&source, expected)
+            prop_assert_source_all_ok_and_has_expected_output!(&source, expected)
         }
 
         #[test]
         fn parses_identifiers(source in "[a-zA-Z_][a-zA-Z0-9_]*") {
             let expected = vec![Token::Identifier(source.clone())];
-            prop_assert_source_has_expected_output!(&source, expected)
+            prop_assert_source_all_ok_and_has_expected_output!(&source, expected)
         }
 
         #[test]
         fn parses_strings_without_escapes(source in r#""[a-zA-Z0-9_]*""#) {
             let expected = vec![Token::Literal(StrLiteral(source[1..source.len()-1].to_string()))];
-            prop_assert_source_has_expected_output!(&source, expected)
+            prop_assert_source_all_ok_and_has_expected_output!(&source, expected)
         }
     }
 }

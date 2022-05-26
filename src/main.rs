@@ -10,8 +10,8 @@ mod lexer;
 mod program;
 
 fn main() {
-    let program = Program::from_file("examples/comments.fl");
+    let program = Program::from_file("examples/bad.fl");
     for token in program.tokens() {
-        println!("{:?}", token);
+        println!("{:?}", token.unwrap()); // should panic at ≈
     }
 }
