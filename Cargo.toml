@@ -9,8 +9,5 @@ edition = "2021"
 lto = "fat"
 codegen-units = 1
 
-[dev-dependencies]
-proptest = "1.0.0"
-
 [dependencies]
 colored = "2.0.0"

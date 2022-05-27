@@ -238,7 +238,6 @@ impl<'a> Tokens<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use proptest::prelude::*;
 
     macro_rules! assert_source_has_expected_output {
         ($source:expr, $expected:expr) => {{
@@ -251,20 +250,6 @@ mod tests {
         ($source:expr, $expected:expr) => {{
             let expected: Vec<_> = $expected.into_iter().map(|t| Ok(t)).collect();
             assert_source_has_expected_output!($source, expected)
-        }};
-    }
-
-    macro_rules! prop_assert_source_has_expected_output {
-        ($source:expr, $expected:expr) => {{
-            let tokens: Vec<_> = Tokens { unparsed: $source }.collect();
-            prop_assert_eq!(tokens, $expected)
-        }};
-    }
-
-    macro_rules! prop_assert_source_all_ok_and_has_expected_output {
-        ($source:expr, $expected:expr) => {{
-            let expected: Vec<_> = $expected.into_iter().map(|t| Ok(t)).collect();
-            prop_assert_source_has_expected_output!($source, expected)
         }};
     }
 
@@ -455,28 +440,45 @@ mod tests {
     #[test]
     fn parses_floats_in_scientific_notation_with_big_e() {
         let source = "1.1E12";
-        let expected = vec![Token::Literal(FloatLiteral(1.1E12))];
+        let expected = vec![Token::Literal(FloatLiteral(source.parse().unwrap()))];
         assert_source_all_ok_and_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_floats_in_scientific_notation_with_small_e() {
         let source = "3.9993e12";
-        let expected = vec![Token::Literal(FloatLiteral(3.9993e12))];
+        let expected = vec![Token::Literal(FloatLiteral(source.parse().unwrap()))];
         assert_source_all_ok_and_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_floats_in_scientific_notation_with_positive_e() {
         let source = "123456789E+11";
-        let expected = vec![Token::Literal(FloatLiteral(123456789E+11))];
+        let expected = vec![Token::Literal(FloatLiteral(source.parse().unwrap()))];
         assert_source_all_ok_and_has_expected_output!(source, expected)
     }
 
     #[test]
     fn parses_floats_in_scientific_notation_with_negative_e() {
         let source = "6.67430e-11";
-        let expected = vec![Token::Literal(FloatLiteral(6.67430e-11))];
+        let expected = vec![Token::Literal(FloatLiteral(source.parse().unwrap()))];
+        assert_source_all_ok_and_has_expected_output!(source, expected)
+    }
+
+    #[test]
+    fn parses_float() {
+        let source = "123.456789";
+        let expected = vec![Token::Literal(FloatLiteral(source.parse().unwrap()))];
+        assert_source_all_ok_and_has_expected_output!(source, expected)
+    }
+
+    #[test]
+    fn parses_negative_float() {
+        let source = "-123.456789";
+        let expected = vec![
+            Token::Punctuation(Dash),
+            Token::Literal(FloatLiteral(source[1..].parse().unwrap())),
+        ];
         assert_source_all_ok_and_has_expected_output!(source, expected)
     }
 
@@ -487,33 +489,36 @@ mod tests {
         assert_source_all_ok_and_has_expected_output!(source, expected);
     }
 
-    proptest! {
-        #[test]
-        fn parses_numbers(source in any::<usize>().prop_map(|n| n.to_string())) {
-            let expected = vec![Token::Literal(IntLiteral(source.parse().unwrap()))];
-            prop_assert_source_all_ok_and_has_expected_output!(&source, expected)
-        }
+    #[test]
+    fn parses_number() {
+        let source = "1234567890";
+        let expected = vec![Token::Literal(IntLiteral(source.parse().unwrap()))];
+        assert_source_all_ok_and_has_expected_output!(source, expected)
+    }
 
-        #[test]
-        fn parses_float(mut source in proptest::num::f64::POSITIVE.prop_map(|f| f.to_string())) {
-            if !source.contains(|c| c == '.' || c == 'E' || c == 'e') {
-                source.push('.'); // To avoid getting parsed as int
-            }
+    #[test]
+    fn parses_negative_number() {
+        let source = "-414300";
+        let expected = vec![
+            Token::Punctuation(Dash),
+            Token::Literal(IntLiteral(source[1..].parse().unwrap())),
+        ];
+        assert_source_all_ok_and_has_expected_output!(source, expected)
+    }
 
-            let expected = vec![Token::Literal(FloatLiteral(source.parse().unwrap()))];
-            prop_assert_source_all_ok_and_has_expected_output!(&source, expected)
-        }
+    #[test]
+    fn parses_identifier() {
+        let source = "ThomasIsTheBest";
+        let expected = vec![Token::Identifier(source.to_string())];
+        assert_source_all_ok_and_has_expected_output!(source, expected)
+    }
 
-        #[test]
-        fn parses_identifiers(source in "[a-zA-Z_][a-zA-Z0-9_]*") {
-            let expected = vec![Token::Identifier(source.clone())];
-            prop_assert_source_all_ok_and_has_expected_output!(&source, expected)
-        }
-
-        #[test]
-        fn parses_strings_without_escapes(source in r#""[a-zA-Z0-9_]*""#) {
-            let expected = vec![Token::Literal(StrLiteral(source[1..source.len()-1].to_string()))];
-            prop_assert_source_all_ok_and_has_expected_output!(&source, expected)
-        }
+    #[test]
+    fn parses_string() {
+        let source = r#""ILoveMeSomeStrs""#;
+        let expected = vec![Token::Literal(StrLiteral(
+            source[1..source.len() - 1].to_string(),
+        ))];
+        assert_source_all_ok_and_has_expected_output!(source, expected)
     }
 }
