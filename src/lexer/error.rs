@@ -34,7 +34,7 @@ impl Display for ErrorKind {
         match self {
             Self::FloatParsing(float) => write!(f, "invalid float literal '{}'", float),
             Self::IncompleteEscape => write!(f, "incomplete escape"),
-            Self::UnknownChar(c) => write!(f, "unknown char '{}' (U+{:x})", c, *c as u32),
+            Self::UnknownChar(c) => write!(f, "unknown char '{}' (U+{:0>4X})", c, *c as u32),
             Self::UnknownEscape(c) => write!(f, "unknown escape '{}'", c),
             Self::UnterminatedStrLiteral => write!(f, "unterminated string literal"),
         }
