@@ -37,7 +37,7 @@ impl<'a> Iterator for Tokens<'a> {
         let next = iter.peek();
         let (token_or_err, source_len) = match (cur, next) {
             ('/', Some('/')) => self.read_comment(),
-            ('"', _) => self.read_string_literal(),
+            ('"', _) => self.read_str_literal(),
 
             ('&', _) => (Ok(Token::Punctuation(Ampersand)), 1),
             ('*', _) => (Ok(Token::Punctuation(Asterisk)), 1),
@@ -98,7 +98,7 @@ impl<'a> Tokens<'a> {
         }
     }
 
-    fn read_string_literal(&mut self) -> (Result<Token>, usize) {
+    fn read_str_literal(&mut self) -> (Result<Token>, usize) {
         let mut contents = String::new();
 
         // We skip the first quote
@@ -514,7 +514,7 @@ mod tests {
     }
 
     #[test]
-    fn parses_string() {
+    fn parses_str() {
         let source = r#""ILoveMeSomeStrs""#;
         let expected = vec![Token::Literal(StrLiteral(
             source[1..source.len() - 1].to_string(),
