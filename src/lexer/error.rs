@@ -23,14 +23,20 @@ impl std::error::Error for Error {}
 #[derive(Debug, PartialEq)]
 pub enum ErrorKind {
     FloatParsing(String),
+    IncompleteEscape,
     UnknownChar(char),
+    UnknownEscape(char),
+    UnterminatedStrLiteral,
 }
 
 impl Display for ErrorKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::FloatParsing(float) => write!(f, "invalid float literal '{}'", float),
+            Self::IncompleteEscape => write!(f, "incomplete escape"),
             Self::UnknownChar(c) => write!(f, "unknown char '{}' (U+{:x})", c, *c as u32),
+            Self::UnknownEscape(c) => write!(f, "unknown escape '{}'", c),
+            Self::UnterminatedStrLiteral => write!(f, "unterminated string literal"),
         }
     }
 }

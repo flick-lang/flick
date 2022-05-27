@@ -1,7 +1,8 @@
-use crate::lexer;
 use crate::lexer::Bracket::{Angle, Curly, Round, Square};
 use crate::lexer::Comment::{Docstring, Regular};
-use crate::lexer::ErrorKind::{FloatParsing, UnknownChar};
+use crate::lexer::ErrorKind::{
+    FloatParsing, IncompleteEscape, UnknownChar, UnknownEscape, UnterminatedStrLiteral,
+};
 use crate::lexer::Keyword::{
     And, Arr, Bool, False, Float as FloatKeyword, Fn, For, If, Int as IntKeyword, Map, Not, Or,
     Set, Str as StrKeyword, True, While,
@@ -13,6 +14,7 @@ use crate::lexer::Punctuation::{
     Slash, Tilde,
 };
 use crate::lexer::{Error, Result, Token};
+use std::iter::Peekable;
 
 #[derive(Debug)]
 pub struct Tokens<'a> {
@@ -102,43 +104,69 @@ impl<'a> Tokens<'a> {
         // We skip the first quote
         let mut iter = self.unparsed.chars().enumerate().skip(1).peekable();
 
-        let source_len = loop {
-            match iter.next() {
-                Some((i, c)) => match c {
-                    '"' => break i + 1,
-                    '\\' => contents.push(Self::parse_escape_in_str_literal(&mut iter)),
+        let mut parsing_error = None;
+
+        loop {
+            if let Some((i, c)) = iter.next() {
+                match c {
+                    '"' => {
+                        let default = Ok(Token::Literal(StrLiteral(contents)));
+                        return (parsing_error.unwrap_or(default), i + 1);
+                    }
+                    '\n' => return (Err(Error::new(UnterminatedStrLiteral)), i),
+                    '\\' => match Self::parse_escape_in_str_literal(&mut iter) {
+                        Ok(c) => contents.push(c),
+                        Err(e) => parsing_error = Some(Err(e)),
+                    },
                     c => contents.push(c),
-                },
-                _ => Self::eof_before_closing_quote(),
+                }
+            } else {
+                return (Err(Error::new(UnterminatedStrLiteral)), self.unparsed.len());
             }
-        };
-
-        (Ok(Token::Literal(StrLiteral(contents))), source_len)
-    }
-
-    fn parse_escape_in_str_literal(iter: &mut impl Iterator<Item = (usize, char)>) -> char {
-        match iter.next() {
-            Some((_, c)) => match c {
-                'n' => '\n',
-                'r' => '\r',
-                't' => '\t',
-                '\\' => '\\',
-                '0' => '\0',
-                '"' => '"',
-                'u' => Self::parse_hex_str(iter.take(4).map(|(_, c)| c).collect()),
-                'x' => Self::parse_hex_str(iter.take(2).map(|(_, c)| c).collect()),
-                c => panic!("Unknown character escape '{}'", c),
-            },
-            None => Self::eof_before_closing_quote(),
         }
     }
 
-    fn eof_before_closing_quote() -> ! {
-        panic!("no closing quote before EOF")
+    fn parse_escape_in_str_literal(
+        iter: &mut Peekable<impl Iterator<Item = (usize, char)>>,
+    ) -> Result<char> {
+        match iter.next() {
+            Some((_, c)) => match c {
+                'n' => Ok('\n'),
+                'r' => Ok('\r'),
+                't' => Ok('\t'),
+                '\\' => Ok('\\'),
+                '0' => Ok('\0'),
+                '"' => Ok('"'),
+                'u' => Self::parse_hex_str(Self::take_n_hex_chars(iter, 4)?),
+                'x' => Self::parse_hex_str(Self::take_n_hex_chars(iter, 2)?),
+                c => Err(Error::new(UnknownEscape(c))),
+            },
+            None => Err(Error::new(UnterminatedStrLiteral)),
+        }
     }
 
-    fn parse_hex_str(hex_str: String) -> char {
-        char::from_u32(u32::from_str_radix(&hex_str, 16).unwrap()).unwrap()
+    fn take_n_hex_chars(
+        iter: &mut Peekable<impl Iterator<Item = (usize, char)>>,
+        n: usize,
+    ) -> Result<String> {
+        let mut hex_chars = String::new();
+        for _ in 0..n {
+            if let Some(&(_, c)) = iter.peek() {
+                if c.is_ascii_hexdigit() {
+                    // Unwrapping next here is safe because we peeked above
+                    hex_chars.push(iter.next().unwrap().1);
+                } else {
+                    return Err(Error::new(IncompleteEscape));
+                }
+            } else {
+                return Err(Error::new(UnterminatedStrLiteral));
+            }
+        }
+        Ok(hex_chars)
+    }
+
+    fn parse_hex_str(hex_str: String) -> Result<char> {
+        Ok(char::from_u32(u32::from_str_radix(&hex_str, 16).unwrap()).unwrap())
     }
 
     fn read_numeric_literal(&mut self) -> (Result<Token>, usize) {
@@ -238,6 +266,40 @@ mod tests {
             let expected: Vec<_> = $expected.into_iter().map(|t| Ok(t)).collect();
             prop_assert_source_has_expected_output!($source, expected)
         }};
+    }
+
+    #[test]
+    fn err_given_unknown_str_escape() {
+        let source = r#""\e""#;
+        let expected = vec![Err(Error::new(UnknownEscape('e')))];
+        assert_source_has_expected_output!(&source.to_string(), expected)
+    }
+
+    #[test]
+    fn err_given_incomplete_str_unicode_escape() {
+        let source = r#""\u3b9""#;
+        let expected = vec![Err(Error::new(IncompleteEscape))];
+        assert_source_has_expected_output!(&source.to_string(), expected)
+    }
+
+    #[test]
+    fn err_given_incomplete_str_hex_escape() {
+        let source = r#""\x9""#;
+        let expected = vec![Err(Error::new(IncompleteEscape))];
+        assert_source_has_expected_output!(&source.to_string(), expected)
+    }
+
+    #[test]
+    fn err_given_unterminated_str_literal() {
+        let source = "\"test\n\"";
+
+        let expected = vec![
+            Err(Error::new(UnterminatedStrLiteral)),
+            Ok(Token::Punctuation(Newline)),
+            Err(Error::new(UnterminatedStrLiteral)),
+        ];
+
+        assert_source_has_expected_output!(&source.to_string(), expected)
     }
 
     #[test]
