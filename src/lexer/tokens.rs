@@ -439,28 +439,28 @@ mod tests {
     }
 
     #[test]
-    fn parses_floats_in_scientific_notation_with_big_e() {
+    fn parses_float_in_scientific_notation_with_big_e() {
         let source = "1.1E12";
         let expected = vec![Token::Literal(FloatLiteral(source.parse().unwrap()))];
         assert_source_all_ok_and_has_expected_output!(source, expected)
     }
 
     #[test]
-    fn parses_floats_in_scientific_notation_with_small_e() {
+    fn parses_float_in_scientific_notation_with_small_e() {
         let source = "3.9993e12";
         let expected = vec![Token::Literal(FloatLiteral(source.parse().unwrap()))];
         assert_source_all_ok_and_has_expected_output!(source, expected)
     }
 
     #[test]
-    fn parses_floats_in_scientific_notation_with_positive_e() {
+    fn parses_float_in_scientific_notation_with_positive_e() {
         let source = "123456789E+11";
         let expected = vec![Token::Literal(FloatLiteral(source.parse().unwrap()))];
         assert_source_all_ok_and_has_expected_output!(source, expected)
     }
 
     #[test]
-    fn parses_floats_in_scientific_notation_with_negative_e() {
+    fn parses_float_in_scientific_notation_with_negative_e() {
         let source = "6.67430e-11";
         let expected = vec![Token::Literal(FloatLiteral(source.parse().unwrap()))];
         assert_source_all_ok_and_has_expected_output!(source, expected)
