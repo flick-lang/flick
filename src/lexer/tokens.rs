@@ -129,8 +129,8 @@ impl<'a> Tokens<'a> {
     fn parse_escape_in_str_literal(
         iter: &mut Peekable<impl Iterator<Item = (usize, char)>>,
     ) -> Result<char> {
-        match iter.next() {
-            Some((_, c)) => match c {
+        if let Some((_, c)) = iter.next() {
+            match c {
                 'n' => Ok('\n'),
                 'r' => Ok('\r'),
                 't' => Ok('\t'),
@@ -140,8 +140,9 @@ impl<'a> Tokens<'a> {
                 'u' => Self::parse_hex_str(Self::take_n_hex_chars(iter, 4)?),
                 'x' => Self::parse_hex_str(Self::take_n_hex_chars(iter, 2)?),
                 c => Err(Error::new(UnknownEscape(c))),
-            },
-            None => Err(Error::new(UnterminatedStrLiteral)),
+            }
+        } else {
+            Err(Error::new(UnterminatedStrLiteral))
         }
     }
 
