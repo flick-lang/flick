@@ -255,6 +255,26 @@ mod tests {
     }
 
     #[test]
+    fn err_given_float_with_consecutive_e() {
+        let source = "1.2312Ee9999";
+        let expected = vec![Err(Error::new(FloatParsing(source.to_string())))];
+        assert_source_has_expected_output!(source, expected)
+    }
+
+    #[test]
+    fn err_given_float_with_e_pm() {
+        let source = "1.2312E+-9999";
+
+        let expected = vec![
+            Err(Error::new(FloatParsing("1.2312E+".to_string()))),
+            Ok(Token::Punctuation(Dash)),
+            Ok(Token::Literal(IntLiteral(9999))),
+        ];
+
+        assert_source_has_expected_output!(source, expected)
+    }
+
+    #[test]
     fn err_given_float_with_multiple_decimals() {
         let source = "123.456.789";
         let expected = vec![Err(Error::new(FloatParsing(source.to_string())))];
