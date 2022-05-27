@@ -516,7 +516,7 @@ mod tests {
 
     #[test]
     fn parses_str() {
-        let source = r#""ILoveMeSomeStrs""#;
+        let source = r#""Max is even better :D""#;
         let expected = vec![Token::Literal(StrLiteral(
             source[1..source.len() - 1].to_string(),
         ))];
