@@ -10,7 +10,7 @@ mod lexer;
 mod program;
 
 fn main() {
-    let program = Program::from_file("examples/bad.fl");
+    let program = Program::from_file("bad_strings.fl");
     for token in program.tokens() {
         match token {
             Ok(t) => println!("{:?}", t),
