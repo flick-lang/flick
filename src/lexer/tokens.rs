@@ -12,7 +12,7 @@ use crate::lexer::Punctuation::{
     Equals, Exclamation, Hashtag, Newline, OpenBracket, Percent, Pipe, Plus, Question, SingleQuote,
     Slash, Tilde,
 };
-use crate::lexer::{Error, Token};
+use crate::lexer::{Error, Result, Token};
 
 #[derive(Debug)]
 pub struct Tokens<'a> {
@@ -20,7 +20,7 @@ pub struct Tokens<'a> {
 }
 
 impl<'a> Iterator for Tokens<'a> {
-    type Item = lexer::Result<Token>;
+    type Item = Result<Token>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // skip whitespace
@@ -80,7 +80,7 @@ impl<'a> Iterator for Tokens<'a> {
 }
 
 impl<'a> Tokens<'a> {
-    fn read_comment(&mut self) -> (lexer::Result<Token>, usize) {
+    fn read_comment(&mut self) -> (Result<Token>, usize) {
         let n_slashes = self
             .unparsed
             .find(|c| c != '/')
@@ -96,7 +96,7 @@ impl<'a> Tokens<'a> {
         }
     }
 
-    fn read_string_literal(&mut self) -> (lexer::Result<Token>, usize) {
+    fn read_string_literal(&mut self) -> (Result<Token>, usize) {
         let mut contents = String::new();
 
         // We skip the first quote
@@ -141,7 +141,7 @@ impl<'a> Tokens<'a> {
         char::from_u32(u32::from_str_radix(&hex_str, 16).unwrap()).unwrap()
     }
 
-    fn read_numeric_literal(&mut self) -> (lexer::Result<Token>, usize) {
+    fn read_numeric_literal(&mut self) -> (Result<Token>, usize) {
         // While we never check the very first digit, we know it is going to be a digit because otherwise this function would never have been called
         let source_len = self
             .unparsed
@@ -173,7 +173,7 @@ impl<'a> Tokens<'a> {
         (res, source_len)
     }
 
-    fn read_identifier_or_kw(&mut self) -> (lexer::Result<Token>, usize) {
+    fn read_identifier_or_kw(&mut self) -> (Result<Token>, usize) {
         let source_len = self
             .unparsed
             .find(|c: char| !(c.is_alphabetic() || c.is_ascii_digit() || c == '_'))
