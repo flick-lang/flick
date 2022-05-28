@@ -2,6 +2,7 @@ mod error;
 mod source_iterator;
 mod token;
 mod tokens;
+mod location;
 
 pub use token::Bracket;
 pub use token::Comment;

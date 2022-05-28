@@ -1,14 +1,21 @@
+use crate::lexer::location::Location;
 use std::iter::{Enumerate, Peekable};
 use std::str::Chars;
 
 #[derive(Debug)]
 pub struct SourceIterator<'a> {
+    /// Location of character that self.next() will return next time it is called
+    next_loc: Option<Location>,
+    /// Location of what self.next() returned last time it was called
+    cur_loc: Option<Location>,
     src: Peekable<Enumerate<Chars<'a>>>,
 }
 
 impl<'a> SourceIterator<'a> {
     pub fn new(source: &'a str) -> Self {
         Self {
+            next_loc: Some(Location::new(1, 1)),
+            cur_loc: None,
             src: source.chars().enumerate().peekable(),
         }
     }
@@ -19,7 +26,7 @@ impl<'a> SourceIterator<'a> {
 
     pub fn skip(&mut self, n: usize) {
         for _ in 0..n {
-            if self.src.next().is_none() {
+            if self.next().is_none() {
                 break;
             }
         }
@@ -56,8 +63,31 @@ impl<'a> SourceIterator<'a> {
         }
     }
 
+    /// Returns the next character of the iterator and steps the iterator. This functions also
+    /// keeps track of line and column numbers.
+    ///
+    /// Assumption: Every function that steps the iterator does so through this function
     pub fn next(&mut self) -> Option<char> {
-        self.src.next().map(|(_, c)| c)
+        let next = self.src.next().map(|(_, c)| c);
+
+        self.cur_loc = self.next_loc;
+
+        // Safe to unwrap self.next_loc when next is Some() because next_loc is only set to None
+        // when self.src runs out of chars to yield
+        match next {
+            Some('\n') => {
+                self.next_loc.as_mut().unwrap().line += 1;
+                self.next_loc.as_mut().unwrap().col = 1;
+            }
+            Some(_) => self.next_loc.as_mut().unwrap().col += 1,
+            None => self.next_loc = None,
+        }
+
+        next
+    }
+
+    pub fn loc(&self) -> Option<Location> {
+        self.cur_loc
     }
 }
 
@@ -114,6 +144,35 @@ mod tests {
         assert_eq!(iter.next(), Some('a'));
         assert_eq!(iter.next(), Some('s'));
         assert_eq!(iter.next(), Some('d'));
+        iter.skip(100);
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn line_count() {
+        let mut iter = SourceIterator::new("line 1\nline 2\nline 3");
+        iter.skip(1);
+        assert_eq!(iter.loc().map(|loc| loc.line), Some(1));
+        iter.skip(7);
+        assert_eq!(iter.loc().map(|loc| loc.line), Some(2));
+        iter.skip(7);
+        assert_eq!(iter.loc().map(|loc| loc.line), Some(3));
+        iter.skip(5);
+        assert_eq!(iter.loc().map(|loc| loc.line), Some(3));
+        iter.skip(1);
+        assert_eq!(iter.next(), None);
+        assert_eq!(iter.loc(), None);
+    }
+
+    #[test]
+    fn col_count() {
+        let mut iter = SourceIterator::new("123456789\n123456789");
+        iter.skip(6);
+        assert_eq!(iter.loc().map(|loc| loc.col), Some(6));
+        iter.skip(6);
+        assert_eq!(iter.loc().map(|loc| loc.col), Some(2));
+        iter.skip(1);
+        assert_eq!(iter.loc().map(|loc| loc.col), Some(3));
         iter.skip(100);
         assert_eq!(iter.next(), None);
     }

@@ -1,21 +1,51 @@
+use crate::lexer::location::Location;
 use colored::Colorize;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq)]
 pub struct Error {
+    pub(crate) loc: Location,
     pub(crate) kind: ErrorKind,
 }
 
 impl Error {
-    pub fn new(kind: ErrorKind) -> Self {
-        Self { kind }
+    pub fn new(loc: impl Into<Location>, kind: ErrorKind) -> Self {
+        Self {
+            loc: loc.into(),
+            kind,
+        }
     }
 }
 impl std::error::Error for Error {}
 
 impl Display for Error {
+    // TODO: What if n digit numbers for rows and cols?
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {}", "error".red(), self.kind)
+        writeln!(
+            f,
+            "{}: {}",
+            "error".red().bold(),
+            self.kind.to_string().bold()
+        )?;
+        writeln!(
+            f,
+            "  {} {}:{}:{}",
+            "-->".blue().bold(),
+            "temp-file-path",
+            self.loc.line,
+            self.loc.col
+        )?;
+        writeln!(f, "   {}", "|".blue().bold())?;
+        writeln!(
+            f,
+            "{:>2} {} {}",
+            self.loc.line.to_string().bold(),
+            "|".blue().bold(),
+            "pub fn temp_line() {}"
+        )?;
+        writeln!(f, "   {}", "|".blue().bold())?;
+        writeln!(f, "   {}", "|".blue().bold())?;
+        Ok(())
     }
 }
 
