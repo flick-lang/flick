@@ -66,7 +66,7 @@ impl<'a> SourceIterator<'a> {
     /// Returns the next character of the iterator and steps the iterator. This functions also
     /// keeps track of row and column numbers.
     ///
-    /// Assumptions: Every function that steps the iterator does so through this function
+    /// Assumption: Every function that steps the iterator does so through this function
     pub fn next(&mut self) -> Option<char> {
         let next = self.src.next().map(|(_, c)| c);
 
