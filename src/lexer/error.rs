@@ -32,14 +32,14 @@ impl Display for Error {
             "  {} {}:{}:{}",
             "-->".blue().bold(),
             "temp-file-path",
-            self.location.row,
+            self.location.line,
             self.location.col
         )?;
         writeln!(f, "   {}", "|".blue().bold())?;
         writeln!(
             f,
             "{:>2} {} {}",
-            self.location.row.to_string().bold(),
+            self.location.line.to_string().bold(),
             "|".blue().bold(),
             "pub fn temp_line() {}"
         )?;

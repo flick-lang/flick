@@ -1,12 +1,12 @@
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Location {
-    pub(crate) row: usize,
+    pub(crate) line: usize,
     pub(crate) col: usize,
 }
 
 impl Location {
-    pub fn new(row: usize, col: usize) -> Self {
-        Self { row, col }
+    pub fn new(line: usize, col: usize) -> Self {
+        Self { line, col }
     }
 }
 

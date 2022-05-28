@@ -64,7 +64,7 @@ impl<'a> SourceIterator<'a> {
     }
 
     /// Returns the next character of the iterator and steps the iterator. This functions also
-    /// keeps track of row and column numbers.
+    /// keeps track of line and column numbers.
     ///
     /// Assumption: Every function that steps the iterator does so through this function
     pub fn next(&mut self) -> Option<char> {
@@ -76,7 +76,7 @@ impl<'a> SourceIterator<'a> {
         // when self.src runs out of chars to yield
         match next {
             Some('\n') => {
-                self.next_location.as_mut().unwrap().row += 1;
+                self.next_location.as_mut().unwrap().line += 1;
                 self.next_location.as_mut().unwrap().col = 1;
             }
             Some(_) => self.next_location.as_mut().unwrap().col += 1,
@@ -149,16 +149,16 @@ mod tests {
     }
 
     #[test]
-    fn row_count() {
-        let mut iter = SourceIterator::new("row 1\nrow 2\nrow 3");
+    fn line_count() {
+        let mut iter = SourceIterator::new("line 1\nline 2\nline 3");
         iter.skip(1);
-        assert_eq!(iter.loc().map(|loc| loc.row), Some(1));
-        iter.skip(6);
-        assert_eq!(iter.loc().map(|loc| loc.row), Some(2));
-        iter.skip(6);
-        assert_eq!(iter.loc().map(|loc| loc.row), Some(3));
-        iter.skip(4);
-        assert_eq!(iter.loc().map(|loc| loc.row), Some(3));
+        assert_eq!(iter.loc().map(|loc| loc.line), Some(1));
+        iter.skip(7);
+        assert_eq!(iter.loc().map(|loc| loc.line), Some(2));
+        iter.skip(7);
+        assert_eq!(iter.loc().map(|loc| loc.line), Some(3));
+        iter.skip(5);
+        assert_eq!(iter.loc().map(|loc| loc.line), Some(3));
         iter.skip(1);
         assert_eq!(iter.next(), None);
         assert_eq!(iter.loc(), None);
