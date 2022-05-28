@@ -1,18 +1,17 @@
+use crate::lexer::location::Location;
 use colored::Colorize;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq)]
 pub struct Error {
-    pub(crate) row: usize,
-    pub(crate) col: usize,
+    pub(crate) location: Location,
     pub(crate) kind: ErrorKind,
 }
 
 impl Error {
-    pub fn new(location: (usize, usize), kind: ErrorKind) -> Self {
+    pub fn new(location: impl Into<Location>, kind: ErrorKind) -> Self {
         Self {
-            row: location.0,
-            col: location.1,
+            location: location.into(),
             kind,
         }
     }
@@ -33,16 +32,16 @@ impl Display for Error {
             "  {} {}:{}:{}",
             "-->".blue().bold(),
             "temp-file-path",
-            self.row,
-            self.col
+            self.location.row,
+            self.location.col
         )?;
         writeln!(f, "   {}", "|".blue().bold())?;
         writeln!(
             f,
             "{:>2} {} {}",
-            self.row.to_string().bold(),
+            self.location.row.to_string().bold(),
             "|".blue().bold(),
-            "pub fn temp_line()"
+            "pub fn temp_line() {}"
         )?;
         writeln!(f, "   {}", "|".blue().bold())?;
         writeln!(f, "   {}", "|".blue().bold())?;

@@ -1,18 +1,21 @@
+use crate::lexer::location::Location;
 use std::iter::{Enumerate, Peekable};
 use std::str::Chars;
 
 #[derive(Debug)]
 pub struct SourceIterator<'a> {
-    row: usize,
-    col: usize,
+    /// Location of character that self.next() will return next time it is called
+    next_location: Option<Location>,
+    /// Location of what self.next() returned last time it was called
+    cur_location: Option<Location>,
     src: Peekable<Enumerate<Chars<'a>>>,
 }
 
 impl<'a> SourceIterator<'a> {
     pub fn new(source: &'a str) -> Self {
         Self {
-            row: 1,
-            col: 1,
+            next_location: Some(Location::new(1, 1)),
+            cur_location: None,
             src: source.chars().enumerate().peekable(),
         }
     }
@@ -67,20 +70,24 @@ impl<'a> SourceIterator<'a> {
     pub fn next(&mut self) -> Option<char> {
         let next = self.src.next().map(|(_, c)| c);
 
+        self.cur_location = self.next_location;
+
+        // Safe to unwrap self.next_location when next is Some() because next_location is only set to None
+        // when self.src runs out of chars to yield
         match next {
             Some('\n') => {
-                self.row += 1;
-                self.col = 1;
+                self.next_location.as_mut().unwrap().row += 1;
+                self.next_location.as_mut().unwrap().col = 1;
             }
-            _ => self.col += 1,
+            Some(_) => self.next_location.as_mut().unwrap().col += 1,
+            None => self.next_location = None,
         }
 
         next
     }
 
-    /// Returns (row, col)
-    pub fn loc(&self) -> (usize, usize) {
-        (self.row, self.col)
+    pub fn loc(&self) -> Option<Location> {
+        self.cur_location
     }
 }
 
@@ -143,26 +150,29 @@ mod tests {
 
     #[test]
     fn row_count() {
-        let mut iter = SourceIterator::new("row 1\nrow 2\nrow 3\nrow 4");
+        let mut iter = SourceIterator::new("row 1\nrow 2\nrow 3");
+        iter.skip(1);
+        assert_eq!(iter.loc().map(|loc| loc.row), Some(1));
         iter.skip(6);
-        assert_eq!(iter.loc(), (2, 1));
+        assert_eq!(iter.loc().map(|loc| loc.row), Some(2));
         iter.skip(6);
-        assert_eq!(iter.loc(), (3, 1));
-        iter.skip(6);
-        assert_eq!(iter.loc(), (4, 1));
-        iter.skip(6);
+        assert_eq!(iter.loc().map(|loc| loc.row), Some(3));
+        iter.skip(4);
+        assert_eq!(iter.loc().map(|loc| loc.row), Some(3));
+        iter.skip(1);
         assert_eq!(iter.next(), None);
+        assert_eq!(iter.loc(), None);
     }
 
     #[test]
     fn col_count() {
         let mut iter = SourceIterator::new("123456789\n123456789");
         iter.skip(6);
-        assert_eq!(iter.loc(), (1, 7));
+        assert_eq!(iter.loc().map(|loc| loc.col), Some(6));
         iter.skip(6);
-        assert_eq!(iter.loc(), (2, 3));
+        assert_eq!(iter.loc().map(|loc| loc.col), Some(2));
         iter.skip(1);
-        assert_eq!(iter.loc(), (2, 4));
+        assert_eq!(iter.loc().map(|loc| loc.col), Some(3));
         iter.skip(100);
         assert_eq!(iter.next(), None);
     }
