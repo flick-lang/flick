@@ -24,8 +24,6 @@ impl Program {
     }
 
     pub fn tokens(&self) -> Tokens {
-        Tokens {
-            unparsed: &self.source,
-        }
+        Tokens::new(&self.source)
     }
 }

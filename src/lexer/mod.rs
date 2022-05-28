@@ -1,4 +1,5 @@
 mod error;
+mod source_iterator;
 mod token;
 mod tokens;
 

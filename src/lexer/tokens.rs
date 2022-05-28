@@ -1,7 +1,9 @@
+use crate::lexer::source_iterator::SourceIterator;
 use crate::lexer::Bracket::{Angle, Curly, Round, Square};
 use crate::lexer::Comment::{Docstring, Regular};
 use crate::lexer::ErrorKind::{
-    FloatParsing, IncompleteEscape, UnknownChar, UnknownEscape, UnterminatedStrLiteral,
+    BadUnicodeEscape, InvalidCharInEscape, InvalidFloat, TruncatedEscapeSequence, UnknownEscape,
+    UnknownStartOfToken, UnterminatedStr,
 };
 use crate::lexer::Keyword::{
     And, Arr, Bool, False, Float as FloatKeyword, Fn, For, If, Int as IntKeyword, Map, Not, Or,
@@ -14,203 +16,216 @@ use crate::lexer::Punctuation::{
     Slash, Tilde,
 };
 use crate::lexer::{Error, Result, Token};
-use std::iter::Peekable;
 
 #[derive(Debug)]
 pub struct Tokens<'a> {
-    pub(crate) unparsed: &'a str,
+    src: SourceIterator<'a>,
 }
 
+impl<'a> Tokens<'a> {
+    pub fn new(source: &'a str) -> Self {
+        Self {
+            src: SourceIterator::new(source),
+        }
+    }
+}
 impl<'a> Iterator for Tokens<'a> {
     type Item = Result<Token>;
 
+    /// Returns Some(Ok(token)) if the next token is valid, Some(Err(e)) if the
+    /// next token is invalid, and None if there are no more tokens.
     fn next(&mut self) -> Option<Self::Item> {
-        // skip whitespace
-        let i = self
-            .unparsed
-            .find(|c: char| !c.is_ascii_whitespace() || c == '\n')?;
-        self.unparsed = &self.unparsed[i..];
+        self.src
+            .skip_while(|c| c.is_ascii_whitespace() && c != '\n');
 
-        let mut iter = self.unparsed.chars().peekable();
+        let tok = match self.src.peek()? {
+            '&' => Ok(Token::Punctuation(Ampersand)),
+            '*' => Ok(Token::Punctuation(Asterisk)),
+            '@' => Ok(Token::Punctuation(At)),
+            '\\' => Ok(Token::Punctuation(Backslash)),
+            '^' => Ok(Token::Punctuation(Caret)),
+            ':' => Ok(Token::Punctuation(Colon)),
+            ',' => Ok(Token::Punctuation(Comma)),
+            '-' => Ok(Token::Punctuation(Dash)),
+            '$' => Ok(Token::Punctuation(Dollar)),
+            '.' => Ok(Token::Punctuation(Dot)),
+            '=' => Ok(Token::Punctuation(Equals)),
+            '!' => Ok(Token::Punctuation(Exclamation)),
+            '#' => Ok(Token::Punctuation(Hashtag)),
+            '\n' => Ok(Token::Punctuation(Newline)),
+            '%' => Ok(Token::Punctuation(Percent)),
+            '|' => Ok(Token::Punctuation(Pipe)),
+            '+' => Ok(Token::Punctuation(Plus)),
+            '?' => Ok(Token::Punctuation(Question)),
+            '\'' => Ok(Token::Punctuation(SingleQuote)),
+            '~' => Ok(Token::Punctuation(Tilde)),
 
-        let cur = iter.next()?;
-        let next = iter.peek();
-        let (token_or_err, source_len) = match (cur, next) {
-            ('/', Some('/')) => self.read_comment(),
-            ('"', _) => self.read_str_literal(),
+            '<' => Ok(Token::Punctuation(OpenBracket(Angle))),
+            '>' => Ok(Token::Punctuation(CloseBracket(Angle))),
+            '{' => Ok(Token::Punctuation(OpenBracket(Curly))),
+            '}' => Ok(Token::Punctuation(CloseBracket(Curly))),
+            '(' => Ok(Token::Punctuation(OpenBracket(Round))),
+            ')' => Ok(Token::Punctuation(CloseBracket(Round))),
+            '[' => Ok(Token::Punctuation(OpenBracket(Square))),
+            ']' => Ok(Token::Punctuation(CloseBracket(Square))),
 
-            ('&', _) => (Ok(Token::Punctuation(Ampersand)), 1),
-            ('*', _) => (Ok(Token::Punctuation(Asterisk)), 1),
-            ('@', _) => (Ok(Token::Punctuation(At)), 1),
-            ('\\', _) => (Ok(Token::Punctuation(Backslash)), 1),
-            ('^', _) => (Ok(Token::Punctuation(Caret)), 1),
-            (':', _) => (Ok(Token::Punctuation(Colon)), 1),
-            (',', _) => (Ok(Token::Punctuation(Comma)), 1),
-            ('-', _) => (Ok(Token::Punctuation(Dash)), 1),
-            ('$', _) => (Ok(Token::Punctuation(Dollar)), 1),
-            ('.', _) => (Ok(Token::Punctuation(Dot)), 1),
-            ('=', _) => (Ok(Token::Punctuation(Equals)), 1),
-            ('!', _) => (Ok(Token::Punctuation(Exclamation)), 1),
-            ('#', _) => (Ok(Token::Punctuation(Hashtag)), 1),
-            ('\n', _) => (Ok(Token::Punctuation(Newline)), 1),
-            ('%', _) => (Ok(Token::Punctuation(Percent)), 1),
-            ('|', _) => (Ok(Token::Punctuation(Pipe)), 1),
-            ('+', _) => (Ok(Token::Punctuation(Plus)), 1),
-            ('?', _) => (Ok(Token::Punctuation(Question)), 1),
-            ('\'', _) => (Ok(Token::Punctuation(SingleQuote)), 1),
-            ('/', _) => (Ok(Token::Punctuation(Slash)), 1),
-            ('~', _) => (Ok(Token::Punctuation(Tilde)), 1),
+            '/' => Ok(self.read_slash_or_comment()),
+            '"' => self.read_str_literal(),
 
-            ('<', _) => (Ok(Token::Punctuation(OpenBracket(Angle))), 1),
-            ('>', _) => (Ok(Token::Punctuation(CloseBracket(Angle))), 1),
-            ('{', _) => (Ok(Token::Punctuation(OpenBracket(Curly))), 1),
-            ('}', _) => (Ok(Token::Punctuation(CloseBracket(Curly))), 1),
-            ('(', _) => (Ok(Token::Punctuation(OpenBracket(Round))), 1),
-            (')', _) => (Ok(Token::Punctuation(CloseBracket(Round))), 1),
-            ('[', _) => (Ok(Token::Punctuation(OpenBracket(Square))), 1),
-            (']', _) => (Ok(Token::Punctuation(CloseBracket(Square))), 1),
+            c if c.is_ascii_digit() => self.read_numeric_literal(),
+            c if c.is_alphabetic() || c == '_' => Ok(self.read_identifier_or_kw()),
 
-            (c, _) if c.is_ascii_digit() => self.read_numeric_literal(),
-            (c, _) if c.is_alphabetic() || c == '_' => self.read_identifier_or_kw(),
-
-            (c, _) => (Err(Error::new(UnknownChar(c))), c.len_utf8()),
+            c => Err(Error::new(UnknownStartOfToken(c))),
         };
 
-        self.unparsed = &self.unparsed[source_len..];
-        Some(token_or_err)
+        match tok {
+            Ok(Token::Punctuation(Slash)) => {}
+            Ok(Token::Punctuation(_)) => self.src.skip(1),
+            Err(Error {
+                kind: UnknownStartOfToken(_),
+            }) => self.src.skip(1),
+            _ => {}
+        }
+
+        Some(tok)
     }
 }
 
 impl<'a> Tokens<'a> {
-    fn read_comment(&mut self) -> (Result<Token>, usize) {
-        let n_slashes = self
-            .unparsed
-            .find(|c| c != '/')
-            .unwrap_or(self.unparsed.len());
-
-        let source_len = self.unparsed.find('\n').unwrap_or(self.unparsed.len());
-
-        let comment_body = self.unparsed[n_slashes..source_len].trim().to_string();
-
+    /// Determines whether current slash marks start of comment or is just a
+    /// Punctuation::Slash, then returns the slash/comment token and advances
+    /// self.src.
+    ///
+    /// Assumption: self.src.next() == Some('/')
+    fn read_slash_or_comment(&mut self) -> Token {
+        let n_slashes = self.src.count_while(|c| c == '/');
         match n_slashes {
-            3 => (Ok(Token::Comment(Docstring(comment_body))), source_len),
-            _ => (Ok(Token::Comment(Regular(comment_body))), source_len),
+            1 => Token::Punctuation(Slash),
+            3 => Token::Comment(Docstring(
+                self.src.take_while(|c| c != '\n').trim().to_string(),
+            )),
+            _ => Token::Comment(Regular(
+                self.src.take_while(|c| c != '\n').trim().to_string(),
+            )),
         }
     }
 
-    fn read_str_literal(&mut self) -> (Result<Token>, usize) {
+    /// Returns next string literal token and advances self.src.
+    ///
+    /// Assumption: self.src.next() == Some('"').
+    fn read_str_literal(&mut self) -> Result<Token> {
+        let mut parsing_error = None;
         let mut contents = String::new();
 
-        // We skip the first quote
-        let mut iter = self.unparsed.chars().enumerate().skip(1).peekable();
-
-        let mut parsing_error = None;
+        self.src.skip(1); // skip the first quote
 
         loop {
-            if let Some((i, c)) = iter.next() {
-                match c {
-                    '"' => {
-                        let default = Ok(Token::Literal(StrLiteral(contents)));
-                        return (parsing_error.unwrap_or(default), i + 1);
-                    }
-                    '\n' => return (Err(Error::new(UnterminatedStrLiteral)), i),
-                    '\\' => match Self::parse_escape_in_str_literal(&mut iter) {
-                        Ok(c) => contents.push(c),
-                        Err(e) => parsing_error = Some(Err(e)),
-                    },
-                    c => contents.push(c),
+            match self.src.peek() {
+                Some('\n') | None => return Err(Error::new(UnterminatedStr)),
+                Some('"') => {
+                    self.src.skip(1);
+                    let default = Ok(Token::Literal(StrLiteral(contents)));
+                    return parsing_error.unwrap_or(default);
                 }
-            } else {
-                return (Err(Error::new(UnterminatedStrLiteral)), self.unparsed.len());
-            }
-        }
-    }
-
-    fn parse_escape_in_str_literal(
-        iter: &mut Peekable<impl Iterator<Item = (usize, char)>>,
-    ) -> Result<char> {
-        if let Some((_, c)) = iter.next() {
-            match c {
-                'n' => Ok('\n'),
-                'r' => Ok('\r'),
-                't' => Ok('\t'),
-                '\\' => Ok('\\'),
-                '0' => Ok('\0'),
-                '"' => Ok('"'),
-                'u' => Self::parse_hex_str(Self::take_n_hex_chars(iter, 4)?),
-                'x' => Self::parse_hex_str(Self::take_n_hex_chars(iter, 2)?),
-                c => Err(Error::new(UnknownEscape(c))),
-            }
-        } else {
-            Err(Error::new(UnterminatedStrLiteral))
-        }
-    }
-
-    fn take_n_hex_chars(
-        iter: &mut Peekable<impl Iterator<Item = (usize, char)>>,
-        n: usize,
-    ) -> Result<String> {
-        let mut hex_chars = String::new();
-        for _ in 0..n {
-            if let Some(&(_, c)) = iter.peek() {
-                if c.is_ascii_hexdigit() {
-                    // Unwrapping next here is safe because we peeked above
-                    hex_chars.push(iter.next().unwrap().1);
-                } else {
-                    return Err(Error::new(IncompleteEscape));
+                Some('\\') => match self.parse_escape_in_str_literal() {
+                    Ok(c) => contents.push(c),
+                    Err(e) => parsing_error = Some(Err(e)),
+                },
+                Some(c) => {
+                    self.src.skip(1);
+                    contents.push(c);
                 }
-            } else {
-                return Err(Error::new(UnterminatedStrLiteral));
             }
         }
-        Ok(hex_chars)
     }
 
-    fn parse_hex_str(hex_str: String) -> Result<char> {
-        Ok(char::from_u32(u32::from_str_radix(&hex_str, 16).unwrap()).unwrap())
+    fn parse_escape_in_str_literal(&mut self) -> Result<char> {
+        // Skip the backslash
+        self.src.skip(1);
+        match self.src.next() {
+            Some('n') => Ok('\n'),
+            Some('r') => Ok('\r'),
+            Some('t') => Ok('\t'),
+            Some('\\') => Ok('\\'),
+            Some('0') => Ok('\0'),
+            Some('"') => Ok('"'),
+            Some('u') => self.take_hex_code_and_conv_to_char(4),
+            Some('x') => self.take_hex_code_and_conv_to_char(2),
+            Some(c) => Err(Error::new(UnknownEscape(c))),
+            None => Err(Error::new(UnterminatedStr)),
+            // todo newline!
+        }
     }
 
-    fn read_numeric_literal(&mut self) -> (Result<Token>, usize) {
-        // While we never check the very first digit, we know it is going to be a digit because otherwise this function would never have been called
-        let source_len = self
-            .unparsed
-            .chars()
-            .zip(self.unparsed.chars().skip(1))
-            .enumerate()
-            .find(|&(_, (prev, cur))| {
-                !(cur.is_ascii_digit()
-                    || cur == '.'
-                    || cur == 'E'
-                    || cur == 'e'
-                    || ((cur == '-' || cur == '+') && (prev == 'E' || prev == 'e')))
-            })
-            .map(|(i, _)| i + 1)
-            .unwrap_or(self.unparsed.len());
+    /// Reads a hex code of code_len hex digits (0-9, a-f) and returns the
+    /// character it represents.
+    ///
+    /// Assumption: self.src.next() == Some(first character of the hex code)
+    pub fn take_hex_code_and_conv_to_char(&mut self, code_len: usize) -> Result<char> {
+        let mut code = String::new();
+        for _ in 0..code_len {
+            match self.src.peek() {
+                Some(c) if c.is_ascii_hexdigit() => {
+                    self.src.skip(1);
+                    code.push(c);
+                }
+                Some('"') => return Err(Error::new(TruncatedEscapeSequence)),
+                Some(c) => {
+                    self.src.skip(1);
+                    return Err(Error::new(InvalidCharInEscape(c)));
+                }
+                None => return Err(Error::new(UnterminatedStr)),
+            }
+        }
+        // It is safe to unwrap from_str_radix(), which panics if radix > 36 (ours is 16)
+        match char::from_u32(u32::from_str_radix(&code, 16).unwrap()) {
+            Some(c) => Ok(c),
+            None => Err(Error::new(BadUnicodeEscape(code))),
+        }
+    }
 
-        let num = &self.unparsed[..source_len];
+    /// Returns next numeric literal token (int or float) and advances self.src.
+    ///
+    /// Assumption: self.src.next() == Some(first digit of a numeric literal)
+    fn read_numeric_literal(&mut self) -> Result<Token> {
+        let mut num = String::new();
 
-        let res = if num.contains(|c| c == 'E' || c == 'e' || c == '.') {
+        // Push the first digit (see assumption) to the string
+        num.push(self.src.peek().unwrap());
+
+        loop {
+            let prev = self.src.next();
+            let cur = self.src.peek();
+            match (prev, cur) {
+                (_, Some(c)) if c.is_ascii_digit() => num.push(c),
+                (_, Some(c @ ('.' | 'E' | 'e'))) => num.push(c),
+                (Some('e' | 'E'), Some(c @ ('-' | '+'))) => num.push(c),
+                (_, _) => break,
+            }
+        }
+
+        if num.contains(['e', 'E', '.']) {
             match num.parse() {
-                Ok(n) => Ok(Token::Literal(FloatLiteral(n))),
-                _ => Err(Error::new(FloatParsing(num.to_string()))),
+                Ok(parsed) => Ok(Token::Literal(FloatLiteral(parsed))),
+                Err(_) => Err(Error::new(InvalidFloat(num))),
             }
         } else {
-            let n = num.parse().unwrap();
-            Ok(Token::Literal(IntLiteral(n)))
-        };
-
-        (res, source_len)
+            // This is safe to unwrap because we can't get an invalid int
+            Ok(Token::Literal(IntLiteral(num.parse().unwrap())))
+        }
     }
 
-    fn read_identifier_or_kw(&mut self) -> (Result<Token>, usize) {
-        let source_len = self
-            .unparsed
-            .find(|c: char| !(c.is_alphabetic() || c.is_ascii_digit() || c == '_'))
-            .unwrap_or(self.unparsed.len());
+    /// Returns next identifier or keyword consisting of alphabetic letters, digits,
+    /// and underscores.
+    ///
+    /// , The first letter is not a digit.
+    /// Assumption: self.src.next() == Some(first letter of an identifier/keyword)
+    fn read_identifier_or_kw(&mut self) -> Token {
+        let name = self
+            .src
+            .take_while(|c| c.is_alphabetic() || c.is_ascii_digit() || c == '_');
 
-        let name = &self.unparsed[..source_len];
-
-        let token = match name {
+        match name.as_str() {
             "arr" => Token::Keyword(Arr),
             "bool" => Token::Keyword(Bool),
             "float" => Token::Keyword(FloatKeyword),
@@ -230,9 +245,8 @@ impl<'a> Tokens<'a> {
             "if" => Token::Keyword(If),
             "while" => Token::Keyword(While),
 
-            _ => Token::Identifier(name.to_string()),
-        };
-        (Ok(token), source_len)
+            _ => Token::Identifier(name),
+        }
     }
 }
 
@@ -242,7 +256,7 @@ mod tests {
 
     macro_rules! assert_source_has_expected_output {
         ($source:expr, $expected:expr) => {{
-            let tokens: Vec<_> = Tokens { unparsed: $source }.collect();
+            let tokens: Vec<_> = Tokens::new($source).collect();
             assert_eq!(tokens, $expected)
         }};
     }
@@ -262,16 +276,30 @@ mod tests {
     }
 
     #[test]
-    fn err_given_incomplete_str_unicode_escape() {
+    fn err_given_truncated_unicode_escape() {
         let source = r#""\u3b9""#;
-        let expected = vec![Err(Error::new(IncompleteEscape))];
+        let expected = vec![Err(Error::new(TruncatedEscapeSequence))];
         assert_source_has_expected_output!(&source.to_string(), expected)
     }
 
     #[test]
-    fn err_given_incomplete_str_hex_escape() {
+    fn err_given_invalid_unicode_escape() {
+        let source = r#""\u3b9wadsfdsfs""#;
+        let expected = vec![Err(Error::new(InvalidCharInEscape('w')))];
+        assert_source_has_expected_output!(&source.to_string(), expected)
+    }
+
+    #[test]
+    fn err_given_truncated_hex_escape() {
         let source = r#""\x9""#;
-        let expected = vec![Err(Error::new(IncompleteEscape))];
+        let expected = vec![Err(Error::new(TruncatedEscapeSequence))];
+        assert_source_has_expected_output!(&source.to_string(), expected)
+    }
+
+    #[test]
+    fn err_given_invalid_hex_escape() {
+        let source = r#""\x3z9wadsfdsfs""#;
+        let expected = vec![Err(Error::new(InvalidCharInEscape('z')))];
         assert_source_has_expected_output!(&source.to_string(), expected)
     }
 
@@ -280,9 +308,9 @@ mod tests {
         let source = "\"test\n\"";
 
         let expected = vec![
-            Err(Error::new(UnterminatedStrLiteral)),
+            Err(Error::new(UnterminatedStr)),
             Ok(Token::Punctuation(Newline)),
-            Err(Error::new(UnterminatedStrLiteral)),
+            Err(Error::new(UnterminatedStr)),
         ];
 
         assert_source_has_expected_output!(&source.to_string(), expected)
@@ -291,21 +319,21 @@ mod tests {
     #[test]
     fn err_given_unknown_char() {
         let source = '∂';
-        let expected = vec![Err(Error::new(UnknownChar(source)))];
+        let expected = vec![Err(Error::new(UnknownStartOfToken(source)))];
         assert_source_has_expected_output!(&source.to_string(), expected)
     }
 
     #[test]
     fn err_given_float_with_multiple_e() {
         let source = "1.2312E-33333E+9999";
-        let expected = vec![Err(Error::new(FloatParsing(source.to_string())))];
+        let expected = vec![Err(Error::new(InvalidFloat(source.to_string())))];
         assert_source_has_expected_output!(source, expected)
     }
 
     #[test]
     fn err_given_float_with_consecutive_e() {
         let source = "1.2312Ee9999";
-        let expected = vec![Err(Error::new(FloatParsing(source.to_string())))];
+        let expected = vec![Err(Error::new(InvalidFloat(source.to_string())))];
         assert_source_has_expected_output!(source, expected)
     }
 
@@ -314,7 +342,7 @@ mod tests {
         let source = "1.2312E+-9999";
 
         let expected = vec![
-            Err(Error::new(FloatParsing("1.2312E+".to_string()))),
+            Err(Error::new(InvalidFloat("1.2312E+".to_string()))),
             Ok(Token::Punctuation(Dash)),
             Ok(Token::Literal(IntLiteral(9999))),
         ];
@@ -325,7 +353,7 @@ mod tests {
     #[test]
     fn err_given_float_with_multiple_decimals() {
         let source = "123.456.789";
-        let expected = vec![Err(Error::new(FloatParsing(source.to_string())))];
+        let expected = vec![Err(Error::new(InvalidFloat(source.to_string())))];
         assert_source_has_expected_output!(source, expected)
     }
 
