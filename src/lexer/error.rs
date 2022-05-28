@@ -4,14 +4,14 @@ use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq)]
 pub struct Error {
-    pub(crate) location: Location,
+    pub(crate) loc: Location,
     pub(crate) kind: ErrorKind,
 }
 
 impl Error {
-    pub fn new(location: impl Into<Location>, kind: ErrorKind) -> Self {
+    pub fn new(loc: impl Into<Location>, kind: ErrorKind) -> Self {
         Self {
-            location: location.into(),
+            loc: loc.into(),
             kind,
         }
     }
@@ -32,14 +32,14 @@ impl Display for Error {
             "  {} {}:{}:{}",
             "-->".blue().bold(),
             "temp-file-path",
-            self.location.line,
-            self.location.col
+            self.loc.line,
+            self.loc.col
         )?;
         writeln!(f, "   {}", "|".blue().bold())?;
         writeln!(
             f,
             "{:>2} {} {}",
-            self.location.line.to_string().bold(),
+            self.loc.line.to_string().bold(),
             "|".blue().bold(),
             "pub fn temp_line() {}"
         )?;

@@ -5,17 +5,17 @@ use std::str::Chars;
 #[derive(Debug)]
 pub struct SourceIterator<'a> {
     /// Location of character that self.next() will return next time it is called
-    next_location: Option<Location>,
+    next_loc: Option<Location>,
     /// Location of what self.next() returned last time it was called
-    cur_location: Option<Location>,
+    cur_loc: Option<Location>,
     src: Peekable<Enumerate<Chars<'a>>>,
 }
 
 impl<'a> SourceIterator<'a> {
     pub fn new(source: &'a str) -> Self {
         Self {
-            next_location: Some(Location::new(1, 1)),
-            cur_location: None,
+            next_loc: Some(Location::new(1, 1)),
+            cur_loc: None,
             src: source.chars().enumerate().peekable(),
         }
     }
@@ -70,24 +70,24 @@ impl<'a> SourceIterator<'a> {
     pub fn next(&mut self) -> Option<char> {
         let next = self.src.next().map(|(_, c)| c);
 
-        self.cur_location = self.next_location;
+        self.cur_loc = self.next_loc;
 
-        // Safe to unwrap self.next_location when next is Some() because next_location is only set to None
+        // Safe to unwrap self.next_loc when next is Some() because next_loc is only set to None
         // when self.src runs out of chars to yield
         match next {
             Some('\n') => {
-                self.next_location.as_mut().unwrap().line += 1;
-                self.next_location.as_mut().unwrap().col = 1;
+                self.next_loc.as_mut().unwrap().line += 1;
+                self.next_loc.as_mut().unwrap().col = 1;
             }
-            Some(_) => self.next_location.as_mut().unwrap().col += 1,
-            None => self.next_location = None,
+            Some(_) => self.next_loc.as_mut().unwrap().col += 1,
+            None => self.next_loc = None,
         }
 
         next
     }
 
     pub fn loc(&self) -> Option<Location> {
-        self.cur_location
+        self.cur_loc
     }
 }
 
