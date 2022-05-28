@@ -3,12 +3,16 @@ use std::str::Chars;
 
 #[derive(Debug)]
 pub struct SourceIterator<'a> {
+    row: usize,
+    col: usize,
     src: Peekable<Enumerate<Chars<'a>>>,
 }
 
 impl<'a> SourceIterator<'a> {
     pub fn new(source: &'a str) -> Self {
         Self {
+            row: 1,
+            col: 1,
             src: source.chars().enumerate().peekable(),
         }
     }
@@ -19,7 +23,7 @@ impl<'a> SourceIterator<'a> {
 
     pub fn skip(&mut self, n: usize) {
         for _ in 0..n {
-            if self.src.next().is_none() {
+            if self.next().is_none() {
                 break;
             }
         }
@@ -56,8 +60,27 @@ impl<'a> SourceIterator<'a> {
         }
     }
 
+    /// Returns the next character of the iterator and steps the iterator. This functions also
+    /// keeps track of row and column numbers.
+    ///
+    /// Assumptions: Every function that steps the iterator does so through this function
     pub fn next(&mut self) -> Option<char> {
-        self.src.next().map(|(_, c)| c)
+        let next = self.src.next().map(|(_, c)| c);
+
+        match next {
+            Some('\n') => {
+                self.row += 1;
+                self.col = 1;
+            }
+            _ => self.col += 1,
+        }
+
+        next
+    }
+
+    /// Returns (row, col)
+    pub fn loc(&self) -> (usize, usize) {
+        (self.row, self.col)
     }
 }
 
@@ -114,6 +137,32 @@ mod tests {
         assert_eq!(iter.next(), Some('a'));
         assert_eq!(iter.next(), Some('s'));
         assert_eq!(iter.next(), Some('d'));
+        iter.skip(100);
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn row_count() {
+        let mut iter = SourceIterator::new("row 1\nrow 2\nrow 3\nrow 4");
+        iter.skip(6);
+        assert_eq!(iter.loc(), (2, 1));
+        iter.skip(6);
+        assert_eq!(iter.loc(), (3, 1));
+        iter.skip(6);
+        assert_eq!(iter.loc(), (4, 1));
+        iter.skip(6);
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn col_count() {
+        let mut iter = SourceIterator::new("123456789\n123456789");
+        iter.skip(6);
+        assert_eq!(iter.loc(), (1, 7));
+        iter.skip(6);
+        assert_eq!(iter.loc(), (2, 3));
+        iter.skip(1);
+        assert_eq!(iter.loc(), (2, 4));
         iter.skip(100);
         assert_eq!(iter.next(), None);
     }

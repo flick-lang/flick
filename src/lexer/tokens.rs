@@ -75,13 +75,15 @@ impl<'a> Iterator for Tokens<'a> {
             c if c.is_ascii_digit() => self.read_numeric_literal(),
             c if c.is_alphabetic() || c == '_' => Ok(self.read_identifier_or_kw()),
 
-            c => Err(Error::new(UnknownStartOfToken(c))),
+            c => Err(Error::new(self.src.loc(), UnknownStartOfToken(c))),
         };
 
         match tok {
             Ok(Token::Punctuation(Slash)) => {}
             Ok(Token::Punctuation(_)) => self.src.skip(1),
             Err(Error {
+                row: _,
+                col: _,
                 kind: UnknownStartOfToken(_),
             }) => self.src.skip(1),
             _ => {}
@@ -121,7 +123,7 @@ impl<'a> Tokens<'a> {
 
         loop {
             match self.src.peek() {
-                Some('\n') | None => return Err(Error::new(UnterminatedStr)),
+                Some('\n') | None => return Err(Error::new(self.src.loc(), UnterminatedStr)),
                 Some('"') => {
                     self.src.skip(1);
                     let default = Ok(Token::Literal(StrLiteral(contents)));
@@ -151,8 +153,8 @@ impl<'a> Tokens<'a> {
             Some('"') => Ok('"'),
             Some('u') => self.take_hex_code_and_conv_to_char(4),
             Some('x') => self.take_hex_code_and_conv_to_char(2),
-            Some(c) => Err(Error::new(UnknownEscape(c))),
-            None => Err(Error::new(UnterminatedStr)),
+            Some(c) => Err(Error::new(self.src.loc(), UnknownEscape(c))),
+            None => Err(Error::new(self.src.loc(), UnterminatedStr)),
             // todo newline!
         }
     }
@@ -169,18 +171,18 @@ impl<'a> Tokens<'a> {
                     self.src.skip(1);
                     code.push(c);
                 }
-                Some('"') => return Err(Error::new(TruncatedEscapeSequence)),
+                Some('"') => return Err(Error::new(self.src.loc(), TruncatedEscapeSequence)),
                 Some(c) => {
                     self.src.skip(1);
-                    return Err(Error::new(InvalidCharInEscape(c)));
+                    return Err(Error::new(self.src.loc(), InvalidCharInEscape(c)));
                 }
-                None => return Err(Error::new(UnterminatedStr)),
+                None => return Err(Error::new(self.src.loc(), UnterminatedStr)),
             }
         }
         // It is safe to unwrap from_str_radix(), which panics if radix > 36 (ours is 16)
         match char::from_u32(u32::from_str_radix(&code, 16).unwrap()) {
             Some(c) => Ok(c),
-            None => Err(Error::new(BadUnicodeEscape(code))),
+            None => Err(Error::new(self.src.loc(), BadUnicodeEscape(code))),
         }
     }
 
@@ -207,7 +209,7 @@ impl<'a> Tokens<'a> {
         if num.contains(['e', 'E', '.']) {
             match num.parse() {
                 Ok(parsed) => Ok(Token::Literal(FloatLiteral(parsed))),
-                Err(_) => Err(Error::new(InvalidFloat(num))),
+                Err(_) => Err(Error::new(self.src.loc(), InvalidFloat(num))),
             }
         } else {
             // This is safe to unwrap because we can't get an invalid int
@@ -271,35 +273,35 @@ mod tests {
     #[test]
     fn err_given_unknown_str_escape() {
         let source = r#""\e""#;
-        let expected = vec![Err(Error::new(UnknownEscape('e')))];
+        let expected = vec![Err(Error::new((1, 4), UnknownEscape('e')))];
         assert_source_has_expected_output!(&source.to_string(), expected)
     }
 
     #[test]
     fn err_given_truncated_unicode_escape() {
         let source = r#""\u3b9""#;
-        let expected = vec![Err(Error::new(TruncatedEscapeSequence))];
+        let expected = vec![Err(Error::new((1, 7), TruncatedEscapeSequence))];
         assert_source_has_expected_output!(&source.to_string(), expected)
     }
 
     #[test]
     fn err_given_invalid_unicode_escape() {
         let source = r#""\u3b9wadsfdsfs""#;
-        let expected = vec![Err(Error::new(InvalidCharInEscape('w')))];
+        let expected = vec![Err(Error::new((1, 7), InvalidCharInEscape('w')))];
         assert_source_has_expected_output!(&source.to_string(), expected)
     }
 
     #[test]
     fn err_given_truncated_hex_escape() {
         let source = r#""\x9""#;
-        let expected = vec![Err(Error::new(TruncatedEscapeSequence))];
+        let expected = vec![Err(Error::new((1, 5), TruncatedEscapeSequence))];
         assert_source_has_expected_output!(&source.to_string(), expected)
     }
 
     #[test]
     fn err_given_invalid_hex_escape() {
         let source = r#""\x3z9wadsfdsfs""#;
-        let expected = vec![Err(Error::new(InvalidCharInEscape('z')))];
+        let expected = vec![Err(Error::new((1, 5), InvalidCharInEscape('z')))];
         assert_source_has_expected_output!(&source.to_string(), expected)
     }
 
@@ -308,9 +310,9 @@ mod tests {
         let source = "\"test\n\"";
 
         let expected = vec![
-            Err(Error::new(UnterminatedStr)),
+            Err(Error::new((1, 5), UnterminatedStr)),
             Ok(Token::Punctuation(Newline)),
-            Err(Error::new(UnterminatedStr)),
+            Err(Error::new((2, 1), UnterminatedStr)),
         ];
 
         assert_source_has_expected_output!(&source.to_string(), expected)
@@ -319,21 +321,21 @@ mod tests {
     #[test]
     fn err_given_unknown_char() {
         let source = '∂';
-        let expected = vec![Err(Error::new(UnknownStartOfToken(source)))];
+        let expected = vec![Err(Error::new((1, 1), UnknownStartOfToken(source)))];
         assert_source_has_expected_output!(&source.to_string(), expected)
     }
 
     #[test]
     fn err_given_float_with_multiple_e() {
         let source = "1.2312E-33333E+9999";
-        let expected = vec![Err(Error::new(InvalidFloat(source.to_string())))];
+        let expected = vec![Err(Error::new((1, 19), InvalidFloat(source.to_string())))];
         assert_source_has_expected_output!(source, expected)
     }
 
     #[test]
     fn err_given_float_with_consecutive_e() {
         let source = "1.2312Ee9999";
-        let expected = vec![Err(Error::new(InvalidFloat(source.to_string())))];
+        let expected = vec![Err(Error::new((1, 12), InvalidFloat(source.to_string())))];
         assert_source_has_expected_output!(source, expected)
     }
 
@@ -342,7 +344,7 @@ mod tests {
         let source = "1.2312E+-9999";
 
         let expected = vec![
-            Err(Error::new(InvalidFloat("1.2312E+".to_string()))),
+            Err(Error::new((1, 8), InvalidFloat("1.2312E+".to_string()))),
             Ok(Token::Punctuation(Dash)),
             Ok(Token::Literal(IntLiteral(9999))),
         ];
@@ -353,7 +355,7 @@ mod tests {
     #[test]
     fn err_given_float_with_multiple_decimals() {
         let source = "123.456.789";
-        let expected = vec![Err(Error::new(InvalidFloat(source.to_string())))];
+        let expected = vec![Err(Error::new((1, 11), InvalidFloat(source.to_string())))];
         assert_source_has_expected_output!(source, expected)
     }
 
