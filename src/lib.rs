@@ -1,3 +1,5 @@
+pub use program::SourceFile;
+
 #[warn(
     missing_debug_implementations,
     missing_copy_implementations,
@@ -7,4 +9,5 @@
 mod lexer;
 mod program;
 
-pub use program::Program;
+#[cfg(test)]
+const TEST_FILE_PATH: &str = "/home/test.fl";

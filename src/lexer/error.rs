@@ -1,24 +1,24 @@
-use crate::lexer::location::Location;
-use colored::Colorize;
 use std::fmt::{Display, Formatter};
 
+use colored::Colorize;
+
+use crate::lexer::location::Location;
+
 #[derive(Debug, PartialEq)]
-pub struct Error {
-    pub(crate) loc: Location,
+pub struct Error<'a> {
+    pub(crate) loc: Location<'a>,
     pub(crate) kind: ErrorKind,
 }
 
-impl Error {
-    pub fn new(loc: impl Into<Location>, kind: ErrorKind) -> Self {
-        Self {
-            loc: loc.into(),
-            kind,
-        }
+impl<'a> Error<'a> {
+    pub fn new(loc: Location<'a>, kind: ErrorKind) -> Self {
+        Self { loc, kind }
     }
 }
-impl std::error::Error for Error {}
 
-impl Display for Error {
+impl<'a> std::error::Error for Error<'a> {}
+
+impl<'a> Display for Error<'a> {
     // TODO: What if n digit numbers for rows and cols?
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(

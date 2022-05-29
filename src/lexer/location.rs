@@ -1,17 +1,18 @@
+use std::path::Path;
+
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub struct Location {
+pub struct Location<'a> {
+    pub(crate) file_path: &'a Path,
     pub(crate) line: usize,
     pub(crate) col: usize,
 }
 
-impl Location {
-    pub fn new(line: usize, col: usize) -> Self {
-        Self { line, col }
-    }
-}
-
-impl Into<Location> for (usize, usize) {
-    fn into(self) -> Location {
-        Location::new(self.0, self.1)
+impl<'a> Location<'a> {
+    pub fn new(file_path: &'a Path, line: usize, col: usize) -> Self {
+        Self {
+            file_path,
+            line,
+            col,
+        }
     }
 }

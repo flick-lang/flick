@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use crate::lexer::source_iterator::SourceIterator;
 use crate::lexer::Bracket::{Angle, Curly, Round, Square};
 use crate::lexer::Comment::{Docstring, Regular};
@@ -19,18 +21,21 @@ use crate::lexer::{Error, ErrorKind, Result, Token};
 
 #[derive(Debug)]
 pub struct Tokens<'a> {
+    file_path: &'a Path,
     src: SourceIterator<'a>,
 }
 
 impl<'a> Tokens<'a> {
-    pub fn new(source: &'a str) -> Self {
+    pub fn new(file_path: &'a Path, source: &'a str) -> Self {
         Self {
-            src: SourceIterator::new(source),
+            file_path,
+            src: SourceIterator::new(file_path, source),
         }
     }
 }
+
 impl<'a> Iterator for Tokens<'a> {
-    type Item = Result<Token>;
+    type Item = Result<'a, Token>;
 
     /// Returns Some(Ok(token)) if the next token is valid, Some(Err(e)) if the
     /// next token is invalid, and None if there are no more tokens.
@@ -107,7 +112,7 @@ impl<'a> Tokens<'a> {
     /// Returns next string literal token and advances self.src.
     ///
     /// Assumption: self.src.next() == Some('"').
-    fn read_str_literal(&mut self) -> Result<Token> {
+    fn read_str_literal(&mut self) -> Result<'a, Token> {
         let mut parsing_error = None;
         let mut contents = String::new();
 
@@ -133,7 +138,7 @@ impl<'a> Tokens<'a> {
         }
     }
 
-    fn parse_escape_in_str_literal(&mut self) -> Result<char> {
+    fn parse_escape_in_str_literal(&mut self) -> Result<'a, char> {
         // Skip the backslash
         self.src.skip(1);
         match self.src.next() {
@@ -155,7 +160,7 @@ impl<'a> Tokens<'a> {
     /// character it represents.
     ///
     /// Assumption: self.src.next() == Some(first character of the hex code)
-    pub fn take_hex_code_and_conv_to_char(&mut self, code_len: usize) -> Result<char> {
+    pub fn take_hex_code_and_conv_to_char(&mut self, code_len: usize) -> Result<'a, char> {
         let mut code = String::new();
         for _ in 0..code_len {
             match self.src.peek() {
@@ -181,7 +186,7 @@ impl<'a> Tokens<'a> {
     /// Returns next numeric literal token (int or float) and advances self.src.
     ///
     /// Assumption: self.src.next() == Some(first digit of a numeric literal)
-    fn read_numeric_literal(&mut self) -> Result<Token> {
+    fn read_numeric_literal(&mut self) -> Result<'a, Token> {
         let mut num = String::new();
 
         // Push the first digit (see assumption) to the string
@@ -209,7 +214,7 @@ impl<'a> Tokens<'a> {
         }
     }
 
-    fn create_error(&self, kind: ErrorKind) -> Error {
+    fn create_error(&self, kind: ErrorKind) -> Error<'a> {
         Error::new(self.src.loc().expect("src.loc() must not be None"), kind)
     }
 
@@ -250,11 +255,14 @@ impl<'a> Tokens<'a> {
 
 #[cfg(test)]
 mod tests {
+    use crate::lexer::location::Location;
+    use crate::TEST_FILE_PATH;
+
     use super::*;
 
     macro_rules! assert_source_has_expected_output {
         ($source:expr, $expected:expr) => {{
-            let tokens: Vec<_> = Tokens::new($source).collect();
+            let tokens: Vec<_> = Tokens::new(Path::new(TEST_FILE_PATH), $source).collect();
             assert_eq!(tokens, $expected)
         }};
     }
@@ -266,39 +274,46 @@ mod tests {
         }};
     }
 
+    fn create_test_error(line: usize, row: usize, error_kind: ErrorKind) -> Error<'static> {
+        Error::new(
+            Location::new(Path::new(TEST_FILE_PATH), line, row),
+            error_kind,
+        )
+    }
+
     #[test]
     fn err_given_unknown_str_escape() {
         let source = r#""\e""#;
-        let expected = vec![Err(Error::new((1, 3), UnknownEscape('e')))];
-        assert_source_has_expected_output!(&source.to_string(), expected)
+        let expected = vec![Err(create_test_error(1, 3, UnknownEscape('e')))];
+        assert_source_has_expected_output!(source, expected)
     }
 
     #[test]
     fn err_given_truncated_unicode_escape() {
         let source = r#""\u3b9""#;
-        let expected = vec![Err(Error::new((1, 6), TruncatedEscapeSequence))];
-        assert_source_has_expected_output!(&source.to_string(), expected)
+        let expected = vec![Err(create_test_error(1, 6, TruncatedEscapeSequence))];
+        assert_source_has_expected_output!(source, expected)
     }
 
     #[test]
     fn err_given_invalid_unicode_escape() {
         let source = r#""\u3b9wadsfdsfs""#;
-        let expected = vec![Err(Error::new((1, 7), InvalidCharInEscape('w')))];
-        assert_source_has_expected_output!(&source.to_string(), expected)
+        let expected = vec![Err(create_test_error(1, 7, InvalidCharInEscape('w')))];
+        assert_source_has_expected_output!(source, expected)
     }
 
     #[test]
     fn err_given_truncated_hex_escape() {
         let source = r#""\x9""#;
-        let expected = vec![Err(Error::new((1, 4), TruncatedEscapeSequence))];
-        assert_source_has_expected_output!(&source.to_string(), expected)
+        let expected = vec![Err(create_test_error(1, 4, TruncatedEscapeSequence))];
+        assert_source_has_expected_output!(source, expected)
     }
 
     #[test]
     fn err_given_invalid_hex_escape() {
         let source = r#""\x3z9wadsfdsfs""#;
-        let expected = vec![Err(Error::new((1, 5), InvalidCharInEscape('z')))];
-        assert_source_has_expected_output!(&source.to_string(), expected)
+        let expected = vec![Err(create_test_error(1, 5, InvalidCharInEscape('z')))];
+        assert_source_has_expected_output!(source, expected)
     }
 
     #[test]
@@ -306,32 +321,40 @@ mod tests {
         let source = "\"test\n\"";
 
         let expected = vec![
-            Err(Error::new((1, 5), UnterminatedStr)),
+            Err(create_test_error(1, 5, UnterminatedStr)),
             Ok(Token::Punctuation(Newline)),
-            Err(Error::new((2, 1), UnterminatedStr)),
+            Err(create_test_error(2, 1, UnterminatedStr)),
         ];
 
-        assert_source_has_expected_output!(&source.to_string(), expected)
+        assert_source_has_expected_output!(source, expected)
     }
 
     #[test]
     fn err_given_unknown_char() {
-        let source = '∂';
-        let expected = vec![Err(Error::new((1, 1), UnknownStartOfToken(source)))];
-        assert_source_has_expected_output!(&source.to_string(), expected)
+        let source = "∂";
+        let expected = vec![Err(create_test_error(1, 1, UnknownStartOfToken('∂')))];
+        assert_source_has_expected_output!(source, expected)
     }
 
     #[test]
     fn err_given_float_with_multiple_e() {
         let source = "1.2312E-33333E+9999";
-        let expected = vec![Err(Error::new((1, 19), InvalidFloat(source.to_string())))];
+        let expected = vec![Err(create_test_error(
+            1,
+            19,
+            InvalidFloat(source.to_string()),
+        ))];
         assert_source_has_expected_output!(source, expected)
     }
 
     #[test]
     fn err_given_float_with_consecutive_e() {
         let source = "1.2312Ee9999";
-        let expected = vec![Err(Error::new((1, 12), InvalidFloat(source.to_string())))];
+        let expected = vec![Err(create_test_error(
+            1,
+            12,
+            InvalidFloat(source.to_string()),
+        ))];
         assert_source_has_expected_output!(source, expected)
     }
 
@@ -340,7 +363,11 @@ mod tests {
         let source = "1.2312E+-9999";
 
         let expected = vec![
-            Err(Error::new((1, 8), InvalidFloat("1.2312E+".to_string()))),
+            Err(create_test_error(
+                1,
+                8,
+                InvalidFloat("1.2312E+".to_string()),
+            )),
             Ok(Token::Punctuation(Dash)),
             Ok(Token::Literal(IntLiteral(9999))),
         ];
@@ -351,7 +378,11 @@ mod tests {
     #[test]
     fn err_given_float_with_multiple_decimals() {
         let source = "123.456.789";
-        let expected = vec![Err(Error::new((1, 11), InvalidFloat(source.to_string())))];
+        let expected = vec![Err(create_test_error(
+            1,
+            11,
+            InvalidFloat(source.to_string()),
+        ))];
         assert_source_has_expected_output!(source, expected)
     }
 

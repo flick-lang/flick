@@ -1,20 +1,22 @@
-use crate::lexer::location::Location;
 use std::iter::{Enumerate, Peekable};
+use std::path::Path;
 use std::str::Chars;
+
+use crate::lexer::location::Location;
 
 #[derive(Debug)]
 pub struct SourceIterator<'a> {
     /// Location of character that self.next() will return next time it is called
-    next_loc: Option<Location>,
+    next_loc: Option<Location<'a>>,
     /// Location of what self.next() returned last time it was called
-    cur_loc: Option<Location>,
+    cur_loc: Option<Location<'a>>,
     src: Peekable<Enumerate<Chars<'a>>>,
 }
 
 impl<'a> SourceIterator<'a> {
-    pub fn new(source: &'a str) -> Self {
+    pub fn new(file_path: &'a Path, source: &'a str) -> Self {
         Self {
-            next_loc: Some(Location::new(1, 1)),
+            next_loc: Some(Location::new(file_path, 1, 1)),
             cur_loc: None,
             src: source.chars().enumerate().peekable(),
         }
@@ -86,18 +88,24 @@ impl<'a> SourceIterator<'a> {
         next
     }
 
-    pub fn loc(&self) -> Option<Location> {
+    pub fn loc(&self) -> Option<Location<'a>> {
         self.cur_loc
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::TEST_FILE_PATH;
+
     use super::*;
+
+    fn create_source_iterator(source: &str) -> SourceIterator {
+        SourceIterator::new(Path::new(TEST_FILE_PATH), source)
+    }
 
     #[test]
     fn next() {
-        let mut iter = SourceIterator::new("next");
+        let mut iter = create_source_iterator("next");
         assert_eq!(iter.next(), Some('n'));
         assert_eq!(iter.next(), Some('e'));
         assert_eq!(iter.next(), Some('x'));
@@ -107,7 +115,7 @@ mod tests {
 
     #[test]
     fn skip() {
-        let mut iter = SourceIterator::new("ThomaxIsTheBest!");
+        let mut iter = create_source_iterator("ThomaxIsTheBest!");
         iter.skip(3);
         assert_eq!(iter.next(), Some('m'));
         assert_eq!(iter.next(), Some('a'));
@@ -118,7 +126,7 @@ mod tests {
 
     #[test]
     fn count_while() {
-        let mut iter = SourceIterator::new("////xy/");
+        let mut iter = create_source_iterator("////xy/");
         assert_eq!(iter.count_while(|c| c == '/'), 4);
         assert_eq!(iter.next(), Some('x'));
         assert_eq!(iter.next(), Some('y'));
@@ -128,7 +136,7 @@ mod tests {
 
     #[test]
     fn skip_while() {
-        let mut iter = SourceIterator::new("////xy/");
+        let mut iter = create_source_iterator("////xy/");
         iter.skip_while(|c| c == '/');
 
         assert_eq!(iter.next(), Some('x'));
@@ -139,7 +147,7 @@ mod tests {
 
     #[test]
     fn take_while() {
-        let mut iter = SourceIterator::new("1234567890asdfghjkl");
+        let mut iter = create_source_iterator("1234567890asdfghjkl");
         assert_eq!(iter.take_while(|c| c.is_ascii_digit()), "1234567890");
         assert_eq!(iter.next(), Some('a'));
         assert_eq!(iter.next(), Some('s'));
@@ -150,7 +158,7 @@ mod tests {
 
     #[test]
     fn line_count() {
-        let mut iter = SourceIterator::new("line 1\nline 2\nline 3");
+        let mut iter = create_source_iterator("line 1\nline 2\nline 3");
         iter.skip(1);
         assert_eq!(iter.loc().map(|loc| loc.line), Some(1));
         iter.skip(7);
@@ -166,7 +174,7 @@ mod tests {
 
     #[test]
     fn col_count() {
-        let mut iter = SourceIterator::new("123456789\n123456789");
+        let mut iter = create_source_iterator("123456789\n123456789");
         iter.skip(6);
         assert_eq!(iter.loc().map(|loc| loc.col), Some(6));
         iter.skip(6);
