@@ -10,4 +10,4 @@ lto = "fat"
 codegen-units = 1
 
 [dependencies]
-thiserror = "1.0.30"
+colored = "2.0.0"

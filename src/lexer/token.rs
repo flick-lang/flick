@@ -1,66 +1,79 @@
+#[derive(Debug, PartialEq)]
 pub enum Token {
     Keyword(Keyword),
     Identifier(String),
     Literal(Literal),
     Punctuation(Punctuation),
+    Comment(Comment),
 }
 
+#[derive(Debug, PartialEq)]
+pub enum Comment {
+    Regular(String),
+    Docstring(String),
+}
+
+#[derive(Debug, PartialEq)]
 pub enum Keyword {
-    Int,
-    Float,
-    Str,
-    Bool,
-    Map,
     Arr,
+    Bool,
+    Float,
+    Int,
+    Map,
     Set,
+    Str,
 
-    Or,
     And,
-    Not,
-    True,
     False,
+    Not,
+    Or,
+    True,
 
-    If,
     Fn,
-    While,
     For,
+    If,
+    While,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Literal {
     Float(f64),
-    Int(isize),
+    Int(usize),
     Str(String),
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Punctuation {
     Ampersand,
     Asterisk,
     At,
+    Backslash,
     Caret,
     Colon,
+    Comma,
     Dash,
     Dollar,
     Dot,
-    DoubleQuote,
-    Equal,
+    Equals,
     Exclamation,
     Hashtag,
+    Newline,
     Percent,
     Pipe,
     Plus,
     Question,
     SingleQuote,
+    Slash,
     Tilde,
 
     OpenBracket(Bracket),
     CloseBracket(Bracket),
-
-    Unknown(char),
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Bracket {
+    Angle,
+    Curly,
     Round,
     Square,
-    Curly,
-    Angle,
 }
