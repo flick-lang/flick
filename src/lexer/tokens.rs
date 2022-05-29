@@ -171,7 +171,7 @@ impl<'a> Tokens<'a> {
                 None => return Err(self.create_error(UnterminatedStr)),
             }
         }
-        // It is safe to unwrap from_str_radix(), which panics if radix > 36 (ours is 16)
+        // Safe to unwrap since from_str_radix() panics if radix > 36 (ours is 16)
         match char::from_u32(u32::from_str_radix(&code, 16).unwrap()) {
             Some(c) => Ok(c),
             None => Err(self.create_error(BadUnicodeEscape(code))),
@@ -185,7 +185,7 @@ impl<'a> Tokens<'a> {
         let mut num = String::new();
 
         // Push the first digit (see assumption) to the string
-        num.push(self.src.peek().unwrap());
+        num.push(self.src.peek().expect("self.src.next() must be a digit"));
 
         loop {
             let prev = self.src.next();
@@ -204,14 +204,13 @@ impl<'a> Tokens<'a> {
                 Err(_) => Err(self.create_error(InvalidFloat(num))),
             }
         } else {
-            // This is safe to unwrap because we can't get an invalid int
+            // Safe to unwrap because we can't get an invalid int
             Ok(Token::Literal(IntLiteral(num.parse().unwrap())))
         }
     }
 
     fn create_error(&self, kind: ErrorKind) -> Error {
-        // Safe to unwrap self.src.loc() because we never throw errors after self.src returns None
-        Error::new(self.src.loc().unwrap(), kind)
+        Error::new(self.src.loc().expect("src.loc() must not be None"), kind)
     }
 
     /// Returns next identifier or keyword consisting of alphabetic letters, digits,
