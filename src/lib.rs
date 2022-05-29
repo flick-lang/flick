@@ -1,4 +1,4 @@
-pub use program::SourceFile;
+pub use source_file::SourceFile;
 
 #[warn(
     missing_debug_implementations,
@@ -7,7 +7,7 @@ pub use program::SourceFile;
     unused_lifetimes
 )]
 mod lexer;
-mod program;
+mod source_file;
 
 #[cfg(test)]
 const TEST_FILE_PATH: &str = "/home/test.fl";

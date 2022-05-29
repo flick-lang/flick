@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use crate::lexer::source_iterator::SourceIterator;
 use crate::lexer::Bracket::{Angle, Curly, Round, Square};
 use crate::lexer::Comment::{Docstring, Regular};
@@ -18,18 +16,17 @@ use crate::lexer::Punctuation::{
     Slash, Tilde,
 };
 use crate::lexer::{Error, ErrorKind, Result, Token};
+use crate::SourceFile;
 
 #[derive(Debug)]
 pub struct Tokens<'a> {
-    file_path: &'a Path,
     src: SourceIterator<'a>,
 }
 
 impl<'a> Tokens<'a> {
-    pub fn new(file_path: &'a Path, source: &'a str) -> Self {
+    pub fn new(source_file: &'a SourceFile) -> Self {
         Self {
-            file_path,
-            src: SourceIterator::new(file_path, source),
+            src: SourceIterator::new(source_file),
         }
     }
 }
@@ -262,7 +259,7 @@ mod tests {
 
     macro_rules! assert_source_has_expected_output {
         ($source:expr, $expected:expr) => {{
-            let tokens: Vec<_> = Tokens::new(Path::new(TEST_FILE_PATH), $source).collect();
+            let tokens: Vec<_> = Tokens::new($source).collect();
             assert_eq!(tokens, $expected)
         }};
     }
@@ -274,96 +271,130 @@ mod tests {
         }};
     }
 
-    fn create_test_error(line: usize, row: usize, error_kind: ErrorKind) -> Error<'static> {
-        Error::new(
-            Location::new(Path::new(TEST_FILE_PATH), line, row),
-            error_kind,
-        )
+    fn create_test_source(source: &str) -> SourceFile {
+        SourceFile::new(TEST_FILE_PATH, source)
+    }
+
+    fn create_test_error(
+        source_file: &SourceFile,
+        line: usize,
+        row: usize,
+        error_kind: ErrorKind,
+    ) -> Error {
+        Error::new(Location::new(source_file, line, row), error_kind)
     }
 
     #[test]
     fn err_given_unknown_str_escape() {
-        let source = r#""\e""#;
-        let expected = vec![Err(create_test_error(1, 3, UnknownEscape('e')))];
-        assert_source_has_expected_output!(source, expected)
+        let source = create_test_source(r#""\e""#);
+        let expected = vec![Err(create_test_error(&source, 1, 3, UnknownEscape('e')))];
+        assert_source_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn err_given_truncated_unicode_escape() {
-        let source = r#""\u3b9""#;
-        let expected = vec![Err(create_test_error(1, 6, TruncatedEscapeSequence))];
-        assert_source_has_expected_output!(source, expected)
+        let source = create_test_source(r#""\u3b9""#);
+        let expected = vec![Err(create_test_error(
+            &source,
+            1,
+            6,
+            TruncatedEscapeSequence,
+        ))];
+        assert_source_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn err_given_invalid_unicode_escape() {
-        let source = r#""\u3b9wadsfdsfs""#;
-        let expected = vec![Err(create_test_error(1, 7, InvalidCharInEscape('w')))];
-        assert_source_has_expected_output!(source, expected)
+        let source = create_test_source(r#""\u3b9wadsfdsfs""#);
+        let expected = vec![Err(create_test_error(
+            &source,
+            1,
+            7,
+            InvalidCharInEscape('w'),
+        ))];
+        assert_source_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn err_given_truncated_hex_escape() {
-        let source = r#""\x9""#;
-        let expected = vec![Err(create_test_error(1, 4, TruncatedEscapeSequence))];
-        assert_source_has_expected_output!(source, expected)
+        let source = create_test_source(r#""\x9""#);
+        let expected = vec![Err(create_test_error(
+            &source,
+            1,
+            4,
+            TruncatedEscapeSequence,
+        ))];
+        assert_source_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn err_given_invalid_hex_escape() {
-        let source = r#""\x3z9wadsfdsfs""#;
-        let expected = vec![Err(create_test_error(1, 5, InvalidCharInEscape('z')))];
-        assert_source_has_expected_output!(source, expected)
+        let source = create_test_source(r#""\x3z9wadsfdsfs""#);
+        let expected = vec![Err(create_test_error(
+            &source,
+            1,
+            5,
+            InvalidCharInEscape('z'),
+        ))];
+        assert_source_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn err_given_unterminated_str_literal() {
-        let source = "\"test\n\"";
+        let source = create_test_source("\"test\n\"");
 
         let expected = vec![
-            Err(create_test_error(1, 5, UnterminatedStr)),
+            Err(create_test_error(&source, 1, 5, UnterminatedStr)),
             Ok(Token::Punctuation(Newline)),
-            Err(create_test_error(2, 1, UnterminatedStr)),
+            Err(create_test_error(&source, 2, 1, UnterminatedStr)),
         ];
 
-        assert_source_has_expected_output!(source, expected)
+        assert_source_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn err_given_unknown_char() {
-        let source = "∂";
-        let expected = vec![Err(create_test_error(1, 1, UnknownStartOfToken('∂')))];
-        assert_source_has_expected_output!(source, expected)
+        let source = create_test_source("∂");
+        let expected = vec![Err(create_test_error(
+            &source,
+            1,
+            1,
+            UnknownStartOfToken('∂'),
+        ))];
+        assert_source_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn err_given_float_with_multiple_e() {
-        let source = "1.2312E-33333E+9999";
+        let source = create_test_source("1.2312E-33333E+9999");
         let expected = vec![Err(create_test_error(
+            &source,
             1,
             19,
-            InvalidFloat(source.to_string()),
+            InvalidFloat("1.2312E-33333E+9999".to_string()),
         ))];
-        assert_source_has_expected_output!(source, expected)
+        assert_source_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn err_given_float_with_consecutive_e() {
-        let source = "1.2312Ee9999";
+        let source = create_test_source("1.2312Ee9999");
         let expected = vec![Err(create_test_error(
+            &source,
             1,
             12,
-            InvalidFloat(source.to_string()),
+            InvalidFloat("1.2312Ee9999".to_string()),
         ))];
-        assert_source_has_expected_output!(source, expected)
+        assert_source_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn err_given_float_with_e_pm() {
-        let source = "1.2312E+-9999";
+        let source = create_test_source("1.2312E+-9999");
 
         let expected = vec![
             Err(create_test_error(
+                &source,
                 1,
                 8,
                 InvalidFloat("1.2312E+".to_string()),
@@ -372,44 +403,45 @@ mod tests {
             Ok(Token::Literal(IntLiteral(9999))),
         ];
 
-        assert_source_has_expected_output!(source, expected)
+        assert_source_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn err_given_float_with_multiple_decimals() {
-        let source = "123.456.789";
+        let source = create_test_source("123.456.789");
         let expected = vec![Err(create_test_error(
+            &source,
             1,
             11,
-            InvalidFloat(source.to_string()),
+            InvalidFloat("123.456.789".to_string()),
         ))];
-        assert_source_has_expected_output!(source, expected)
+        assert_source_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn parses_regular_comment() {
-        let source = "//      It is way too late    ";
+        let source = create_test_source("//      It is way too late    ");
         let expected = vec![Token::Comment(Regular("It is way too late".to_string()))];
-        assert_source_all_ok_and_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn parses_more_than_three_slashes_as_regular_comment() {
-        let source = "///////////  Thomas is the best!    ";
+        let source = create_test_source("///////////  Thomas is the best!    ");
         let expected = vec![Token::Comment(Regular("Thomas is the best!".to_string()))];
-        assert_source_all_ok_and_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn parses_docstring_comment() {
-        let source = "/// Max is the best! ";
+        let source = create_test_source("/// Max is the best! ");
         let expected = vec![Token::Comment(Docstring("Max is the best!".to_string()))];
-        assert_source_all_ok_and_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn parses_multiline_comment() {
-        let source = "/// Line 1\n// Line 2";
+        let source = create_test_source("/// Line 1\n// Line 2");
 
         let expected = vec![
             Token::Comment(Docstring("Line 1".to_string())),
@@ -417,34 +449,34 @@ mod tests {
             Token::Comment(Regular("Line 2".to_string())),
         ];
 
-        assert_source_all_ok_and_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn parses_escape_characters() {
-        let source = r#""\\\n\r\t\0\"""#;
+        let source = create_test_source(r#""\\\n\r\t\0\"""#);
         let expected = vec![Token::Literal(StrLiteral("\\\n\r\t\0\"".to_string()))];
-        assert_source_all_ok_and_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn parses_hex_escape_characters() {
         // print(''.join(["\\" + str(hex(ord(c)))[1:] for c in 'flick']))
-        let source = r#""\x66\x6c\x69\x63\x6b""#;
+        let source = create_test_source(r#""\x66\x6c\x69\x63\x6b""#);
         let expected = vec![Token::Literal(StrLiteral("flick".to_string()))];
-        assert_source_all_ok_and_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn parses_unicode_escape_characters() {
-        let source = r#""\u2702\u0046\u002f""#;
+        let source = create_test_source(r#""\u2702\u0046\u002f""#);
         let expected = vec![Token::Literal(StrLiteral("✂F/".to_string()))];
-        assert_source_all_ok_and_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn parses_short_program() {
-        let source = "call(3)\nprint(5)";
+        let source = create_test_source("call(3)\nprint(5)");
 
         let expected = vec![
             Token::Identifier("call".to_string()),
@@ -458,12 +490,12 @@ mod tests {
             Token::Punctuation(CloseBracket(Round)),
         ];
 
-        assert_source_all_ok_and_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn parses_map_statement() {
-        let source = "map<str, int> m = {\"hi\": 2, \"bye\": 100}";
+        let source = create_test_source("map<str, int> m = {\"hi\": 2, \"bye\": 100}");
 
         let expected = vec![
             Token::Keyword(Map),
@@ -485,98 +517,95 @@ mod tests {
             Token::Punctuation(CloseBracket(Curly)),
         ];
 
-        assert_source_all_ok_and_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn parses_keyword() {
-        let source = "if";
+        let source = create_test_source("if");
         let expected = vec![Token::Keyword(If)];
-        assert_source_all_ok_and_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn parses_float_in_scientific_notation_with_big_e() {
-        let source = "1.1E12";
-        let expected = vec![Token::Literal(FloatLiteral(source.parse().unwrap()))];
-        assert_source_all_ok_and_has_expected_output!(source, expected)
+        let source = create_test_source("1.1E12");
+        let expected = vec![Token::Literal(FloatLiteral(1.1E12))];
+        assert_source_all_ok_and_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn parses_float_in_scientific_notation_with_small_e() {
-        let source = "3.9993e12";
-        let expected = vec![Token::Literal(FloatLiteral(source.parse().unwrap()))];
-        assert_source_all_ok_and_has_expected_output!(source, expected)
+        let source = create_test_source("3.9993e12");
+        let expected = vec![Token::Literal(FloatLiteral(3.9993e12))];
+        assert_source_all_ok_and_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn parses_float_in_scientific_notation_with_positive_e() {
-        let source = "123456789E+11";
-        let expected = vec![Token::Literal(FloatLiteral(source.parse().unwrap()))];
-        assert_source_all_ok_and_has_expected_output!(source, expected)
+        let source = create_test_source("123456789E+11");
+        let expected = vec![Token::Literal(FloatLiteral(123456789E+11))];
+        assert_source_all_ok_and_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn parses_float_in_scientific_notation_with_negative_e() {
-        let source = "6.67430e-11";
-        let expected = vec![Token::Literal(FloatLiteral(source.parse().unwrap()))];
-        assert_source_all_ok_and_has_expected_output!(source, expected)
+        let source = create_test_source("6.67430e-11");
+        let expected = vec![Token::Literal(FloatLiteral(6.67430e-11))];
+        assert_source_all_ok_and_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn parses_float() {
-        let source = "123.456789";
-        let expected = vec![Token::Literal(FloatLiteral(source.parse().unwrap()))];
-        assert_source_all_ok_and_has_expected_output!(source, expected)
+        let source = create_test_source("123.456789");
+        let expected = vec![Token::Literal(FloatLiteral(123.456789))];
+        assert_source_all_ok_and_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn parses_negative_float() {
-        let source = "-123.456789";
+        let source = create_test_source("-123.456789");
         let expected = vec![
             Token::Punctuation(Dash),
-            Token::Literal(FloatLiteral(source[1..].parse().unwrap())),
+            Token::Literal(FloatLiteral(123.456789)),
         ];
-        assert_source_all_ok_and_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn parses_identifier_with_non_ascii_chars() {
-        let source = "çaí";
-        let expected = vec![Token::Identifier(source.to_string())];
-        assert_source_all_ok_and_has_expected_output!(source, expected);
+        let source = create_test_source("çaí");
+        let expected = vec![Token::Identifier("çaí".to_string())];
+        assert_source_all_ok_and_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn parses_number() {
-        let source = "1234567890";
-        let expected = vec![Token::Literal(IntLiteral(source.parse().unwrap()))];
-        assert_source_all_ok_and_has_expected_output!(source, expected)
+        let source = create_test_source("1234567890");
+        let expected = vec![Token::Literal(IntLiteral(1234567890))];
+        assert_source_all_ok_and_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn parses_negative_number() {
-        let source = "-414300";
-        let expected = vec![
-            Token::Punctuation(Dash),
-            Token::Literal(IntLiteral(source[1..].parse().unwrap())),
-        ];
-        assert_source_all_ok_and_has_expected_output!(source, expected)
+        let source = create_test_source("-414300");
+        let expected = vec![Token::Punctuation(Dash), Token::Literal(IntLiteral(414300))];
+        assert_source_all_ok_and_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn parses_identifier() {
-        let source = "ThomasIsTheBest";
-        let expected = vec![Token::Identifier(source.to_string())];
-        assert_source_all_ok_and_has_expected_output!(source, expected)
+        let source = create_test_source("ThomasIsTheBest");
+        let expected = vec![Token::Identifier("ThomasIsTheBest".to_string())];
+        assert_source_all_ok_and_has_expected_output!(&source, expected);
     }
 
     #[test]
     fn parses_str() {
-        let source = r#""Max is even better :D""#;
+        let source = create_test_source(r#""Max is even better :D""#);
         let expected = vec![Token::Literal(StrLiteral(
-            source[1..source.len() - 1].to_string(),
+            "Max is even better :D".to_string(),
         ))];
-        assert_source_all_ok_and_has_expected_output!(source, expected)
+        assert_source_all_ok_and_has_expected_output!(&source, expected);
     }
 }

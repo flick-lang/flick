@@ -5,9 +5,10 @@ use std::path::{Path, PathBuf};
 
 use crate::lexer::Tokens;
 
+#[derive(Debug, PartialEq)]
 pub struct SourceFile {
-    file_path: PathBuf,
-    source: String,
+    pub(crate) file_path: PathBuf,
+    pub(crate) source: String,
 }
 
 impl SourceFile {
@@ -28,6 +29,6 @@ impl SourceFile {
     }
 
     pub fn tokens(&self) -> Tokens {
-        Tokens::new(&self.file_path, &self.source)
+        Tokens::new(&self)
     }
 }
