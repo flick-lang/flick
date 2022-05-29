@@ -1,5 +1,4 @@
-use std::iter::{Enumerate, Peekable};
-use std::path::Path;
+use std::iter::Peekable;
 use std::str::Chars;
 
 use crate::lexer::location::Location;
@@ -11,20 +10,20 @@ pub struct SourceIterator<'a> {
     next_loc: Option<Location<'a>>,
     /// Location of what self.next() returned last time it was called
     cur_loc: Option<Location<'a>>,
-    src: Peekable<Enumerate<Chars<'a>>>,
+    src: Peekable<Chars<'a>>,
 }
 
 impl<'a> SourceIterator<'a> {
     pub fn new(source_file: &'a SourceFile) -> Self {
         Self {
-            next_loc: Some(Location::new(source_file, 1, 1)),
+            next_loc: Some(Location::new(source_file, 0, 1, 1)),
             cur_loc: None,
-            src: source_file.source.chars().enumerate().peekable(),
+            src: source_file.source.chars().peekable(),
         }
     }
 
     pub fn peek(&mut self) -> Option<char> {
-        self.src.peek().map(|&(_, c)| c)
+        self.src.peek().map(|&c| c)
     }
 
     pub fn skip(&mut self, n: usize) {
@@ -71,7 +70,7 @@ impl<'a> SourceIterator<'a> {
     ///
     /// Assumption: Every function that steps the iterator does so through this function
     pub fn next(&mut self) -> Option<char> {
-        let next = self.src.next().map(|(_, c)| c);
+        let next = self.src.next();
 
         self.cur_loc = self.next_loc;
 
@@ -79,10 +78,16 @@ impl<'a> SourceIterator<'a> {
         // when self.src runs out of chars to yield
         match next {
             Some('\n') => {
-                self.next_loc.as_mut().unwrap().line += 1;
-                self.next_loc.as_mut().unwrap().col = 1;
+                let next_loc = self.next_loc.as_mut().unwrap();
+                next_loc.line += 1;
+                next_loc.col = 1;
+                next_loc.source_index += 1;
             }
-            Some(_) => self.next_loc.as_mut().unwrap().col += 1,
+            Some(_) => {
+                let next_loc = self.next_loc.as_mut().unwrap();
+                next_loc.col += 1;
+                next_loc.source_index += 1;
+            }
             None => self.next_loc = None,
         }
 
