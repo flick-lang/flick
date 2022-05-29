@@ -119,6 +119,14 @@ impl<'a> Display for Error<'a> {
             Self::write_context_line(&mut s, line, self.loc.line + 1, line_num_width)?;
         }
 
+        write!(
+            s,
+            "{}:{}:{}",
+            self.loc.source_file.file_path.display(),
+            self.loc.line,
+            self.loc.col
+        )?;
+
         f.write_str(&s)
     }
 }
