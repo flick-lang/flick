@@ -4,4 +4,3 @@
 ### License
 
 Flick uses the [MIT](LICENSE) license.
-
