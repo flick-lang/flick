@@ -2,8 +2,8 @@ use crate::lexer::source_iterator::SourceIterator;
 use crate::lexer::Bracket::{Angle, Curly, Round, Square};
 use crate::lexer::Comment::{Docstring, Regular};
 use crate::lexer::ErrorKind::{
-    BadUnicodeEscape, InvalidCharInEscape, InvalidFloat, TruncatedEscapeSequence, UnknownEscape,
-    UnknownStartOfToken, UnterminatedStr,
+    InvalidCharInEscape, InvalidFloat, InvalidStartOfToken, TruncatedEscapeSequence, UnknownEscape,
+    UnterminatedStr,
 };
 use crate::lexer::Keyword::{
     And, Arr, Bool, False, Float as FloatKeyword, Fn, For, If, Int as IntKeyword, Map, Not, Or,
@@ -79,7 +79,7 @@ impl<'a> Iterator for Tokens<'a> {
                 '[' => Ok(Token::Punctuation(OpenBracket(Square))),
                 ']' => Ok(Token::Punctuation(CloseBracket(Square))),
 
-                c => Err(self.create_error(UnknownStartOfToken(c))),
+                c => Err(self.create_error(InvalidStartOfToken, c)),
             },
         };
 
@@ -117,8 +117,11 @@ impl<'a> Tokens<'a> {
 
         loop {
             match self.src.peek() {
-                Some('\n') | None => return Err(self.create_error(UnterminatedStr)),
-
+                Some('\n') | None => {
+                    return parsing_error.unwrap_or(Err(
+                        self.create_error(UnterminatedStr, '"'.to_string() + &contents)
+                    ));
+                }
                 // otherwise, consume the peeked char
                 _ => match self.src.next().unwrap() {
                     '"' => {
@@ -127,21 +130,31 @@ impl<'a> Tokens<'a> {
                     }
                     '\\' => match self.parse_escape_in_str_literal() {
                         Ok(c) => contents.push(c),
-                        Err(e) => parsing_error = Some(Err(e)),
+                        Err(e) => match e.kind {
+                            InvalidCharInEscape => {
+                                parsing_error.get_or_insert(Err(e));
+                            }
+                            UnknownEscape | TruncatedEscapeSequence => {
+                                parsing_error.get_or_insert(Err(e.prepend(r"\")));
+                            }
+                            UnterminatedStr => {
+                                return Err(e.prepend('"'.to_string() + &contents + r"\"));
+                            }
+                            _ => unreachable!("all string parsing errors should be matched above"),
+                        },
                     },
-                    c => {
-                        contents.push(c);
-                    }
+                    c => contents.push(c),
                 },
             }
         }
     }
+
     /// Parses what follows a single \ in a string literal.
     ///
     /// Assumption: previous self.src.next() == Some('\\')
     fn parse_escape_in_str_literal(&mut self) -> Result<'a, char> {
         match self.src.peek() {
-            None | Some('\n') => Err(self.create_error(UnterminatedStr)),
+            None | Some('\n') => Err(self.create_error(UnterminatedStr, "")), // problem will be prepended to by caller
 
             // otherwise, consume the peeked char
             _ => match self.src.next().unwrap() {
@@ -151,9 +164,18 @@ impl<'a> Tokens<'a> {
                 '\\' => Ok('\\'),
                 '0' => Ok('\0'),
                 '"' => Ok('"'),
-                'u' => self.take_hex_code_and_conv_to_char(4),
-                'x' => self.take_hex_code_and_conv_to_char(2),
-                c => Err(self.create_error(UnknownEscape(c))),
+                esc @ ('u' | 'x') => {
+                    match self.take_hex_code_and_conv_to_char(if esc == 'u' { 4 } else { 2 }) {
+                        Err(
+                            e @ Error {
+                                kind: TruncatedEscapeSequence | UnterminatedStr,
+                                ..
+                            },
+                        ) => Err(e.prepend(esc)),
+                        res => res,
+                    }
+                }
+                c => Err(self.create_error(UnknownEscape, c)),
             },
         }
     }
@@ -161,26 +183,29 @@ impl<'a> Tokens<'a> {
     /// Reads a hex code of code_len hex digits (0-9, a-f) and returns the
     /// character it represents.
     ///
-    /// Assumption: self.src.next() == Some(first character of the hex code)
+    /// Assumption: self.src.next() == Some('u' | 'x'), and the previous character was \
+    /// Assumption: if an Err is returned, the caller will prepend to the problem as necessary
     pub fn take_hex_code_and_conv_to_char(&mut self, code_len: usize) -> Result<'a, char> {
         let mut code = String::new();
         for _ in 0..code_len {
             match self.src.peek() {
-                Some('"') => return Err(self.create_error(TruncatedEscapeSequence)),
-                None | Some('\n') => return Err(self.create_error(UnterminatedStr)),
+                Some('"') => {
+                    return Err(self.create_error(TruncatedEscapeSequence, code));
+                }
+                None | Some('\n') => {
+                    return Err(self.create_error(UnterminatedStr, code));
+                }
 
                 // otherwise, consume the peeked char
                 _ => match self.src.next().unwrap() {
                     c if c.is_ascii_hexdigit() => code.push(c),
-                    c => return Err(self.create_error(InvalidCharInEscape(c))),
+                    c => return Err(self.create_error(InvalidCharInEscape, c)),
                 },
             }
         }
-        // Safe to unwrap since from_str_radix() panics if radix > 36 (ours is 16)
-        match char::from_u32(u32::from_str_radix(&code, 16).unwrap()) {
-            Some(c) => Ok(c),
-            None => Err(self.create_error(BadUnicodeEscape(code))),
-        }
+        // Safe to unwrap from_str_radix, which panics if radix > 36 (ours is 16)
+        // Safe to unwrap from_u32(), which panic if the u32 is an invalid char (ours is <= 0xffff)
+        Ok(char::from_u32(u32::from_str_radix(&code, 16).unwrap()).unwrap())
     }
 
     /// Returns next numeric literal token (int or float) and advances self.src.
@@ -206,7 +231,7 @@ impl<'a> Tokens<'a> {
         if num.contains(['e', 'E', '.']) {
             match num.parse() {
                 Ok(parsed) => Ok(Token::Literal(FloatLiteral(parsed))),
-                Err(_) => Err(self.create_error(InvalidFloat(num))),
+                Err(_) => Err(self.create_error(InvalidFloat, num)),
             }
         } else {
             // Safe to unwrap because we can't get an invalid int
@@ -214,8 +239,13 @@ impl<'a> Tokens<'a> {
         }
     }
 
-    fn create_error(&self, kind: ErrorKind) -> Error<'a> {
-        Error::new(self.src.loc().expect("src.loc() must not be None"), kind)
+    fn create_error(&self, kind: ErrorKind, problem: impl Into<String>) -> Error<'a> {
+        Error::new(
+            self.src.loc().expect("src.loc() must not be None"),
+            // problem.as_ref().to_string(),
+            kind,
+            problem,
+        )
     }
 
     /// Returns next identifier or keyword consisting of alphabetic letters, digits,
@@ -284,17 +314,26 @@ mod tests {
         line: usize,
         row: usize,
         error_kind: ErrorKind,
+        problem: impl Into<String>,
     ) -> Error {
         Error::new(
             Location::new(source_file, source_index, line, row),
             error_kind,
+            problem,
         )
     }
 
     #[test]
     fn err_given_unknown_str_escape() {
         let source = create_test_source(r#""\e""#);
-        let expected = vec![Err(create_test_error(&source, 2, 1, 3, UnknownEscape('e')))];
+        let expected = vec![Err(create_test_error(
+            &source,
+            2,
+            1,
+            3,
+            UnknownEscape,
+            r"\e",
+        ))];
         assert_source_has_expected_output!(&source, expected);
     }
 
@@ -307,6 +346,7 @@ mod tests {
             1,
             6,
             TruncatedEscapeSequence,
+            r"\u3b9",
         ))];
         assert_source_has_expected_output!(&source, expected);
     }
@@ -314,12 +354,26 @@ mod tests {
     #[test]
     fn err_given_unterminated_str_ending_in_unicode_escape() {
         let source = create_test_source(r#""\u3b9"#);
-        let expected = vec![Err(create_test_error(&source, 5, 1, 6, UnterminatedStr))];
+        let expected = vec![Err(create_test_error(
+            &source,
+            5,
+            1,
+            6,
+            UnterminatedStr,
+            r#""\u3b9"#,
+        ))];
         assert_source_has_expected_output!(&source, expected);
 
         let source = create_test_source("\"\\u3b9\n");
         let expected = vec![
-            Err(create_test_error(&source, 5, 1, 6, UnterminatedStr)),
+            Err(create_test_error(
+                &source,
+                5,
+                1,
+                6,
+                UnterminatedStr,
+                r#""\u3b9"#,
+            )),
             Ok(Token::Punctuation(Newline)),
         ];
         assert_source_has_expected_output!(&source, expected);
@@ -328,12 +382,26 @@ mod tests {
     #[test]
     fn err_given_unterminated_str_ending_in_hex_escape() {
         let source = create_test_source(r#""\xa"#);
-        let expected = vec![Err(create_test_error(&source, 3, 1, 4, UnterminatedStr))];
+        let expected = vec![Err(create_test_error(
+            &source,
+            3,
+            1,
+            4,
+            UnterminatedStr,
+            r#""\xa"#,
+        ))];
         assert_source_has_expected_output!(&source, expected);
 
         let source = create_test_source("\"\\xa\n");
         let expected = vec![
-            Err(create_test_error(&source, 3, 1, 4, UnterminatedStr)),
+            Err(create_test_error(
+                &source,
+                3,
+                1,
+                4,
+                UnterminatedStr,
+                r#""\xa"#,
+            )),
             Ok(Token::Punctuation(Newline)),
         ];
         assert_source_has_expected_output!(&source, expected);
@@ -347,7 +415,8 @@ mod tests {
             6,
             1,
             7,
-            InvalidCharInEscape('w'),
+            InvalidCharInEscape,
+            "w",
         ))];
         assert_source_has_expected_output!(&source, expected);
     }
@@ -361,6 +430,7 @@ mod tests {
             1,
             4,
             TruncatedEscapeSequence,
+            r"\x9",
         ))];
         assert_source_has_expected_output!(&source, expected);
     }
@@ -373,7 +443,8 @@ mod tests {
             4,
             1,
             5,
-            InvalidCharInEscape('z'),
+            InvalidCharInEscape,
+            r"z",
         ))];
         assert_source_has_expected_output!(&source, expected);
     }
@@ -383,23 +454,31 @@ mod tests {
         let source = create_test_source("\"test\n\"");
 
         let expected = vec![
-            Err(create_test_error(&source, 4, 1, 5, UnterminatedStr)),
+            Err(create_test_error(
+                &source,
+                4,
+                1,
+                5,
+                UnterminatedStr,
+                "\"test",
+            )),
             Ok(Token::Punctuation(Newline)),
-            Err(create_test_error(&source, 6, 2, 1, UnterminatedStr)),
+            Err(create_test_error(&source, 6, 2, 1, UnterminatedStr, "\"")),
         ];
 
         assert_source_has_expected_output!(&source, expected);
     }
 
     #[test]
-    fn err_given_unknown_char() {
+    fn err_given_invalid_start_of_token() {
         let source = create_test_source("∂");
         let expected = vec![Err(create_test_error(
             &source,
             0,
             1,
             1,
-            UnknownStartOfToken('∂'),
+            InvalidStartOfToken,
+            "∂",
         ))];
         assert_source_has_expected_output!(&source, expected);
     }
@@ -412,7 +491,8 @@ mod tests {
             18,
             1,
             19,
-            InvalidFloat("1.2312E-33333E+9999".to_string()),
+            InvalidFloat,
+            "1.2312E-33333E+9999",
         ))];
         assert_source_has_expected_output!(&source, expected);
     }
@@ -425,7 +505,8 @@ mod tests {
             11,
             1,
             12,
-            InvalidFloat("1.2312Ee9999".to_string()),
+            InvalidFloat,
+            "1.2312Ee9999",
         ))];
         assert_source_has_expected_output!(&source, expected);
     }
@@ -440,7 +521,8 @@ mod tests {
                 7,
                 1,
                 8,
-                InvalidFloat("1.2312E+".to_string()),
+                InvalidFloat,
+                "1.2312E+",
             )),
             Ok(Token::Punctuation(Dash)),
             Ok(Token::Literal(IntLiteral(9999))),
@@ -457,7 +539,8 @@ mod tests {
             10,
             1,
             11,
-            InvalidFloat("123.456.789".to_string()),
+            InvalidFloat,
+            "123.456.789",
         ))];
         assert_source_has_expected_output!(&source, expected);
     }

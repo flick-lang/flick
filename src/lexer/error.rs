@@ -1,18 +1,26 @@
 use std::fmt::{self, Display, Formatter, Write};
 
-use colored::Colorize;
+use colored::{control::SHOULD_COLORIZE, Colorize};
 
 use crate::lexer::location::Location;
 
 #[derive(Debug, PartialEq)]
 pub struct Error<'a> {
+    /// loc stores the location of the last character in the error
     pub(crate) loc: Location<'a>,
     pub(crate) kind: ErrorKind,
+    pub(crate) problem: String,
 }
 
+impl<'a> std::error::Error for Error<'a> {}
+
 impl<'a> Error<'a> {
-    pub fn new(loc: Location<'a>, kind: ErrorKind) -> Self {
-        Self { loc, kind }
+    pub fn new(loc: Location<'a>, kind: ErrorKind, problem: impl Into<String>) -> Self {
+        Self {
+            loc,
+            kind,
+            problem: problem.into(),
+        }
     }
 
     /// Finds first newline before `index` (searching right to left) in the source.
@@ -88,19 +96,62 @@ impl<'a> Error<'a> {
             width = line_num_width
         )
     }
+
+    fn write_squiggle(&self, mut s: impl Write, line_num_width: usize) -> fmt::Result {
+        let offset = " ".repeat(line_num_width + 2);
+        let padding = " ".repeat(1 + self.loc.col - self.problem.len());
+        let squiggle = "^".repeat(self.problem.len());
+        writeln!(s, "{}│{}{}", offset, padding, squiggle.red())
+    }
+
+    fn highlight_error(&self, line: &str) -> String {
+        let end = self.loc.col;
+        let start = end - self.problem.len();
+        format!(
+            "{}{}{}",
+            &line[..start],
+            &line[start..end].red().bold(),
+            &line[end..]
+        )
+    }
+
+    fn write_error_line(&self, mut s: impl Write) -> fmt::Result {
+        write!(s, "{}: ", "error".red().bold())?;
+        match self.kind {
+            ErrorKind::InvalidCharInEscape => {
+                writeln!(
+                    s,
+                    "invalid character in escape sequence: '{}'",
+                    self.problem
+                )
+            }
+            ErrorKind::InvalidFloat => writeln!(s, "invalid float literal: '{}'", self.problem),
+            ErrorKind::TruncatedEscapeSequence => {
+                writeln!(s, "escape sequence is too short: '{}'", self.problem)
+            }
+            ErrorKind::UnknownEscape => writeln!(s, r"unknown escape: '{}'", self.problem),
+            ErrorKind::InvalidStartOfToken => {
+                writeln!(
+                    s,
+                    "invalid start of token: '{}' ({})",
+                    self.problem,
+                    self.problem.escape_unicode().collect::<String>()
+                )
+            }
+            ErrorKind::UnterminatedStr => writeln!(s, "unterminated string literal"),
+        }
+    }
+
+    pub(crate) fn prepend(mut self, prefix: impl Into<String>) -> Self {
+        self.problem = prefix.into() + &self.problem;
+        self
+    }
 }
 
-impl<'a> std::error::Error for Error<'a> {}
-
 impl<'a> Display for Error<'a> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut s = String::new();
-        writeln!(
-            s,
-            "{}: {}",
-            "error".red().bold(),
-            self.kind.to_string().bold()
-        )?;
+        self.write_error_line(&mut s)?;
 
         let (prev, cur, next) = self.get_context_lines();
 
@@ -113,7 +164,16 @@ impl<'a> Display for Error<'a> {
             Self::write_context_line(&mut s, line, self.loc.line - 1, line_num_width)?;
         }
 
-        Self::write_context_line(&mut s, cur, self.loc.line, line_num_width)?;
+        Self::write_context_line(
+            &mut s,
+            &self.highlight_error(cur),
+            self.loc.line,
+            line_num_width,
+        )?;
+
+        if !SHOULD_COLORIZE.should_colorize() {
+            self.write_squiggle(&mut s, line_num_width)?; // if terminal doesn't support colors
+        }
 
         if let Some(line) = next {
             Self::write_context_line(&mut s, line, self.loc.line + 1, line_num_width)?;
@@ -122,9 +182,9 @@ impl<'a> Display for Error<'a> {
         write!(
             s,
             "{}:{}:{}",
-            self.loc.source_file.file_path.display(),
-            self.loc.line,
-            self.loc.col
+            self.loc.source_file.file_path.display().to_string().bold(),
+            self.loc.line.to_string().bold(),
+            (self.loc.col - self.problem.len() + 1).to_string().bold()
         )?;
 
         f.write_str(&s)
@@ -133,33 +193,10 @@ impl<'a> Display for Error<'a> {
 
 #[derive(Debug, PartialEq)]
 pub enum ErrorKind {
-    BadUnicodeEscape(String),
-    InvalidCharInEscape(char),
-    InvalidFloat(String),
+    InvalidCharInEscape,
+    InvalidFloat,
     TruncatedEscapeSequence,
-    UnknownEscape(char),
-    UnknownStartOfToken(char),
+    UnknownEscape,
+    InvalidStartOfToken,
     UnterminatedStr,
 }
-
-impl Display for ErrorKind {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::BadUnicodeEscape(s) => {
-                write!(f, "bad unicode escape sequence '{}'", s)
-            }
-            Self::InvalidCharInEscape(c) => {
-                write!(f, "invalid character in escape sequence: '{}'", c)
-            }
-            Self::InvalidFloat(float) => write!(f, "invalid float literal '{}'", float),
-            Self::TruncatedEscapeSequence => write!(f, "escape sequence is too short"),
-            Self::UnknownEscape(c) => write!(f, "unknown escape '{}'", c),
-            Self::UnknownStartOfToken(c) => {
-                write!(f, "unknown start of token (U+{:0>4X})", *c as u32)
-            }
-            Self::UnterminatedStr => write!(f, "unterminated string literal"),
-        }
-    }
-}
-
-impl std::error::Error for ErrorKind {}
