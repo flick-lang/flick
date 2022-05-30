@@ -132,7 +132,7 @@ impl<'a> Tokens<'a> {
                         Ok(c) => contents.push(c),
                         Err(e) => match e.kind {
                             InvalidCharInEscape => {
-                                parsing_error.get_or_insert(Err(e));
+                                parsing_error = parsing_error.or(Some(Err(e)));
                             }
                             UnknownEscape | TruncatedEscapeSequence => {
                                 parsing_error.get_or_insert(Err(e.prepend(r"\")));
