@@ -1,3 +1,5 @@
+pub use source_file::SourceFile;
+
 #[warn(
     missing_debug_implementations,
     missing_copy_implementations,
@@ -5,6 +7,7 @@
     unused_lifetimes
 )]
 mod lexer;
-mod program;
+mod source_file;
 
-pub use program::Program;
+#[cfg(test)]
+const TEST_FILE_PATH: &str = "/home/test.fl";

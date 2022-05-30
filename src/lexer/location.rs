@@ -1,17 +1,20 @@
+use crate::SourceFile;
+
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub struct Location {
+pub struct Location<'a> {
+    pub(crate) source_file: &'a SourceFile,
+    pub(crate) source_index: usize,
     pub(crate) line: usize,
     pub(crate) col: usize,
 }
 
-impl Location {
-    pub fn new(line: usize, col: usize) -> Self {
-        Self { line, col }
-    }
-}
-
-impl Into<Location> for (usize, usize) {
-    fn into(self) -> Location {
-        Location::new(self.0, self.1)
+impl<'a> Location<'a> {
+    pub fn new(source_file: &'a SourceFile, source_index: usize, line: usize, col: usize) -> Self {
+        Self {
+            source_file,
+            source_index,
+            line,
+            col,
+        }
     }
 }
