@@ -135,7 +135,7 @@ impl<'a> Tokens<'a> {
                                 parsing_error = parsing_error.or(Some(Err(e)));
                             }
                             UnknownEscape | TruncatedEscapeSequence => {
-                                parsing_error.get_or_insert(Err(e.prepend(r"\")));
+                                parsing_error = parsing_error.or(Some(Err(e.prepend(r"\"))));
                             }
                             UnterminatedStr => {
                                 return Err(e.prepend('"'.to_string() + &contents + r"\"));
