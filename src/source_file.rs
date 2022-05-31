@@ -29,6 +29,6 @@ impl SourceFile {
     }
 
     pub fn tokens(&self) -> Tokens {
-        Tokens::new(&self)
+        Tokens::new(self)
     }
 }

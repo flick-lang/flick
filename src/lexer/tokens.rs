@@ -242,7 +242,6 @@ impl<'a> Tokens<'a> {
     fn create_error(&self, kind: ErrorKind, problem: impl Into<String>) -> Error<'a> {
         Error::new(
             self.src.loc().expect("src.loc() must not be None"),
-            // problem.as_ref().to_string(),
             kind,
             problem,
         )
