@@ -23,7 +23,7 @@ impl<'a> SourceIterator<'a> {
     }
 
     pub fn peek(&mut self) -> Option<char> {
-        self.src.peek().map(|&c| c)
+        self.src.peek().copied()
     }
 
     pub fn skip(&mut self, n: usize) {

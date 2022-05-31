@@ -110,7 +110,7 @@ impl<'a> Tokens<'a> {
     ///
     /// Assumption: self.src.next() == Some('"').
     fn read_str_literal(&mut self) -> Result<'a, Token> {
-        let mut parsing_error = None;
+        let mut parse_error = None;
         let mut contents = String::new();
 
         self.src.skip(1); // skip the first quote
@@ -118,24 +118,24 @@ impl<'a> Tokens<'a> {
         loop {
             match self.src.peek() {
                 Some('\n') | None => {
-                    return parsing_error.unwrap_or(Err(
-                        self.create_error(UnterminatedStr, '"'.to_string() + &contents)
-                    ));
+                    return parse_error.unwrap_or_else(|| {
+                        Err(self.create_error(UnterminatedStr, '"'.to_string() + &contents))
+                    });
                 }
                 // otherwise, consume the peeked char
                 _ => match self.src.next().unwrap() {
                     '"' => {
-                        let default = Ok(Token::Literal(StrLiteral(contents)));
-                        return parsing_error.unwrap_or(default);
+                        let parsed_literal = Ok(Token::Literal(StrLiteral(contents)));
+                        return parse_error.unwrap_or(parsed_literal);
                     }
                     '\\' => match self.parse_escape_in_str_literal() {
                         Ok(c) => contents.push(c),
                         Err(e) => match e.kind {
                             InvalidCharInEscape => {
-                                parsing_error = parsing_error.or(Some(Err(e)));
+                                parse_error = parse_error.or(Some(Err(e)));
                             }
                             UnknownEscape | TruncatedEscapeSequence => {
-                                parsing_error = parsing_error.or(Some(Err(e.prepend(r"\"))));
+                                parse_error = parse_error.or_else(|| Some(Err(e.prepend(r"\"))));
                             }
                             UnterminatedStr => {
                                 return Err(e.prepend('"'.to_string() + &contents + r"\"));
@@ -242,7 +242,6 @@ impl<'a> Tokens<'a> {
     fn create_error(&self, kind: ErrorKind, problem: impl Into<String>) -> Error<'a> {
         Error::new(
             self.src.loc().expect("src.loc() must not be None"),
-            // problem.as_ref().to_string(),
             kind,
             problem,
         )
