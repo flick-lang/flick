@@ -1,6 +1,12 @@
 [package]
 name = "flick"
 version = "0.1.0"
+authors = ["Max Larsson <maxslarsson@gmail.com>", "Thomas Breydo <tbreydo@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/flick-lang/flick"
+homepage = "https://github.com/flick-lang/flick"
+description = "✂️ The Flick programming language"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
