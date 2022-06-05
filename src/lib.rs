@@ -1,5 +1,5 @@
-mod lexer;
-mod source_file;
+pub mod lexer;
+pub mod source_file;
 
 pub use source_file::SourceFile;
 
