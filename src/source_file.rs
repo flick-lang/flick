@@ -12,9 +12,9 @@ pub struct SourceFile {
 }
 
 impl SourceFile {
-    pub fn new(file_path: impl AsRef<Path>, source: &str) -> Self {
+    pub fn new(file_path: impl AsRef<Path>, source: impl Into<String>) -> Self {
         Self {
-            source: source.to_string(),
+            source: source.into(),
             file_path: file_path.as_ref().into(),
         }
     }
