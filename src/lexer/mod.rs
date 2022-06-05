@@ -1,11 +1,12 @@
-pub use error::Error;
-pub use error::ErrorKind;
-pub use token::Bracket;
-pub use token::Comment;
-pub use token::Keyword;
-pub use token::Literal;
-pub use token::Punctuation;
-pub use token::Token;
+use error::Error;
+use error::ErrorKind;
+use token::Bracket;
+use token::Comment;
+use token::Keyword;
+use token::Literal;
+use token::Punctuation;
+use token::Token;
+
 pub use tokens::Tokens;
 
 mod error;
