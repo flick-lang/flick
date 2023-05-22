@@ -1,6 +1,0 @@
-y = "\u3g33 invalid char in unicode escape sequence"
-z = "\x3g33 invalid char in hex escape sequence"
-w = "truncated unicode escape: \u32"
-m = "truncated hex escape: \x3"
-n = "bad escape \w here"
-x = "string doesn't end
