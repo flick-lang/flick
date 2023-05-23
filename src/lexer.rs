@@ -76,11 +76,18 @@ impl<'a> Lexer<'a> {
     fn read_comment(&mut self) -> Token {
         let mut comment = String::new();
 
+        while let Some(&c) = self.chars.peek() {
+            if c == '#' || c.is_whitespace() {
+                self.chars.next(); // ignore '#' and whitespace at start of comment
+            } else {
+                break;
+            }
+        }
+
         while let Some(c) = self.chars.next() {
             if c == '\n' {
                 break;
             }
-
             comment.push(c);
         }
 
