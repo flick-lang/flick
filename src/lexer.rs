@@ -14,7 +14,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    pub fn next_token(&mut self) -> Option<Token> {
+    fn next_token(&mut self) -> Option<Token> {
         self.skip_whitespace();
 
         // Figure out what type the next token is and call handling function
@@ -126,5 +126,14 @@ impl<'a> Lexer<'a> {
             '\n' => Token::Newline,
             _ => unreachable!(),
         }
+    }
+}
+
+impl<'a> Iterator for Lexer<'a> {
+    type Item = Token;
+
+    /// Lexes the next `Token` and returns it.
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next_token()
     }
 }
