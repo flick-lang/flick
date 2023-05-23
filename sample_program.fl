@@ -1,0 +1,17 @@
+# Currently everything is wrapped with main() {...}
+
+var N: int = 5
+
+# todo: introduce const/let
+# todo: introduce implicit types
+var answer: int = 1
+# todo: parse negative numbers
+var i: int = 1
+
+while i <= N {
+    answer = answer * i
+    i += 1
+}
+
+# todo: move print to std
+print(answer)
