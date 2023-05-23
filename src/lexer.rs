@@ -10,7 +10,7 @@ pub struct Lexer<'a> {
 impl<'a> Lexer<'a> {
     pub fn new(source_code: &'a str) -> Self {
         Self {
-            chars: source_code.chars().peekable()
+            chars: source_code.chars().peekable(),
         }
     }
 
@@ -31,25 +31,23 @@ impl<'a> Lexer<'a> {
     }
 
     fn skip_whitespace(&mut self) {
-        while let Some(c) = self.chars.peek() {
-            if c.is_whitespace() && *c != '\n' {
+        while let Some(&c) = self.chars.peek() {
+            if c.is_whitespace() && c != '\n' {
                 self.chars.next();
             } else {
-                break
+                break;
             }
         }
     }
 
     fn read_word(&mut self) -> Token {
         let mut s = String::new();
-        while let Some(c) = self.chars.peek() {
-            if c.is_ascii_alphanumeric() || *c == '_' {
-                s.push(*c);
-                self.chars.next();
-            } else {
-                break
+        while let Some(&c) = self.chars.peek() {
+            if !c.is_ascii_alphanumeric() && c != '_' {
+                break;
             }
-        };
+            s.push(self.chars.next().unwrap());
+        }
 
         match s.as_str() {
             "var" => Token::Var,
@@ -66,7 +64,6 @@ impl<'a> Lexer<'a> {
             if !c.is_ascii_digit() {
                 break;
             }
-
             number.push(self.chars.next().unwrap());
         }
 
@@ -119,7 +116,7 @@ impl<'a> Lexer<'a> {
             "-=" => Token::MinusEq,
             "+=" => Token::PlusEq,
 
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 
