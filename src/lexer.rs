@@ -141,3 +141,22 @@ impl<'a> Iterator for Lexer<'a> {
         self.next_token()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::token::Token;
+    use crate::lexer::Lexer;
+
+    #[test]
+    fn comments() {
+        let source_code = "#    simple comment";
+        let expected_tokens = vec![
+            Token::Comment("simple comment".to_string())
+        ];
+
+        let lexer = Lexer::new(source_code);
+        let received_tokens: Vec<_> = lexer.collect();
+
+        assert_eq!(received_tokens, expected_tokens);
+    }
+}
