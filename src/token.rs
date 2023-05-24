@@ -24,21 +24,21 @@ pub enum Token {
     Assign,
 
     // Comparators
-    EQ,
-    LEQ,
-    GEQ,
-    LT,
-    GT,
+    EqualTo,
+    LessThan,
+    GreaterThan,
+    LessOrEqualTo,
+    GreaterOrEqualTo,
 
     // Operators
+    Plus,
+    Minus,
     Asterisk,
     Slash,
-    Minus,
-    Plus,
 
     // Assigners
+    PlusEq,
+    MinusEq,
     TimesEq,
     DivideEq,
-    MinusEq,
-    PlusEq,
 }

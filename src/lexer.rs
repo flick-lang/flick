@@ -31,19 +31,25 @@ impl<'a> Lexer<'a> {
     }
 
     fn take_chars_while(&mut self, predicate: impl Fn(&char) -> bool) -> String {
-        let mut s = String::new();
+        let mut string = String::new();
         while let Some(c) = self.chars.peek() {
             if predicate(c) {
-                s.push(self.chars.next().unwrap());
+                string.push(self.chars.next().unwrap());
             } else {
                 break
             }
         }
-        return s;
+        string
     }
 
     fn skip_chars_while(&mut self, predicate: impl Fn(&char) -> bool) {
-        let _ = self.take_chars_while(predicate);
+        while let Some(c) = self.chars.peek() {
+            if predicate(c) {
+                self.chars.next();
+            } else {
+                break
+            }
+        }
     }
 
     fn skip_non_newline_whitespace(&mut self) {
@@ -86,17 +92,17 @@ impl<'a> Lexer<'a> {
         }
 
         match operator.as_str() {
-            ">" => Token::GT,
-            "<" => Token::LT,
+            ">" => Token::GreaterThan,
+            "<" => Token::LessThan,
             "=" => Token::Assign,
             "*" => Token::Asterisk,
             "/" => Token::Slash,
             "-" => Token::Minus,
             "+" => Token::Plus,
 
-            ">=" => Token::GEQ,
-            "<=" => Token::LEQ,
-            "==" => Token::EQ,
+            ">=" => Token::GreaterOrEqualTo,
+            "<=" => Token::LessOrEqualTo,
+            "==" => Token::EqualTo,
             "*=" => Token::TimesEq,
             "/=" => Token::DivideEq,
             "-=" => Token::MinusEq,
@@ -180,7 +186,7 @@ mod tests {
         let expected_tokens = vec![
             Token::While,
             Token::Identifier("x".to_string()),
-            Token::LEQ,
+            Token::LessOrEqualTo,
             Token::Usize(5),
             Token::LSquirly,
             Token::RSquirly,

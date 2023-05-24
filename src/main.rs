@@ -25,7 +25,7 @@ fn main() -> Result<()> {
     let mut file_contents = String::new();
     buf_reader.read_to_string(&mut file_contents)?;
 
-    let lexer: Lexer = Lexer::new(&file_contents);
+    let lexer = Lexer::new(&file_contents);
     for token in lexer {
         println!("{:?}", token);
     }
