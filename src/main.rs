@@ -3,7 +3,6 @@ mod token;
 
 use std::path::PathBuf;
 use std::fs::File;
-use std::io::BufReader;
 use std::io::Read;
 
 use clap::Parser;
@@ -20,15 +19,13 @@ struct Cli {
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    let file = File::open(cli.file_path)?;
-    let mut buf_reader = BufReader::new(file);
+    let mut file = File::open(cli.file_path)?;
     let mut file_contents = String::new();
-    buf_reader.read_to_string(&mut file_contents)?;
+    file.read_to_string(&mut file_contents)?;
+    let file_chars: Vec<_> = file_contents.chars().collect();
 
-    let lexer = Lexer::new(&file_contents);
-    for token in lexer {
-        println!("{:?}", token);
-    }
+    let lexer = Lexer::new(&file_chars);
+    let tokens: Vec<_> = lexer.collect();
 
     Ok(())
 }

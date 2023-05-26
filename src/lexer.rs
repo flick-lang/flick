@@ -1,24 +1,34 @@
-use std::iter::Peekable;
-use std::str::Chars;
-
 use crate::token::{Token, VarType};
 
 pub struct Lexer<'a> {
-    chars: Peekable<Chars<'a>>,
+    chars: &'a [char],
+    cursor: usize
 }
 
 impl<'a> Lexer<'a> {
-    pub fn new(source_code: &'a str) -> Self {
+    pub fn new(chars: &'a [char]) -> Self {
         Self {
-            chars: source_code.chars().peekable(),
+            chars,
+            cursor: 0
         }
+    }
+
+    fn next(&mut self) -> Option<&char> {
+        let token = self.chars.get(self.cursor);
+        self.cursor += 1;
+        token
+    }
+
+    /// Returns a reference to the next() value without advancing the cursor.
+    fn peek(&mut self, n: usize) -> Option<&char> {
+        self.chars.get(self.cursor + (n-1)) // n-1 to fix indexing
     }
 
     fn next_token(&mut self) -> Option<Token> {
         self.skip_non_newline_whitespace();
 
         // Figure out what type the next token is and call handling function
-        let token = match self.chars.peek()? {
+        let token = match self.peek(1)? {
             'a'..='z' | 'A'..='Z' | '_' => self.read_word(),
             '0'..='9' => self.read_int_literal(),
             '#' => self.read_comment(),
@@ -32,9 +42,9 @@ impl<'a> Lexer<'a> {
 
     fn take_chars_while(&mut self, predicate: impl Fn(&char) -> bool) -> String {
         let mut string = String::new();
-        while let Some(c) = self.chars.peek() {
+        while let Some(c) = self.peek(1) {
             if predicate(c) {
-                string.push(self.chars.next().unwrap());
+                string.push(*self.next().unwrap());
             } else {
                 break
             }
@@ -43,9 +53,9 @@ impl<'a> Lexer<'a> {
     }
 
     fn skip_chars_while(&mut self, predicate: impl Fn(&char) -> bool) {
-        while let Some(c) = self.chars.peek() {
+        while let Some(c) = self.peek(1) {
             if predicate(c) {
-                self.chars.next();
+                self.cursor += 1;
             } else {
                 break
             }
@@ -85,10 +95,10 @@ impl<'a> Lexer<'a> {
     /// by an '='.
     fn read_operator(&mut self) -> Token {
         let mut operator = String::new();
-        operator.push(self.chars.next().unwrap());
+        operator.push(*self.next().unwrap());
 
-        if let Some('=') = self.chars.peek() {
-            operator.push(self.chars.next().unwrap());
+        if let Some('=') = self.peek(1) {
+            operator.push(*self.next().unwrap());
         }
 
         match operator.as_str() {
@@ -114,7 +124,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn read_punctuation(&mut self) -> Token {
-        match self.chars.next().unwrap() {
+        match self.next().unwrap() {
             ':' => Token::Colon,
             '(' => Token::LParen,
             ')' => Token::RParen,
@@ -150,7 +160,8 @@ mod tests {
             Token::Comment("## complex comment".to_string()),
         ];
 
-        let lexer = Lexer::new(source_code);
+        let source_code_chars: Vec<_> = source_code.chars().collect();
+        let lexer = Lexer::new(&source_code_chars);
         let received_tokens: Vec<_> = lexer.collect();
 
         assert_eq!(received_tokens, expected_tokens);
@@ -175,7 +186,8 @@ mod tests {
             Token::Int(5),
         ];
 
-        let lexer = Lexer::new(source_code);
+        let source_code_chars: Vec<_> = source_code.chars().collect();
+        let lexer = Lexer::new(&source_code_chars);
         let received_tokens: Vec<_> = lexer.collect();
 
         assert_eq!(received_tokens, expected_tokens);
@@ -193,7 +205,8 @@ mod tests {
             Token::RSquirly,
         ];
 
-        let lexer = Lexer::new(source_code);
+        let source_code_chars: Vec<_> = source_code.chars().collect();
+        let lexer = Lexer::new(&source_code_chars);
         let received_tokens: Vec<_> = lexer.collect();
 
         assert_eq!(received_tokens, expected_tokens);
