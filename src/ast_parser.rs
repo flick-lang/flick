@@ -40,7 +40,7 @@ pub enum BinaryOperator {
 
 pub struct ASTParser<'a> {
     tokens: &'a [Token],
-    cursor: usize,  //
+    cursor: usize,
 }
 
 impl<'a> ASTParser<'a> {

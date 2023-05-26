@@ -2,7 +2,7 @@ use crate::token::{Token, VarType};
 
 pub struct Lexer<'a> {
     chars: &'a [char],
-    cursor: usize
+    cursor: usize,
 }
 
 impl<'a> Lexer<'a> {
