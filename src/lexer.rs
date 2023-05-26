@@ -137,7 +137,7 @@ impl<'a> Iterator for Lexer<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::token::Token;
+    use crate::token::{Token, VarType};
     use crate::lexer::Lexer;
     // todo make macro to avoid last three lines of boilerplate
 
@@ -163,14 +163,14 @@ mod tests {
             Token::Var,
             Token::Identifier("this_is_a_LONG_VARIABLE_NAME".to_string()),
             Token::Colon,
-            Token::Int,
+            Token::VarType(VarType::Int),
             Token::Assign,
             Token::Int(5),
             Token::Newline,
             Token::Var,
             Token::Identifier("shortInt".to_string()),
             Token::Colon,
-            Token::Int,
+            Token::VarType(VarType::Int),
             Token::Assign,
             Token::Int(5),
         ];
