@@ -361,8 +361,8 @@ mod tests {
     }
 
     #[test]
-    fn while_loop() {
-        let source_code = "while i <= N {\n\t\n}";
+    fn empty_while_loop() {
+        let source_code = "while i <= N {}";
         let expected = vec![Statement::WhileLoop {
             condition: Expr::BinExpr {
                 left: Box::new(Expr::Identifier("i".to_string())),
