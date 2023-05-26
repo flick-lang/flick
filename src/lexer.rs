@@ -1,4 +1,5 @@
-use crate::token::{Token, VarType};
+use crate::token::OperatorSymbol::*;
+use crate::token::{OperatorSymbol, Token, VarType};
 
 pub struct Lexer<'a> {
     chars: &'a [char],
@@ -7,10 +8,7 @@ pub struct Lexer<'a> {
 
 impl<'a> Lexer<'a> {
     pub fn new(chars: &'a [char]) -> Self {
-        Self {
-            chars,
-            cursor: 0
-        }
+        Self { chars, cursor: 0 }
     }
 
     fn next_char(&mut self) -> Option<&char> {
@@ -20,8 +18,12 @@ impl<'a> Lexer<'a> {
     }
 
     /// Returns a reference to the next() value without advancing the cursor.
-    fn peek_char(&mut self, n: usize) -> Option<&char> {
-        self.chars.get(self.cursor + (n-1)) // n-1 to fix indexing
+    fn peek_char(&self, n: usize) -> Option<&char> {
+        self.chars.get(self.cursor + (n - 1)) // n-1 to fix indexing
+    }
+
+    fn skip_char(&mut self) {
+        self.cursor += 1;
     }
 
     fn next_token(&mut self) -> Option<Token> {
@@ -33,7 +35,7 @@ impl<'a> Lexer<'a> {
             '0'..='9' => self.read_int_literal(),
             '#' => self.read_comment(),
             '=' | '<' | '>' | '*' | '%' | '/' | '+' | '-' => self.read_operator(),
-            ':' | '(' | ')' | '{' | '}' | '\n' => self.read_punctuation(),
+            ',' | ':' | '(' | ')' | '{' | '}' | '\n' => self.read_punctuation(),
             _ => unreachable!(),
         };
 
@@ -46,7 +48,7 @@ impl<'a> Lexer<'a> {
             if predicate(c) {
                 string.push(*self.next_char().unwrap());
             } else {
-                break
+                break;
             }
         }
         string
@@ -55,9 +57,9 @@ impl<'a> Lexer<'a> {
     fn skip_chars_while(&mut self, predicate: impl Fn(&char) -> bool) {
         while let Some(c) = self.peek_char(1) {
             if predicate(c) {
-                self.cursor += 1;
+                self.skip_char();
             } else {
-                break
+                break;
             }
         }
     }
@@ -80,7 +82,7 @@ impl<'a> Lexer<'a> {
     /// Assuming lexer peeked a digit.
     fn read_int_literal(&mut self) -> Token {
         let number = self.take_chars_while(|&c| c.is_ascii_digit());
-        Token::Int(number.parse().unwrap())
+        Token::IntLiteral(number.parse().unwrap())
     }
 
     /// Assuming lexer peeked a '#'.
@@ -102,22 +104,22 @@ impl<'a> Lexer<'a> {
         }
 
         match operator.as_str() {
-            ">" => Token::GreaterThan,
-            "<" => Token::LessThan,
-            "=" => Token::Assign,
-            "*" => Token::Asterisk,
-            "/" => Token::Slash,
-            "-" => Token::Minus,
-            "+" => Token::Plus,
+            ">" => Token::OperatorSymbol(GreaterThan),
+            "<" => Token::OperatorSymbol(LessThan),
+            "=" => Token::OperatorSymbol(Assign),
+            "*" => Token::OperatorSymbol(Asterisk),
+            "/" => Token::OperatorSymbol(Slash),
+            "-" => Token::OperatorSymbol(Minus),
+            "+" => Token::OperatorSymbol(Plus),
 
-            ">=" => Token::GreaterOrEqualTo,
-            "<=" => Token::LessOrEqualTo,
-            "==" => Token::EqualTo,
-            "!=" => Token::NotEqualTo,
-            "*=" => Token::TimesEq,
-            "/=" => Token::DivideEq,
-            "-=" => Token::MinusEq,
-            "+=" => Token::PlusEq,
+            ">=" => Token::OperatorSymbol(GreaterOrEqualTo),
+            "<=" => Token::OperatorSymbol(LessOrEqualTo),
+            "==" => Token::OperatorSymbol(EqualTo),
+            "!=" => Token::OperatorSymbol(NotEqualTo),
+            "*=" => Token::OperatorSymbol(TimesEq),
+            "/=" => Token::OperatorSymbol(DivideEq),
+            "-=" => Token::OperatorSymbol(MinusEq),
+            "+=" => Token::OperatorSymbol(PlusEq),
 
             _ => unreachable!(),
         }
@@ -125,6 +127,7 @@ impl<'a> Lexer<'a> {
 
     fn read_punctuation(&mut self) -> Token {
         match self.next_char().unwrap() {
+            ',' => Token::Comma,
             ':' => Token::Colon,
             '(' => Token::LParen,
             ')' => Token::RParen,
@@ -147,8 +150,8 @@ impl<'a> Iterator for Lexer<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::token::{Token, VarType};
     use crate::lexer::Lexer;
+    use crate::token::{OperatorSymbol, Token, VarType};
     // todo make macro to avoid last three lines of boilerplate
 
     #[test]
@@ -175,15 +178,15 @@ mod tests {
             Token::Identifier("this_is_a_LONG_VARIABLE_NAME".to_string()),
             Token::Colon,
             Token::VarType(VarType::Int),
-            Token::Assign,
-            Token::Int(5),
+            Token::OperatorSymbol(OperatorSymbol::Assign),
+            Token::IntLiteral(5),
             Token::Newline,
             Token::Var,
             Token::Identifier("shortInt".to_string()),
             Token::Colon,
             Token::VarType(VarType::Int),
-            Token::Assign,
-            Token::Int(5),
+            Token::OperatorSymbol(OperatorSymbol::Assign),
+            Token::IntLiteral(5),
         ];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
@@ -199,8 +202,8 @@ mod tests {
         let expected_tokens = vec![
             Token::While,
             Token::Identifier("x".to_string()),
-            Token::LessOrEqualTo,
-            Token::Int(5),
+            Token::OperatorSymbol(OperatorSymbol::LessOrEqualTo),
+            Token::IntLiteral(5),
             Token::LSquirly,
             Token::RSquirly,
         ];

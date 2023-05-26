@@ -2,14 +2,15 @@ statement   := var_dec | while_loop | expr
 var_decl    := var NAME TYPE expr
 
 expr            := (assigment_expr) | assigment_expr
-assigment_expr  := logical_or  +=,-=,*=
+assigment_expr  := {logical_or_expr =} logical_or_expr
 logical_or      := {logical_and or} logical_and
 logical_and     := {eq_neq_expr and} eq_neq_expr
-eq_neq_expr     := {lt_gt_expr !=,==} lt_gt_expr
-lt_gt_expr      := {add_sub_expr >,<,>=,<=} add_sub_expr
+comparison_expr     := {add_sub_expr !=,==} add_sub_expr
 add_sub_expr    := {mul_div_expr (+-)} mul_div_expr
 mul_div_expr    := {primary_expr (*/)} primary_expr
-primary_expr    := function_call | atom
+primary_expr    := call_expr | atom | index_expr
 
-function_call   := NAME ( {arg} )
-atom            := NAME | INTEGER_LITERAL | STR_LITERAL
+call_expr   := ID ( {args} )
+args        := {arg ,} arg
+index_expr  := ID [ {index} ]
+atom        := ID | INTEGER_LITERAL | STR_LITERAL
