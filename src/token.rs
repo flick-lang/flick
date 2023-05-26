@@ -1,8 +1,8 @@
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Token {
     Comment(String),
 
-    Usize(usize),
+    Int(isize),
     Identifier(String),
 
     // Keywords
@@ -10,7 +10,7 @@ pub enum Token {
     While,
 
     // Types
-    Int,
+    VarType(VarType),
 
     // Brackets
     LSquirly,
@@ -24,6 +24,7 @@ pub enum Token {
     Assign,
 
     // Comparators
+    NotEqualTo,
     EqualTo,
     LessThan,
     GreaterThan,
@@ -41,4 +42,9 @@ pub enum Token {
     MinusEq,
     TimesEq,
     DivideEq,
+}
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum VarType {
+    Int
 }

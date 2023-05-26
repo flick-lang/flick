@@ -1,7 +1,7 @@
 use std::iter::Peekable;
 use std::str::Chars;
 
-use crate::token::Token;
+use crate::token::{Token, VarType};
 
 pub struct Lexer<'a> {
     chars: Peekable<Chars<'a>>,
@@ -20,7 +20,7 @@ impl<'a> Lexer<'a> {
         // Figure out what type the next token is and call handling function
         let token = match self.chars.peek()? {
             'a'..='z' | 'A'..='Z' | '_' => self.read_word(),
-            '0'..='9' => self.read_usize_literal(),
+            '0'..='9' => self.read_int_literal(),
             '#' => self.read_comment(),
             '=' | '<' | '>' | '*' | '%' | '/' | '+' | '-' => self.read_operator(),
             ':' | '(' | ')' | '{' | '}' | '\n' => self.read_punctuation(),
@@ -61,16 +61,16 @@ impl<'a> Lexer<'a> {
         let s = self.take_chars_while(|&c| c.is_ascii_alphanumeric() || c == '_');
         match s.as_str() {
             "var" => Token::Var,
-            "int" => Token::Int,
+            "int" => Token::VarType(VarType::Int),
             "while" => Token::While,
             _ => Token::Identifier(s),
         }
     }
 
     /// Assuming lexer peeked a digit.
-    fn read_usize_literal(&mut self) -> Token {
+    fn read_int_literal(&mut self) -> Token {
         let number = self.take_chars_while(|&c| c.is_ascii_digit());
-        Token::Usize(number.parse().unwrap())
+        Token::Int(number.parse().unwrap())
     }
 
     /// Assuming lexer peeked a '#'.
@@ -103,6 +103,7 @@ impl<'a> Lexer<'a> {
             ">=" => Token::GreaterOrEqualTo,
             "<=" => Token::LessOrEqualTo,
             "==" => Token::EqualTo,
+            "!=" => Token::NotEqualTo,
             "*=" => Token::TimesEq,
             "/=" => Token::DivideEq,
             "-=" => Token::MinusEq,
@@ -164,14 +165,14 @@ mod tests {
             Token::Colon,
             Token::Int,
             Token::Assign,
-            Token::Usize(5),
+            Token::Int(5),
             Token::Newline,
             Token::Var,
             Token::Identifier("shortInt".to_string()),
             Token::Colon,
             Token::Int,
             Token::Assign,
-            Token::Usize(5),
+            Token::Int(5),
         ];
 
         let lexer = Lexer::new(source_code);
@@ -187,7 +188,7 @@ mod tests {
             Token::While,
             Token::Identifier("x".to_string()),
             Token::LessOrEqualTo,
-            Token::Usize(5),
+            Token::Int(5),
             Token::LSquirly,
             Token::RSquirly,
         ];
