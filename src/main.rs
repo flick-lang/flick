@@ -1,5 +1,6 @@
 mod lexer;
 mod token;
+mod ast_parser;
 
 use std::path::PathBuf;
 use std::fs::File;
@@ -8,6 +9,7 @@ use std::io::Read;
 use clap::Parser;
 use anyhow::Result;
 
+use crate::ast_parser::ASTParser;
 use crate::lexer::Lexer;
 
 #[derive(Parser)]
@@ -26,6 +28,9 @@ fn main() -> Result<()> {
 
     let lexer = Lexer::new(&file_chars);
     let tokens: Vec<_> = lexer.collect();
+
+    let mut parser = ASTParser::new(&tokens);
+    let ast = parser.parse();
 
     Ok(())
 }
