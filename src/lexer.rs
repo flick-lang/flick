@@ -13,14 +13,14 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn next(&mut self) -> Option<&char> {
-        let token = self.chars.get(self.cursor);
+    fn next_char(&mut self) -> Option<&char> {
+        let char = self.chars.get(self.cursor);
         self.cursor += 1;
-        token
+        char
     }
 
     /// Returns a reference to the next() value without advancing the cursor.
-    fn peek(&mut self, n: usize) -> Option<&char> {
+    fn peek_char(&mut self, n: usize) -> Option<&char> {
         self.chars.get(self.cursor + (n-1)) // n-1 to fix indexing
     }
 
@@ -28,7 +28,7 @@ impl<'a> Lexer<'a> {
         self.skip_non_newline_whitespace();
 
         // Figure out what type the next token is and call handling function
-        let token = match self.peek(1)? {
+        let token = match self.peek_char(1)? {
             'a'..='z' | 'A'..='Z' | '_' => self.read_word(),
             '0'..='9' => self.read_int_literal(),
             '#' => self.read_comment(),
@@ -42,9 +42,9 @@ impl<'a> Lexer<'a> {
 
     fn take_chars_while(&mut self, predicate: impl Fn(&char) -> bool) -> String {
         let mut string = String::new();
-        while let Some(c) = self.peek(1) {
+        while let Some(c) = self.peek_char(1) {
             if predicate(c) {
-                string.push(*self.next().unwrap());
+                string.push(*self.next_char().unwrap());
             } else {
                 break
             }
@@ -53,7 +53,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn skip_chars_while(&mut self, predicate: impl Fn(&char) -> bool) {
-        while let Some(c) = self.peek(1) {
+        while let Some(c) = self.peek_char(1) {
             if predicate(c) {
                 self.cursor += 1;
             } else {
@@ -95,10 +95,10 @@ impl<'a> Lexer<'a> {
     /// by an '='.
     fn read_operator(&mut self) -> Token {
         let mut operator = String::new();
-        operator.push(*self.next().unwrap());
+        operator.push(*self.next_char().unwrap());
 
-        if let Some('=') = self.peek(1) {
-            operator.push(*self.next().unwrap());
+        if let Some('=') = self.peek_char(1) {
+            operator.push(*self.next_char().unwrap());
         }
 
         match operator.as_str() {
@@ -124,7 +124,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn read_punctuation(&mut self) -> Token {
-        match self.next().unwrap() {
+        match self.next_char().unwrap() {
             ':' => Token::Colon,
             '(' => Token::LParen,
             ')' => Token::RParen,

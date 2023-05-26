@@ -51,27 +51,27 @@ impl<'a> ASTParser<'a> {
         }
     }
 
-    fn next(&mut self) -> Option<&Token> {
+    fn next_token(&mut self) -> Option<&Token> {
         let token = self.tokens.get(self.cursor);
         self.cursor += 1;
         token
     }
 
     /// Returns a reference to the next() value without advancing the cursor.
-    fn peek(&mut self, n: usize) -> Option<&Token> {
+    fn peek_token(&mut self, n: usize) -> Option<&Token> {
         self.tokens.get(self.cursor + (n-1)) // n-1 to fix indexing
     }
 
     pub fn parse(&mut self) -> Vec<Statement> {
         let mut statements = Vec::new();
-        while self.peek(1).is_some() {
+        while self.peek_token(1).is_some() {
             statements.push(self.parse_statement());
         }
         statements
     }
 
     fn parse_statement(&mut self) -> Statement {
-        match self.peek(1) {
+        match self.peek_token(1) {
             Some(Token::Var) => self.parse_var_dec(),
             Some(Token::While) => self.parse_while_loop(),
             _ => unreachable!(),
@@ -80,7 +80,7 @@ impl<'a> ASTParser<'a> {
 
     // TODO: Maybe make this a macro?
     fn assert_next_token(&mut self, expected: Token) {
-        match self.next() {
+        match self.next_token() {
             Some(token) if *token == expected => (),
             Some(token) => unreachable!("unexpected token {:?}, expected {:?}", token, expected),
             None => unreachable!("unexpected end of file, expected {:?}", expected)
@@ -90,7 +90,7 @@ impl<'a> ASTParser<'a> {
     fn parse_var_dec(&mut self) -> Statement {
         self.assert_next_token(Token::Var);
 
-        let var_name = match self.next() {
+        let var_name = match self.next_token() {
             Some(Token::Identifier(s)) => s.clone(),
             Some(token) => unreachable!("unexpected token {:?}, expected identifier", token),
             None => unreachable!("unexpected end of file, expected identifier")
@@ -98,7 +98,7 @@ impl<'a> ASTParser<'a> {
 
         self.assert_next_token(Token::Colon);
 
-        let var_type = match self.next() {
+        let var_type = match self.next_token() {
             Some(Token::VarType(s)) => *s,
             Some(token) => unreachable!("unexpected token {:?}, expected identifier", token),
             None => unreachable!("unexpected end of file, expected identifier")
@@ -123,7 +123,7 @@ impl<'a> ASTParser<'a> {
 
         self.assert_next_token(Token::LSquirly);
 
-        while let Some(token) = self.peek(1) {
+        while let Some(token) = self.peek_token(1) {
             if *token == Token::RSquirly {
                 break
             }
