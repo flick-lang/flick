@@ -22,24 +22,51 @@ impl<'a> Lexer<'a> {
         self.chars.get(self.cursor + (n - 1)) // n-1 to fix indexing
     }
 
-    fn skip_char(&mut self) {
-        self.cursor += 1;
+    fn skip_chars(&mut self, n: usize) {
+        self.cursor += n;
     }
 
     fn next_token(&mut self) -> Option<Token> {
         self.skip_non_newline_whitespace();
 
         // Figure out what type the next token is and call handling function
-        let token = match self.peek_char(1)? {
-            'a'..='z' | 'A'..='Z' | '_' => self.read_word(),
-            '0'..='9' => self.read_int_literal(),
-            '#' => self.read_comment(),
-            '=' | '<' | '>' | '*' | '%' | '/' | '+' | '-' => self.read_punctuation(),
-            ',' | ':' | '(' | ')' | '{' | '}' | '\n' => self.read_punctuation(),
-            _ => unreachable!(),
+        let peeked_token = match (self.peek_char(1)?, self.peek_char(2)) {
+            ('a'..='z' | 'A'..='Z' | '_', _) => return Some(self.read_word()),
+            ('0'..='9', _) => return Some(self.read_int_literal()),
+            ('/', Some('/')) => return Some(self.read_comment()),
+
+            ('>', Some('=')) => Token::OperatorSymbol(GreaterOrEqualTo),
+            ('<', Some('=')) => Token::OperatorSymbol(LessOrEqualTo),
+            ('=', Some('=')) => Token::OperatorSymbol(EqualTo),
+            ('!', Some('=')) => Token::OperatorSymbol(NotEqualTo),
+
+            ('*', Some('=')) => Token::OperatorSymbol(TimesEq),
+            ('/', Some('=')) => Token::OperatorSymbol(DivideEq),
+            ('-', Some('=')) => Token::OperatorSymbol(MinusEq),
+            ('+', Some('=')) => Token::OperatorSymbol(PlusEq),
+
+            ('>', _) => Token::OperatorSymbol(GreaterThan),
+            ('<', _) => Token::OperatorSymbol(LessThan),
+            ('=', _) => Token::OperatorSymbol(Assign),
+            ('*', _) => Token::OperatorSymbol(Asterisk),
+            ('/', _) => Token::OperatorSymbol(Slash),
+            ('-', _) => Token::OperatorSymbol(Minus),
+            ('+', _) => Token::OperatorSymbol(Plus),
+            (',', _) => Token::Comma,
+            (':', _) => Token::Colon,
+            ('(', _) => Token::LParen,
+            (')', _) => Token::RParen,
+            ('[', _) => Token::LSquare,
+            (']', _) => Token::RSquare,
+            ('{', _) => Token::LSquirly,
+            ('}', _) => Token::RSquirly,
+            ('\n', _) => Token::Newline,
+
+            (c, _) => panic!("unexpected character: {:?}", c),
         };
 
-        Some(token)
+        self.skip_chars(peeked_token.get_char_count());
+        Some(peeked_token)
     }
 
     fn take_chars_while(&mut self, predicate: impl Fn(&char) -> bool) -> String {
@@ -57,7 +84,7 @@ impl<'a> Lexer<'a> {
     fn skip_chars_while(&mut self, predicate: impl Fn(&char) -> bool) {
         while let Some(c) = self.peek_char(1) {
             if predicate(c) {
-                self.skip_char();
+                self.skip_chars(1);
             } else {
                 break;
             }
@@ -87,51 +114,9 @@ impl<'a> Lexer<'a> {
 
     /// Assuming lexer peeked a '#'.
     fn read_comment(&mut self) -> Token {
-        self.skip_chars_while(|&c| c == '#');
-        self.skip_non_newline_whitespace();
-
-        Token::Comment(self.take_chars_while(|&c| c != '\n'))
-    }
-
-
-
-    /// Assuming lexer peeked a character like '*' or '>' that might be proceeded
-    /// by an '='.
-    fn read_punctuation(&mut self) -> Token {
-        match (self.peek_char(1), self.peek_char(2)) {
-
-            (Some(">"),Some("=") => Token::OperatorSymbol(GreaterOrEqualTo),
-            (Some("<"),Some("=") => Token::OperatorSymbol(LessOrEqualTo),
-                (Some("="),Some("=") => Token::OperatorSymbol(EqualTo),
-                    (Some("!"),Some("=") => Token::OperatorSymbol(NotEqualTo),
-                        ("*"),Some("=") => Token::OperatorSymbol(TimesEq),
-            (("/"),Some("=") => Token::OperatorSymbol(DivideEq),
-
-            (Some(">"),_) => Token::OperatorSymbol(GreaterThan),
-            (Some("<" => Token::OperatorSymbol(LessThan),
-            (Some("=" => Token::OperatorSymbol(Assign),
-            (Some("*" => Token::OperatorSymbol(Asterisk),
-            (Some("/" => Token::OperatorSymbol(Slash),
-            (Some("-" => Token::OperatorSymbol(Minus),
-            "+" => Token::OperatorSymbol(Plus),
-            "//" => self.read_comment(),
-            "-=" => Token::OperatorSymbol(MinusEq),
-            "+=" => Token::OperatorSymbol(PlusEq),
-
-            _ => unreachable!(),
-        }
-    }
-
-    fn read_punctuation(&mut self) -> Token {
-        match self.next_char().unwrap() {
-            ',' => Token::Comma,
-            ':' => Token::Colon,
-            '(' => Token::LParen,
-            ')' => Token::RParen,
-            '{' => Token::LSquirly,
-            '}' => Token::RSquirly,
-            '\n' => Token::Newline,
-            _ => unreachable!(),
+        match self.peek_char(3) {
+            Some('/') => Token::Docstring(self.take_chars_while(|&c| c != '\n')),
+            _ => Token::Comment(self.take_chars_while(|&c| c != '\n')),
         }
     }
 }
@@ -153,11 +138,11 @@ mod tests {
 
     #[test]
     fn comments() {
-        let source_code = "#    simple comment\n######   ## complex comment";
+        let source_code = "//    simple comment\n/// // / docstring";
         let expected_tokens = vec![
-            Token::Comment("simple comment".to_string()),
+            Token::Comment("//    simple comment".to_string()),
             Token::Newline,
-            Token::Comment("## complex comment".to_string()),
+            Token::Docstring("/// // / docstring".to_string()),
         ];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
