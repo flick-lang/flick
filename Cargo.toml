@@ -18,3 +18,4 @@ lto = true
 [dependencies]
 anyhow = "1.0.71"
 clap = { version = "4.3.0", features = ["derive"] }
+llvm-sys = "160.1.0"
