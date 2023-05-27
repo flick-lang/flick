@@ -3,35 +3,50 @@ use crate::token::{OperatorSymbol, VarType};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Statement {
-    VarDeclaration {
-        var_name: Expr,
-        var_type: VarType,
-        var_value: Expr,
-    },
-    WhileLoop {
-        condition: Expr,
-        body: Vec<Statement>,
-    },
+    VarDeclaration(VarDeclaration),
+    WhileLoop(WhileLoop),
     Expr(Expr),
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct VarDeclaration {
+    pub var_name: Expr,
+    pub var_type: VarType,
+    pub var_value: Expr,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct WhileLoop {
+    pub condition: Expr,
+    pub body: Vec<Statement>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expr {
     Identifier(String),
     Int(isize),
-    BinExpr {
-        left: Box<Expr>,
-        operator: BinaryOperator,
-        right: Box<Expr>,
-    },
-    CallExpr {
-        function_name: Box<Expr>,
-        args: Vec<Expr>,
-    },
-    IndexExpr {
-        container: Box<Expr>,
-        index: (),
-    },
+    BinExpr(BinExpr),
+    CallExpr(CallExpr),
+    IndexExpr(IndexExpr),
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct BinExpr {
+    pub left: Box<Expr>,
+    pub operator: BinaryOperator,
+    pub right: Box<Expr>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct CallExpr {
+    pub function_name: Box<Expr>,
+    pub args: Vec<Expr>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct IndexExpr {
+    pub container: Box<Expr>,
+    pub index: (),
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]

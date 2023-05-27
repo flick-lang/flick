@@ -1,4 +1,6 @@
-use crate::ast::{BinaryOperator, Expr, Statement};
+use crate::ast::{
+    BinExpr, BinaryOperator, CallExpr, Expr, IndexExpr, Statement, VarDeclaration, WhileLoop,
+};
 use crate::token::OperatorSymbol;
 use crate::token::OperatorSymbol::*;
 use crate::token::Token;
@@ -80,11 +82,11 @@ impl<'a> Parser<'a> {
 
         let var_value = self.parse_expr();
 
-        Statement::VarDeclaration {
+        Statement::VarDeclaration(VarDeclaration {
             var_name,
             var_type,
             var_value,
-        }
+        })
     }
 
     fn parse_while_loop(&mut self) -> Statement {
@@ -110,7 +112,7 @@ impl<'a> Parser<'a> {
 
         self.assert_next_token(Token::RSquirly);
 
-        Statement::WhileLoop { condition, body }
+        Statement::WhileLoop(WhileLoop { condition, body })
     }
 
     fn parse_expr(&mut self) -> Expr {
@@ -134,11 +136,11 @@ impl<'a> Parser<'a> {
 
         let right = self.parse_assignment_expr();
 
-        Expr::BinExpr {
+        Expr::BinExpr(BinExpr {
             left: Box::new(left),
             operator,
             right: Box::new(right),
-        }
+        })
     }
 
     fn parse_logical_or_expr(&mut self) -> Expr {
@@ -179,11 +181,11 @@ impl<'a> Parser<'a> {
             }
         }
 
-        Expr::BinExpr {
+        Expr::BinExpr(BinExpr {
             left: Box::new(left),
             operator,
             right: Box::new(right),
-        }
+        })
     }
 
     fn parse_add_sub_expr(&mut self) -> Expr {
@@ -194,11 +196,11 @@ impl<'a> Parser<'a> {
             self.skip_token();
             let right = self.parse_mul_div_expr();
 
-            left_expr_so_far = Expr::BinExpr {
+            left_expr_so_far = Expr::BinExpr(BinExpr {
                 left: Box::new(left_expr_so_far),
                 operator,
                 right: Box::new(right),
-            }
+            })
         }
 
         left_expr_so_far
@@ -212,11 +214,11 @@ impl<'a> Parser<'a> {
             self.skip_token();
             let right = self.parse_primary_expr();
 
-            left_expr_so_far = Expr::BinExpr {
+            left_expr_so_far = Expr::BinExpr(BinExpr {
                 left: Box::new(left_expr_so_far),
                 operator,
                 right: Box::new(right),
-            }
+            })
         }
 
         left_expr_so_far
@@ -244,16 +246,16 @@ impl<'a> Parser<'a> {
         while let Some(Token::LParen | Token::LSquare) = self.peek_token(1) {
             match self.peek_token(1).unwrap() {
                 Token::LParen => {
-                    expr_so_far = Expr::CallExpr {
+                    expr_so_far = Expr::CallExpr(CallExpr {
                         function_name: Box::new(expr_so_far),
                         args: self.parse_args(),
-                    }
+                    })
                 }
                 Token::LSquare => {
-                    expr_so_far = Expr::IndexExpr {
+                    expr_so_far = Expr::IndexExpr(IndexExpr {
                         container: Box::new(expr_so_far),
                         index: self.parse_index(),
-                    }
+                    })
                 }
                 _ => unreachable!(),
             }
@@ -304,18 +306,19 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast_parser::{BinaryOperator, Expr, Parser, Statement};
+    use crate::ast::{BinExpr, CallExpr, VarDeclaration, WhileLoop};
     use crate::lexer::Lexer;
+    use crate::parser::{BinaryOperator, Expr, Parser, Statement};
     use crate::token::VarType;
 
     #[test]
     fn var_declaration() {
         let source_code = "int N = 5";
-        let expected = vec![Statement::VarDeclaration {
+        let expected = vec![Statement::VarDeclaration(VarDeclaration {
             var_name: Expr::Identifier("N".to_string()),
             var_type: VarType::Int,
             var_value: Expr::Int(5),
-        }];
+        })];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
         let lexer = Lexer::new(&source_code_chars);
@@ -330,15 +333,15 @@ mod tests {
     #[test]
     fn var_modification() {
         let source_code = "num = a = 10";
-        let expected = vec![Statement::Expr(Expr::BinExpr {
+        let expected = vec![Statement::Expr(Expr::BinExpr(BinExpr {
             left: Box::new(Expr::Identifier("num".to_string())),
             operator: BinaryOperator::Assign,
-            right: Box::new(Expr::BinExpr {
+            right: Box::new(Expr::BinExpr(BinExpr {
                 left: Box::new(Expr::Identifier("a".to_string())),
                 operator: BinaryOperator::Assign,
                 right: Box::new(Expr::Int(10)),
-            }),
-        })];
+            })),
+        }))];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
         let lexer = Lexer::new(&source_code_chars);
@@ -353,14 +356,14 @@ mod tests {
     #[test]
     fn empty_while_loop() {
         let source_code = "while i <= N {}";
-        let expected = vec![Statement::WhileLoop {
-            condition: Expr::BinExpr {
+        let expected = vec![Statement::WhileLoop(WhileLoop {
+            condition: Expr::BinExpr(BinExpr {
                 left: Box::new(Expr::Identifier("i".to_string())),
                 operator: BinaryOperator::LessOrEqualTo,
                 right: Box::new(Expr::Identifier("N".to_string())),
-            },
+            }),
             body: vec![],
-        }];
+        })];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
         let lexer = Lexer::new(&source_code_chars);
@@ -375,27 +378,27 @@ mod tests {
     #[test]
     fn order_of_operations() {
         let source_code = "10 + 3 * 8 / 4 - 13 + 5";
-        let expected = vec![Statement::Expr(Expr::BinExpr {
-            left: Box::new(Expr::BinExpr {
-                left: Box::new(Expr::BinExpr {
+        let expected = vec![Statement::Expr(Expr::BinExpr(BinExpr {
+            left: Box::new(Expr::BinExpr(BinExpr {
+                left: Box::new(Expr::BinExpr(BinExpr {
                     left: Box::new(Expr::Int(10)),
                     operator: BinaryOperator::Add,
-                    right: Box::new(Expr::BinExpr {
-                        left: Box::new(Expr::BinExpr {
+                    right: Box::new(Expr::BinExpr(BinExpr {
+                        left: Box::new(Expr::BinExpr(BinExpr {
                             left: Box::new(Expr::Int(3)),
                             operator: BinaryOperator::Multiply,
                             right: Box::new(Expr::Int(8)),
-                        }),
+                        })),
                         operator: BinaryOperator::Divide,
                         right: Box::new(Expr::Int(4)),
-                    }),
-                }),
+                    })),
+                })),
                 operator: BinaryOperator::Subtract,
                 right: Box::new(Expr::Int(13)),
-            }),
+            })),
             operator: BinaryOperator::Add,
             right: Box::new(Expr::Int(5)),
-        })];
+        }))];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
         let lexer = Lexer::new(&source_code_chars);
@@ -410,15 +413,15 @@ mod tests {
     #[test]
     fn parenthetical_expression() {
         let source_code = "9*(2+3)";
-        let expected = vec![Statement::Expr(Expr::BinExpr {
+        let expected = vec![Statement::Expr(Expr::BinExpr(BinExpr {
             left: Box::new(Expr::Int(9)),
             operator: BinaryOperator::Multiply,
-            right: Box::new(Expr::BinExpr {
+            right: Box::new(Expr::BinExpr(BinExpr {
                 left: Box::new(Expr::Int(2)),
                 operator: BinaryOperator::Add,
                 right: Box::new(Expr::Int(3)),
-            }),
-        })];
+            })),
+        }))];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
         let lexer = Lexer::new(&source_code_chars);
@@ -448,20 +451,20 @@ mod tests {
     #[test]
     fn function_call() {
         let source_code = "print(f(1)(2), 10, 20)";
-        let expected = vec![Statement::Expr(Expr::CallExpr {
+        let expected = vec![Statement::Expr(Expr::CallExpr(CallExpr {
             function_name: Box::new(Expr::Identifier("print".to_string())),
             args: vec![
-                Expr::CallExpr {
-                    function_name: Box::new(Expr::CallExpr {
+                Expr::CallExpr(CallExpr {
+                    function_name: Box::new(Expr::CallExpr(CallExpr {
                         function_name: Box::new(Expr::Identifier("f".to_string())),
                         args: vec![Expr::Int(1)],
-                    }),
+                    })),
                     args: vec![Expr::Int(2)],
-                },
+                }),
                 Expr::Int(10),
                 Expr::Int(20),
             ],
-        })];
+        }))];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
         let lexer = Lexer::new(&source_code_chars);
