@@ -31,6 +31,7 @@ fn main() -> Result<()> {
 
     let mut parser = ASTParser::new(&tokens);
     let ast = parser.parse();
+    println!("{:?}", ast);
 
     Ok(())
 }

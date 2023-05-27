@@ -34,7 +34,7 @@ impl<'a> Lexer<'a> {
             'a'..='z' | 'A'..='Z' | '_' => self.read_word(),
             '0'..='9' => self.read_int_literal(),
             '#' => self.read_comment(),
-            '=' | '<' | '>' | '*' | '%' | '/' | '+' | '-' => self.read_operator(),
+            '=' | '<' | '>' | '*' | '%' | '/' | '+' | '-' => self.read_punctuation(),
             ',' | ':' | '(' | ')' | '{' | '}' | '\n' => self.read_punctuation(),
             _ => unreachable!(),
         };
@@ -93,31 +93,28 @@ impl<'a> Lexer<'a> {
         Token::Comment(self.take_chars_while(|&c| c != '\n'))
     }
 
+
+
     /// Assuming lexer peeked a character like '*' or '>' that might be proceeded
     /// by an '='.
-    fn read_operator(&mut self) -> Token {
-        let mut operator = String::new();
-        operator.push(*self.next_char().unwrap());
+    fn read_punctuation(&mut self) -> Token {
+        match (self.peek_char(1), self.peek_char(2)) {
 
-        if let Some('=') = self.peek_char(1) {
-            operator.push(*self.next_char().unwrap());
-        }
+            (Some(">"),Some("=") => Token::OperatorSymbol(GreaterOrEqualTo),
+            (Some("<"),Some("=") => Token::OperatorSymbol(LessOrEqualTo),
+                (Some("="),Some("=") => Token::OperatorSymbol(EqualTo),
+                    (Some("!"),Some("=") => Token::OperatorSymbol(NotEqualTo),
+                        ("*"),Some("=") => Token::OperatorSymbol(TimesEq),
+            (("/"),Some("=") => Token::OperatorSymbol(DivideEq),
 
-        match operator.as_str() {
-            ">" => Token::OperatorSymbol(GreaterThan),
-            "<" => Token::OperatorSymbol(LessThan),
-            "=" => Token::OperatorSymbol(Assign),
-            "*" => Token::OperatorSymbol(Asterisk),
-            "/" => Token::OperatorSymbol(Slash),
-            "-" => Token::OperatorSymbol(Minus),
+            (Some(">"),_) => Token::OperatorSymbol(GreaterThan),
+            (Some("<" => Token::OperatorSymbol(LessThan),
+            (Some("=" => Token::OperatorSymbol(Assign),
+            (Some("*" => Token::OperatorSymbol(Asterisk),
+            (Some("/" => Token::OperatorSymbol(Slash),
+            (Some("-" => Token::OperatorSymbol(Minus),
             "+" => Token::OperatorSymbol(Plus),
-
-            ">=" => Token::OperatorSymbol(GreaterOrEqualTo),
-            "<=" => Token::OperatorSymbol(LessOrEqualTo),
-            "==" => Token::OperatorSymbol(EqualTo),
-            "!=" => Token::OperatorSymbol(NotEqualTo),
-            "*=" => Token::OperatorSymbol(TimesEq),
-            "/=" => Token::OperatorSymbol(DivideEq),
+            "//" => self.read_comment(),
             "-=" => Token::OperatorSymbol(MinusEq),
             "+=" => Token::OperatorSymbol(PlusEq),
 
