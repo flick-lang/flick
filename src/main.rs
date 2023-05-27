@@ -1,4 +1,5 @@
 mod ast;
+mod compiler;
 mod lexer;
 mod parser;
 mod token;
@@ -7,6 +8,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 
+use crate::compiler::Compiler;
 use anyhow::Result;
 use clap::Parser as ClapParser;
 
@@ -31,8 +33,9 @@ fn main() -> Result<()> {
     let tokens: Vec<_> = lexer.collect();
 
     let mut parser = Parser::new(&tokens);
-    let ast = parser.parse();
-    println!("{:?}", ast);
+    let statements = parser.parse();
+    let compiler = Compiler::new(&statements);
+    println!("{:?}", compiler.compile());
 
     Ok(())
 }

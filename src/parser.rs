@@ -3,6 +3,7 @@ use crate::token::OperatorSymbol;
 use crate::token::OperatorSymbol::*;
 use crate::token::Token;
 
+// TODO(tbreydo): get rid of Parser object (just use functions)
 pub struct Parser<'a> {
     tokens: &'a [Token],
     cursor: usize,
