@@ -174,7 +174,6 @@ impl<'a> ASTParser<'a> {
     }
 
     fn parse_expr(&mut self) -> Expr {
-        // todo maybe just have two cases for parenthetical / non parenthetical
         if let Some(Token::LParen) = self.peek_token(1) {
             self.skip_token();
             let expr = self.parse_assignment_expr();
@@ -201,21 +200,22 @@ impl<'a> ASTParser<'a> {
         static ASSIGNMENT_SYMBOLS: [OperatorSymbol; 5] =
             [PlusEq, TimesEq, MinusEq, DivideEq, Assign];
 
-        if let Some(Token::OperatorSymbol(op_symbol)) = self.peek_token(1) {
-            if ASSIGNMENT_SYMBOLS.contains(op_symbol) {
+        let operator = match self.peek_token(1) {
+            Some(Token::OperatorSymbol(op_symbol)) if ASSIGNMENT_SYMBOLS.contains(op_symbol) => {
                 let operator = BinaryOperator::from(*op_symbol);
-
-                self.skip_token(); // skip peeked OperatorSymbol
-
-                return Expr::BinExpr {
-                    left: Box::new(left),
-                    operator,
-                    right: Box::new(self.parse_assignment_expr()),
-                };
+                self.skip_token();
+                operator
             }
-        }
+            _ => return left,
+        };
 
-        return left;
+        let right = self.parse_assignment_expr();
+
+        Expr::BinExpr {
+            left: Box::new(left),
+            operator,
+            right: Box::new(right),
+        }
     }
 
     fn parse_logical_or_expr(&mut self) -> Expr {
@@ -238,9 +238,11 @@ impl<'a> ASTParser<'a> {
 
         let left = self.parse_add_sub_expr();
 
-        let operator = match self.next_token() {
+        let operator = match self.peek_token(1) {
             Some(Token::OperatorSymbol(op_symbol)) if COMPARISON_SYMBOLS.contains(op_symbol) => {
-                BinaryOperator::from(*op_symbol)
+                let operator = BinaryOperator::from(*op_symbol);
+                self.skip_token();
+                operator
             }
             _ => return left,
         };
