@@ -14,6 +14,7 @@ pub enum Statement {
         condition: Expr,
         body: Vec<Statement>,
     },
+    Expr(Expr),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -115,7 +116,7 @@ impl<'a> ASTParser<'a> {
         match self.peek_token(1) {
             Some(Token::Var) => self.parse_var_dec(),
             Some(Token::While) => self.parse_while_loop(),
-            _ => unreachable!(),
+            _ => Statement::Expr(self.parse_expr()),
         }
     }
 
