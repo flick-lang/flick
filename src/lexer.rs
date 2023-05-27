@@ -1,5 +1,5 @@
 use crate::token::OperatorSymbol::*;
-use crate::token::{OperatorSymbol, Token, VarType};
+use crate::token::{Token, VarType};
 
 pub struct Lexer<'a> {
     chars: &'a [char],

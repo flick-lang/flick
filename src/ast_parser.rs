@@ -325,14 +325,6 @@ impl<'a> ASTParser<'a> {
             None => unreachable!("unexpected end of file, expected an atom"),
         }
     }
-
-    fn parse_identifier(&mut self) -> Expr {
-        match self.next_token() {
-            Some(Token::Identifier(s)) => Expr::Identifier(s.clone()),
-            Some(token) => unreachable!("unexpected token {:?}, expected identifier", token),
-            None => unreachable!("unexpected end of file, expected identifier"),
-        }
-    }
 }
 
 #[cfg(test)]
