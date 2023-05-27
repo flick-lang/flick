@@ -1,10 +1,10 @@
 // todo: impl  Display or Debug or whatever
 
 use std::fmt;
-use std::fmt::Formatter;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token {
+    Docstring(String),
     Comment(String),
 
     IntLiteral(isize),
@@ -22,6 +22,8 @@ pub enum Token {
     RSquirly,
     LParen,
     RParen,
+    LSquare,
+    RSquare,
 
     // Punctuation
     Newline,
@@ -31,10 +33,17 @@ pub enum Token {
     OperatorSymbol(OperatorSymbol),
 }
 
+impl Token {
+    pub fn get_char_count(&self) -> usize {
+        self.to_string().len()
+    }
+}
+
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Comment(comment) => write!(f, "# {}", comment),
+            Self::Docstring(docstring) => write!(f, "{}", docstring),
+            Self::Comment(comment) => write!(f, "{}", comment),
             Self::IntLiteral(int) => write!(f, "{}", int),
             Self::Identifier(id) => write!(f, "{}", id),
             Self::Var => write!(f, "var"),
@@ -44,7 +53,9 @@ impl fmt::Display for Token {
             Self::RSquirly => write!(f, "}}"),
             Self::LParen => write!(f, "("),
             Self::RParen => write!(f, ")"),
-            Self::Newline => write!(f, "\\n"),
+            Self::LSquare => write!(f, "["),
+            Self::RSquare => write!(f, "]"),
+            Self::Newline => writeln!(f),
             Self::Colon => write!(f, ":"),
             Self::Comma => write!(f, ","),
             Self::OperatorSymbol(op_symbol) => write!(f, "{}", op_symbol),
@@ -77,7 +88,7 @@ pub enum OperatorSymbol {
 }
 
 impl fmt::Display for OperatorSymbol {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::NotEqualTo => write!(f, "!="),
             Self::EqualTo => write!(f, "=="),
@@ -106,7 +117,7 @@ pub enum VarType {
 }
 
 impl fmt::Display for VarType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Int => write!(f, "int"),
         }
