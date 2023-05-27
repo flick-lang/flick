@@ -1,5 +1,7 @@
-statement   := var_dec | while_loop | expr
+statement   := var_dec | while_loop | expr | func_def
                     NOTE: statement must be FOLLOWED BY '\n' or EOF
+
+func_def := ...
 
 var_decl    := 'var' ID VARTYPE 'expr'
 while_loop  := 'while' expr
