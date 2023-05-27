@@ -30,6 +30,10 @@ pub enum Expr {
         function_name: Box<Expr>,
         args: Vec<Expr>,
     },
+    IndexExpr {
+        container: Box<Expr>,
+        index: (),
+    },
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -113,7 +117,11 @@ impl<'a> ASTParser<'a> {
     }
 
     fn parse_statement(&mut self) -> Option<Statement> {
-        while let Some(Token::Newline) = self.peek_token(1) {
+        // todo take into account the fact that docstring CAN appear in parse tree
+        // enjoy this beautiful formatting <3
+        while let Some(Token::Newline | Token::Comment(_) | Token::Docstring(_)) =
+            self.peek_token(1)
+        {
             self.skip_token();
         }
 
@@ -270,7 +278,7 @@ impl<'a> ASTParser<'a> {
             let right = self.parse_mul_div_expr();
 
             left_expr_so_far = Expr::BinExpr {
-                left: Box::new(left_expr_so_far.clone()), // todo see if works without clone
+                left: Box::new(left_expr_so_far),
                 operator,
                 right: Box::new(right),
             }
@@ -288,7 +296,7 @@ impl<'a> ASTParser<'a> {
             let right = self.parse_primary_expr();
 
             left_expr_so_far = Expr::BinExpr {
-                left: Box::new(left_expr_so_far.clone()), // todo see if works without clone
+                left: Box::new(left_expr_so_far),
                 operator,
                 right: Box::new(right),
             }
@@ -305,29 +313,64 @@ impl<'a> ASTParser<'a> {
                 self.assert_next_token(Token::RParen);
                 expr
             }
-            (Some(Token::Identifier(_)), Some(Token::LParen)) => self.parse_call_expr(),
-            // (Some(Token::Identifier(_)), Some(Token::LSquare)) => self.parse_index_expr(),
+            (Some(Token::Identifier(_)), Some(Token::LParen | Token::LSquare)) => {
+                self.parse_call_expr()
+            }
             _ => self.parse_atom(),
         }
     }
 
+    // f[5 + 3*9](3)[3](5)
     fn parse_call_expr(&mut self) -> Expr {
-        let function_name = self.parse_primary_expr();
-        self.assert_next_token(Token::LParen);
-        let args = self.parse_args();
+        let mut expr_so_far = self.parse_atom();
 
-        Expr::CallExpr {
-            function_name: Box::new(function_name),
-            args,
+        while let Some(Token::LParen | Token::LSquare) = self.peek_token(1) {
+            match self.peek_token(1).unwrap() {
+                Token::LParen => {
+                    expr_so_far = Expr::CallExpr {
+                        function_name: Box::new(expr_so_far),
+                        args: self.parse_args(),
+                    }
+                }
+                Token::LSquare => {
+                    expr_so_far = Expr::IndexExpr {
+                        container: Box::new(expr_so_far),
+                        index: self.parse_index(),
+                    }
+                }
+                _ => unreachable!(),
+            }
         }
+
+        expr_so_far
     }
 
+    fn parse_index(&mut self) {
+        // 0:3:0, 3:3:3, 0:3, 5:8, :8
+        todo!()
+    }
+
+    // f(,3,answer,test)
+    // f()
     fn parse_args(&mut self) -> Vec<Expr> {
+        self.assert_next_token(Token::LParen);
+
         let mut args = Vec::new();
-        while let Some(Token::Comma) = self.peek_token(1) {
-            self.skip_token();
-            args.push(self.parse_expr());
+
+        if let Some(Token::RParen) = self.peek_token(1) {
+            return args;
         }
+
+        loop {
+            args.push(self.parse_expr());
+
+            match self.next_token() {
+                Some(Token::RParen) => break,
+                Some(Token::Comma) => continue,
+                _ => panic!("unexpected end of function arguments"),
+            }
+        }
+
         args
     }
 
@@ -474,6 +517,34 @@ mod tests {
     fn spacing() {
         let source_code = "\n\n\n\t\t\ta\n\n";
         let expected = vec![Statement::Expr(Expr::Identifier("a".to_string()))];
+
+        let source_code_chars: Vec<_> = source_code.chars().collect();
+        let lexer = Lexer::new(&source_code_chars);
+        let tokens: Vec<_> = lexer.collect();
+
+        let mut parser = ASTParser::new(&tokens);
+        let ast = parser.parse();
+
+        assert_eq!(expected, ast);
+    }
+
+    #[test]
+    fn function_call() {
+        let source_code = "print(f(1)(2), 10, 20)";
+        let expected = vec![Statement::Expr(Expr::CallExpr {
+            function_name: Box::new(Expr::Identifier("print".to_string())),
+            args: vec![
+                Expr::CallExpr {
+                    function_name: Box::new(Expr::CallExpr {
+                        function_name: Box::new(Expr::Identifier("f".to_string())),
+                        args: vec![Expr::Int(1)],
+                    }),
+                    args: vec![Expr::Int(2)],
+                },
+                Expr::Int(10),
+                Expr::Int(20),
+            ],
+        })];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
         let lexer = Lexer::new(&source_code_chars);
