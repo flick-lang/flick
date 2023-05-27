@@ -5,7 +5,7 @@
 To ensure `llvm-sys` works properly, install LLVM 16 using
 homebrew. Then, define:
 
-```shell
+```fish
 set -gx LLVM_SYS_160_PREFIX /opt/homebrew/Cellar/llvm/16.0.4/
 ```
 

@@ -1,94 +1,14 @@
+use crate::ast::{BinaryOperator, Expr, Statement};
 use crate::token::OperatorSymbol;
 use crate::token::OperatorSymbol::*;
 use crate::token::Token;
-use crate::token::VarType;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Statement {
-    VarDeclaration {
-        var_name: Expr,
-        var_type: VarType,
-        var_value: Expr,
-    },
-    WhileLoop {
-        condition: Expr,
-        body: Vec<Statement>,
-    },
-    Expr(Expr),
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Expr {
-    Identifier(String),
-    Int(isize),
-    BinExpr {
-        left: Box<Expr>,
-        operator: BinaryOperator,
-        right: Box<Expr>,
-    },
-    CallExpr {
-        function_name: Box<Expr>,
-        args: Vec<Expr>,
-    },
-    IndexExpr {
-        container: Box<Expr>,
-        index: (),
-    },
-}
-
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum BinaryOperator {
-    Add,
-    Subtract,
-    Multiply,
-    Divide,
-
-    NotEqualTo,
-    EqualTo,
-    LessThan,
-    GreaterThan,
-    LessOrEqualTo,
-    GreaterOrEqualTo,
-
-    PlusEq,
-    TimesEq,
-    MinusEq,
-    DivideEq,
-    Assign,
-    // LogicalAnd,
-    // LogicalOr,
-}
-
-impl From<OperatorSymbol> for BinaryOperator {
-    fn from(operator: OperatorSymbol) -> Self {
-        match operator {
-            Plus => Self::Add,
-            Minus => Self::Subtract,
-            Asterisk => Self::Multiply,
-            Slash => Self::Divide,
-
-            NotEqualTo => Self::NotEqualTo,
-            EqualTo => Self::EqualTo,
-            LessThan => Self::LessThan,
-            GreaterThan => Self::GreaterThan,
-            LessOrEqualTo => Self::LessOrEqualTo,
-            GreaterOrEqualTo => Self::GreaterOrEqualTo,
-
-            PlusEq => Self::PlusEq,
-            TimesEq => Self::TimesEq,
-            MinusEq => Self::MinusEq,
-            DivideEq => Self::DivideEq,
-            Assign => Self::Assign,
-        }
-    }
-}
-
-pub struct ASTParser<'a> {
+pub struct Parser<'a> {
     tokens: &'a [Token],
     cursor: usize,
 }
 
-impl<'a> ASTParser<'a> {
+impl<'a> Parser<'a> {
     pub fn new(tokens: &'a [Token]) -> Self {
         Self { tokens, cursor: 0 }
     }
@@ -383,7 +303,7 @@ impl<'a> ASTParser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast_parser::{ASTParser, BinaryOperator, Expr, Statement};
+    use crate::ast_parser::{BinaryOperator, Expr, Parser, Statement};
     use crate::lexer::Lexer;
     use crate::token::VarType;
 
@@ -400,7 +320,7 @@ mod tests {
         let lexer = Lexer::new(&source_code_chars);
         let tokens: Vec<_> = lexer.collect();
 
-        let mut parser = ASTParser::new(&tokens);
+        let mut parser = Parser::new(&tokens);
         let ast = parser.parse();
 
         assert_eq!(expected, ast);
@@ -423,7 +343,7 @@ mod tests {
         let lexer = Lexer::new(&source_code_chars);
         let tokens: Vec<_> = lexer.collect();
 
-        let mut parser = ASTParser::new(&tokens);
+        let mut parser = Parser::new(&tokens);
         let ast = parser.parse();
 
         assert_eq!(expected, ast);
@@ -445,7 +365,7 @@ mod tests {
         let lexer = Lexer::new(&source_code_chars);
         let tokens: Vec<_> = lexer.collect();
 
-        let mut parser = ASTParser::new(&tokens);
+        let mut parser = Parser::new(&tokens);
         let ast = parser.parse();
 
         assert_eq!(expected, ast);
@@ -480,7 +400,7 @@ mod tests {
         let lexer = Lexer::new(&source_code_chars);
         let tokens: Vec<_> = lexer.collect();
 
-        let mut parser = ASTParser::new(&tokens);
+        let mut parser = Parser::new(&tokens);
         let ast = parser.parse();
 
         assert_eq!(expected, ast);
@@ -503,7 +423,7 @@ mod tests {
         let lexer = Lexer::new(&source_code_chars);
         let tokens: Vec<_> = lexer.collect();
 
-        let mut parser = ASTParser::new(&tokens);
+        let mut parser = Parser::new(&tokens);
         let ast = parser.parse();
 
         assert_eq!(expected, ast);
@@ -518,7 +438,7 @@ mod tests {
         let lexer = Lexer::new(&source_code_chars);
         let tokens: Vec<_> = lexer.collect();
 
-        let mut parser = ASTParser::new(&tokens);
+        let mut parser = Parser::new(&tokens);
         let ast = parser.parse();
 
         assert_eq!(expected, ast);
@@ -546,7 +466,7 @@ mod tests {
         let lexer = Lexer::new(&source_code_chars);
         let tokens: Vec<_> = lexer.collect();
 
-        let mut parser = ASTParser::new(&tokens);
+        let mut parser = Parser::new(&tokens);
         let ast = parser.parse();
 
         assert_eq!(expected, ast);

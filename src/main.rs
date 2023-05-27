@@ -1,5 +1,6 @@
-mod ast_parser;
+mod ast;
 mod lexer;
+mod parser;
 mod token;
 
 use std::fs::File;
@@ -7,12 +8,12 @@ use std::io::Read;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use clap::Parser;
+use clap::Parser as ClapParser;
 
-use crate::ast_parser::ASTParser;
 use crate::lexer::Lexer;
+use crate::parser::Parser;
 
-#[derive(Parser)]
+#[derive(ClapParser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
     file_path: PathBuf,
@@ -29,7 +30,7 @@ fn main() -> Result<()> {
     let lexer = Lexer::new(&file_chars);
     let tokens: Vec<_> = lexer.collect();
 
-    let mut parser = ASTParser::new(&tokens);
+    let mut parser = Parser::new(&tokens);
     let ast = parser.parse();
     println!("{:?}", ast);
 
