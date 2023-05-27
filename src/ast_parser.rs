@@ -267,10 +267,14 @@ impl<'a> ASTParser<'a> {
         let mut left_expr_so_far = self.parse_mul_div_expr();
 
         while let Some(Token::OperatorSymbol(op_symbol @ (Plus | Minus))) = self.peek_token(1) {
+            let operator = BinaryOperator::from(*op_symbol);
+            self.skip_token();
+            let right = self.parse_mul_div_expr();
+
             left_expr_so_far = Expr::BinExpr {
                 left: Box::new(left_expr_so_far.clone()), // todo see if works without clone
-                operator: BinaryOperator::from(*op_symbol),
-                right: Box::new(self.parse_mul_div_expr()),
+                operator,
+                right: Box::new(right),
             }
         }
 
@@ -281,10 +285,14 @@ impl<'a> ASTParser<'a> {
         let mut left_expr_so_far = self.parse_primary_expr();
 
         while let Some(Token::OperatorSymbol(op_symbol @ (Asterisk | Slash))) = self.peek_token(1) {
+            let operator = BinaryOperator::from(*op_symbol);
+            self.skip_token();
+            let right = self.parse_primary_expr();
+
             left_expr_so_far = Expr::BinExpr {
                 left: Box::new(left_expr_so_far.clone()), // todo see if works without clone
-                operator: BinaryOperator::from(*op_symbol),
-                right: Box::new(self.parse_primary_expr()),
+                operator,
+                right: Box::new(right),
             }
         }
 
