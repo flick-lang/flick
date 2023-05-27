@@ -1,13 +1,13 @@
+mod ast_parser;
 mod lexer;
 mod token;
-mod ast_parser;
 
-use std::path::PathBuf;
 use std::fs::File;
 use std::io::Read;
+use std::path::PathBuf;
 
-use clap::Parser;
 use anyhow::Result;
+use clap::Parser;
 
 use crate::ast_parser::ASTParser;
 use crate::lexer::Lexer;
@@ -34,4 +34,3 @@ fn main() -> Result<()> {
 
     Ok(())
 }
-

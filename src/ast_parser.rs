@@ -106,17 +106,26 @@ impl<'a> ASTParser<'a> {
 
     pub fn parse(&mut self) -> Vec<Statement> {
         let mut statements = Vec::new();
-        while self.peek_token(1).is_some() {
-            statements.push(self.parse_statement());
+        while let Some(statement) = self.parse_statement() {
+            statements.push(statement);
         }
         statements
     }
 
-    fn parse_statement(&mut self) -> Statement {
-        match self.peek_token(1) {
-            Some(Token::Var) => self.parse_var_dec(),
-            Some(Token::While) => self.parse_while_loop(),
+    fn parse_statement(&mut self) -> Option<Statement> {
+        while let Some(Token::Newline) = self.peek_token(1) {
+            self.skip_token();
+        }
+
+        let statement = match self.peek_token(1)? {
+            Token::Var => self.parse_var_dec(),
+            Token::While => self.parse_while_loop(),
             _ => Statement::Expr(self.parse_expr()),
+        };
+
+        match self.next_token() {
+            Some(Token::Newline) | None => Some(statement),
+            Some(token) => unreachable!("unexpected token {:?}, expected newline or EOF", token),
         }
     }
 
@@ -165,7 +174,13 @@ impl<'a> ASTParser<'a> {
             if *token == Token::RSquirly {
                 break;
             }
-            body.push(self.parse_statement())
+
+            match self.parse_statement() {
+                Some(statement) => body.push(statement),
+                None => {
+                    unreachable!("Unexpected end of file, while loop should have a closing squirly")
+                }
+            }
         }
 
         self.assert_next_token(Token::RSquirly);
@@ -174,26 +189,9 @@ impl<'a> ASTParser<'a> {
     }
 
     fn parse_expr(&mut self) -> Expr {
-        if let Some(Token::LParen) = self.peek_token(1) {
-            self.skip_token();
-            let expr = self.parse_assignment_expr();
-            self.assert_next_token(Token::RParen);
-            expr
-        } else {
-            self.parse_assignment_expr()
-        }
+        self.parse_assignment_expr()
     }
 
-    /// E -> {X =} X | {X +=} X | {X -=} X | etc.
-    //             // a + b + c
-    //             // expr_so_far: a
-    //             // +
-    //             // next_operand: b
-    //             // we want to make a+b the expr_so_far
-    //             // then, next_operand: c    ->   expr_so_far: (a+b)  + c
-    /// TODO: make this into a macro
-
-    /// a = (b = (c = d))
     fn parse_assignment_expr(&mut self) -> Expr {
         let left = self.parse_logical_or_expr();
 
@@ -300,9 +298,15 @@ impl<'a> ASTParser<'a> {
     }
 
     fn parse_primary_expr(&mut self) -> Expr {
-        match self.peek_token(2) {
-            Some(Token::LParen) => self.parse_call_expr(),
-            // Some(Token::LSquare) => self.parse_index_expr(),
+        match (self.peek_token(1), self.peek_token(2)) {
+            (Some(Token::LParen), _) => {
+                self.skip_token();
+                let expr = self.parse_expr();
+                self.assert_next_token(Token::RParen);
+                expr
+            }
+            (Some(Token::Identifier(_)), Some(Token::LParen)) => self.parse_call_expr(),
+            // (Some(Token::Identifier(_)), Some(Token::LSquare)) => self.parse_index_expr(),
             _ => self.parse_atom(),
         }
     }
@@ -342,7 +346,7 @@ impl<'a> ASTParser<'a> {
 mod tests {
     use crate::ast_parser::{ASTParser, BinaryOperator, Expr, Statement};
     use crate::lexer::Lexer;
-    use crate::token::{OperatorSymbol, VarType};
+    use crate::token::VarType;
 
     #[test]
     fn var_declaration() {
@@ -365,11 +369,15 @@ mod tests {
 
     #[test]
     fn var_modification() {
-        let source_code = "num = 10";
+        let source_code = "num = a = 10";
         let expected = vec![Statement::Expr(Expr::BinExpr {
             left: Box::new(Expr::Identifier("num".to_string())),
             operator: BinaryOperator::Assign,
-            right: Box::new(Expr::Int(10)),
+            right: Box::new(Expr::BinExpr {
+                left: Box::new(Expr::Identifier("a".to_string())),
+                operator: BinaryOperator::Assign,
+                right: Box::new(Expr::Int(10)),
+            }),
         })];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
@@ -428,6 +436,44 @@ mod tests {
             operator: BinaryOperator::Add,
             right: Box::new(Expr::Int(5)),
         })];
+
+        let source_code_chars: Vec<_> = source_code.chars().collect();
+        let lexer = Lexer::new(&source_code_chars);
+        let tokens: Vec<_> = lexer.collect();
+
+        let mut parser = ASTParser::new(&tokens);
+        let ast = parser.parse();
+
+        assert_eq!(expected, ast);
+    }
+
+    #[test]
+    fn parenthetical_expression() {
+        let source_code = "9*(2+3)";
+        let expected = vec![Statement::Expr(Expr::BinExpr {
+            left: Box::new(Expr::Int(9)),
+            operator: BinaryOperator::Multiply,
+            right: Box::new(Expr::BinExpr {
+                left: Box::new(Expr::Int(2)),
+                operator: BinaryOperator::Add,
+                right: Box::new(Expr::Int(3)),
+            }),
+        })];
+
+        let source_code_chars: Vec<_> = source_code.chars().collect();
+        let lexer = Lexer::new(&source_code_chars);
+        let tokens: Vec<_> = lexer.collect();
+
+        let mut parser = ASTParser::new(&tokens);
+        let ast = parser.parse();
+
+        assert_eq!(expected, ast);
+    }
+
+    #[test]
+    fn spacing() {
+        let source_code = "\n\n\n\t\t\ta\n\n";
+        let expected = vec![Statement::Expr(Expr::Identifier("a".to_string()))];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
         let lexer = Lexer::new(&source_code_chars);
