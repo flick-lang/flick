@@ -11,7 +11,6 @@ pub enum Token {
     Identifier(String),
 
     // Keywords
-    Var,
     While,
 
     // Types
@@ -46,7 +45,6 @@ impl fmt::Display for Token {
             Self::Comment(comment) => write!(f, "{}", comment),
             Self::IntLiteral(int) => write!(f, "{}", int),
             Self::Identifier(id) => write!(f, "{}", id),
-            Self::Var => write!(f, "var"),
             Self::While => write!(f, "while",),
             Self::VarType(var_type) => write!(f, "{}", var_type),
             Self::LSquirly => write!(f, "{{"),

@@ -126,14 +126,14 @@ impl<'a> ASTParser<'a> {
         }
 
         let statement = match self.peek_token(1)? {
-            Token::Var => self.parse_var_dec(),
+            Token::VarType(_) => self.parse_var_dec(),
             Token::While => self.parse_while_loop(),
             _ => Statement::Expr(self.parse_expr()),
         };
 
         match self.next_token() {
             Some(Token::Newline) | None => Some(statement),
-            Some(token) => unreachable!("unexpected token {:?}, expected newline or EOF", token),
+            Some(token) => panic!("unexpected token {:?}, expected newline or EOF", token),
         }
     }
 
@@ -141,23 +141,19 @@ impl<'a> ASTParser<'a> {
     fn assert_next_token(&mut self, expected: Token) {
         match self.next_token() {
             Some(token) if *token == expected => (),
-            Some(token) => unreachable!("unexpected token {:?}, expected {:?}", token, expected),
-            None => unreachable!("unexpected end of file, expected {:?}", expected),
+            Some(token) => panic!("unexpected token {:?}, expected {:?}", token, expected),
+            None => panic!("unexpected end of file, expected {:?}", expected),
         }
     }
 
     fn parse_var_dec(&mut self) -> Statement {
-        self.assert_next_token(Token::Var);
+        let var_type = match self.next_token() {
+            Some(Token::VarType(var_type)) => *var_type,
+            Some(t) => unreachable!("parse_var_dec but token is {:?} (expected VarType)", t),
+            None => unreachable!("parse_var_dec but file ended (expected VarType)"),
+        };
 
         let var_name = self.parse_primary_expr();
-
-        self.assert_next_token(Token::Colon);
-
-        let var_type = match self.next_token() {
-            Some(Token::VarType(s)) => *s,
-            Some(token) => unreachable!("unexpected token {:?}, expected identifier", token),
-            None => unreachable!("unexpected end of file, expected identifier"),
-        };
 
         self.assert_next_token(Token::OperatorSymbol(Assign));
 
@@ -186,7 +182,7 @@ impl<'a> ASTParser<'a> {
             match self.parse_statement() {
                 Some(statement) => body.push(statement),
                 None => {
-                    unreachable!("Unexpected end of file, while loop should have a closing squirly")
+                    panic!("Unexpected end of file, while loop should have a closing squirly")
                 }
             }
         }
@@ -379,8 +375,8 @@ impl<'a> ASTParser<'a> {
             Some(Token::Identifier(id)) => Expr::Identifier(id.clone()),
             Some(Token::IntLiteral(n)) => Expr::Int(*n),
             // todo Some(Token::StrLiteral())
-            Some(token) => unreachable!("unexpected token {:?}, expected an atom", token),
-            None => unreachable!("unexpected end of file, expected an atom"),
+            Some(token) => panic!("unexpected token {:?}, expected an atom", token),
+            None => panic!("unexpected end of file, expected an atom"),
         }
     }
 }
@@ -393,7 +389,7 @@ mod tests {
 
     #[test]
     fn var_declaration() {
-        let source_code = "var N: int = 5";
+        let source_code = "int N = 5";
         let expected = vec![Statement::VarDeclaration {
             var_name: Expr::Identifier("N".to_string()),
             var_type: VarType::Int,

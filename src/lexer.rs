@@ -99,7 +99,6 @@ impl<'a> Lexer<'a> {
     fn read_word(&mut self) -> Token {
         let s = self.take_chars_while(|&c| c.is_ascii_alphanumeric() || c == '_');
         match s.as_str() {
-            "var" => Token::Var,
             "int" => Token::VarType(VarType::Int),
             "while" => Token::While,
             _ => Token::Identifier(s),
@@ -154,19 +153,15 @@ mod tests {
 
     #[test]
     fn variables() {
-        let source_code = "var this_is_a_LONG_VARIABLE_NAME: int = 5\nvar shortInt: int = 5";
+        let source_code = "int this_is_a_LONG_VARIABLE_NAME = 5\nint shortInt = 5";
         let expected_tokens = vec![
-            Token::Var,
-            Token::Identifier("this_is_a_LONG_VARIABLE_NAME".to_string()),
-            Token::Colon,
             Token::VarType(VarType::Int),
+            Token::Identifier("this_is_a_LONG_VARIABLE_NAME".to_string()),
             Token::OperatorSymbol(OperatorSymbol::Assign),
             Token::IntLiteral(5),
             Token::Newline,
-            Token::Var,
-            Token::Identifier("shortInt".to_string()),
-            Token::Colon,
             Token::VarType(VarType::Int),
+            Token::Identifier("shortInt".to_string()),
             Token::OperatorSymbol(OperatorSymbol::Assign),
             Token::IntLiteral(5),
         ];

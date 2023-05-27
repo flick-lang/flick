@@ -3,7 +3,7 @@ statement   := var_dec | while_loop | expr | func_def
 
 func_def := ...
 
-var_decl    := 'var' ID VARTYPE 'expr'
+var_decl    := VARTYPE ID '=' expr
 while_loop  := 'while' expr
 
 expr            := assigment_expr
