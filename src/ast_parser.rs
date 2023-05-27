@@ -342,7 +342,7 @@ impl<'a> ASTParser<'a> {
 mod tests {
     use crate::ast_parser::{ASTParser, BinaryOperator, Expr, Statement};
     use crate::lexer::Lexer;
-    use crate::token::VarType;
+    use crate::token::{OperatorSymbol, VarType};
 
     #[test]
     fn var_declaration() {
@@ -352,6 +352,25 @@ mod tests {
             var_type: VarType::Int,
             var_value: Expr::Int(5),
         }];
+
+        let source_code_chars: Vec<_> = source_code.chars().collect();
+        let lexer = Lexer::new(&source_code_chars);
+        let tokens: Vec<_> = lexer.collect();
+
+        let mut parser = ASTParser::new(&tokens);
+        let ast = parser.parse();
+
+        assert_eq!(expected, ast);
+    }
+
+    #[test]
+    fn var_modification() {
+        let source_code = "num = 10";
+        let expected = vec![Statement::Expr(Expr::BinExpr {
+            left: Box::new(Expr::Identifier("num".to_string())),
+            operator: BinaryOperator::Assign,
+            right: Box::new(Expr::Int(10)),
+        })];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
         let lexer = Lexer::new(&source_code_chars);
@@ -374,6 +393,41 @@ mod tests {
             },
             body: vec![],
         }];
+
+        let source_code_chars: Vec<_> = source_code.chars().collect();
+        let lexer = Lexer::new(&source_code_chars);
+        let tokens: Vec<_> = lexer.collect();
+
+        let mut parser = ASTParser::new(&tokens);
+        let ast = parser.parse();
+
+        assert_eq!(expected, ast);
+    }
+
+    #[test]
+    fn order_of_operations() {
+        let source_code = "10 + 3 * 8 / 4 - 13 + 5";
+        let expected = vec![Statement::Expr(Expr::BinExpr {
+            left: Box::new(Expr::BinExpr {
+                left: Box::new(Expr::BinExpr {
+                    left: Box::new(Expr::Int(10)),
+                    operator: BinaryOperator::Add,
+                    right: Box::new(Expr::BinExpr {
+                        left: Box::new(Expr::BinExpr {
+                            left: Box::new(Expr::Int(3)),
+                            operator: BinaryOperator::Multiply,
+                            right: Box::new(Expr::Int(8)),
+                        }),
+                        operator: BinaryOperator::Divide,
+                        right: Box::new(Expr::Int(4)),
+                    }),
+                }),
+                operator: BinaryOperator::Subtract,
+                right: Box::new(Expr::Int(13)),
+            }),
+            operator: BinaryOperator::Add,
+            right: Box::new(Expr::Int(5)),
+        })];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
         let lexer = Lexer::new(&source_code_chars);
