@@ -1,4 +1,6 @@
-statement   := var_dec | while_loop | expr | func_def
+program     := {func_def}
+
+statement   := var_dec | while_loop | expr
                     NOTE: statement must be FOLLOWED BY '\n' or EOF
 
 func_def    := 'fn' IDENTIFIER '(' [parameters] ')' [VARTYPE] '{' {statement} '}'

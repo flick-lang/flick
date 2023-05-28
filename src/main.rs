@@ -1,15 +1,12 @@
 mod ast;
-mod compiler;
 mod lexer;
 mod parser;
 mod token;
 
 use std::fs::File;
 use std::io::Read;
-use std::os::macos::raw::stat;
 use std::path::PathBuf;
 
-use crate::compiler::Compiler;
 use anyhow::Result;
 use clap::Parser as ClapParser;
 
@@ -34,11 +31,13 @@ fn main() -> Result<()> {
     let tokens: Vec<_> = lexer.collect();
 
     let mut parser = Parser::new(&tokens);
-    let statements = parser.parse();
+    let program = parser.parse_program();
 
-    let mut compiler = Compiler::new(&statements);
-    compiler.codegen();
-    compiler.print();
+    // let mut compiler = Compiler::new(&statements);
+    // compiler.codegen();
+    // compiler.print();
 
+    // todo parse 🇸🇪 into a return or smth lol idk
+    // todo write syntax highlighting extension
     Ok(())
 }

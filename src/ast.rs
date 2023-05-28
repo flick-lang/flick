@@ -2,11 +2,30 @@ use crate::token::OperatorSymbol::*;
 use crate::token::{OperatorSymbol, Type};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Program {
+    pub func_defs: Vec<FuncDef>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct FuncDef {
+    pub name: String,
+    pub params: Vec<FuncParam>,
+    pub return_type: Type,
+    pub body: Vec<Statement>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct FuncParam {
+    pub param_type: Type,
+    pub param_name: String,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Statement {
     VarDeclaration(VarDeclaration),
     WhileLoop(WhileLoop),
-    Expr(Expr),
-    FuncDef(FuncDef),
+    ExprStatement(Expr),
+    ReturnStatement(Expr),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -48,20 +67,6 @@ pub struct CallExpr {
 pub struct IndexExpr {
     pub container: Box<Expr>,
     pub index: (),
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct FuncDef {
-    pub name: String,
-    pub params: Vec<FuncParam>,
-    pub return_type: Type,
-    pub body: Vec<Statement>,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct FuncParam {
-    pub param_type: Type,
-    pub param_name: String,
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]

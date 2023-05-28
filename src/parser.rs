@@ -1,5 +1,5 @@
 use crate::ast::{
-    BinExpr, BinaryOperator, CallExpr, Expr, FuncDef, FuncParam, IndexExpr, Statement,
+    BinExpr, BinaryOperator, CallExpr, Expr, FuncDef, FuncParam, IndexExpr, Program, Statement,
     VarDeclaration, WhileLoop,
 };
 use crate::token::OperatorSymbol::*;
@@ -32,15 +32,15 @@ impl<'a> Parser<'a> {
         self.cursor += 1;
     }
 
-    pub fn parse(&mut self) -> Vec<Statement> {
-        let mut statements = Vec::new();
-        while let Some(statement) = self.parse_statement() {
-            statements.push(statement);
+    pub fn parse_program(&mut self) -> Program {
+        let mut func_defs = Vec::new();
+        while let Some(func_def) = self.parse_func_def() {
+            func_defs.push(func_def);
         }
-        statements
+        Program { func_defs }
     }
 
-    fn parse_statement(&mut self) -> Option<Statement> {
+    fn skip_newlines_comments_and_docstrings(&mut self) {
         // todo take into account the fact that docstring CAN appear in parse tree
         // enjoy this beautiful formatting <3
         while let Some(Token::Newline | Token::Comment(_) | Token::Docstring(_)) =
@@ -48,12 +48,84 @@ impl<'a> Parser<'a> {
         {
             self.skip_token();
         }
+    }
+
+    fn parse_func_def(&mut self) -> Option<FuncDef> {
+        self.skip_newlines_comments_and_docstrings();
+
+        match self.peek_token(1)? {
+            Token::Fn => self.skip_token(),
+            token => panic!("Expected Token::Fn but received {:?}", token),
+        }
+
+        let name = self.parse_identifier();
+        let params = self.parse_func_params();
+
+        let return_type = match self.peek_token(1) {
+            Some(Token::LSquirly) => Type::Void,
+            Some(Token::Type(_)) => self.parse_type(),
+            Some(t) => panic!(
+                "Expected return type for function '{}' but received {:?}",
+                name, t
+            ),
+            None => panic!(
+                "Expected return type for function '{}' but file ended",
+                name
+            ),
+        };
+
+        let body = self.parse_body();
+
+        Some(FuncDef {
+            name,
+            params,
+            return_type,
+            body,
+        })
+    }
+
+    fn parse_func_params(&mut self) -> Vec<FuncParam> {
+        self.assert_next_token(Token::LParen);
+
+        let mut params = Vec::new();
+
+        if let Some(Token::RParen) = self.peek_token(1) {
+            self.skip_token();
+            return params;
+        }
+
+        loop {
+            params.push(self.parse_func_param());
+
+            match self.next_token() {
+                Some(Token::RParen) => break,
+                Some(Token::Comma) => continue,
+                Some(token) => panic!("Expected ')' but received {:?}", token),
+                None => panic!("Expected ')' but file ended"),
+            }
+        }
+
+        params
+    }
+
+    fn parse_func_param(&mut self) -> FuncParam {
+        let param_type = self.parse_type();
+        let param_name = self.parse_identifier();
+
+        FuncParam {
+            param_type,
+            param_name,
+        }
+    }
+
+    fn parse_statement(&mut self) -> Option<Statement> {
+        self.skip_newlines_comments_and_docstrings();
 
         let statement = match self.peek_token(1)? {
             Token::Type(_) => Statement::VarDeclaration(self.parse_var_dec()),
             Token::While => Statement::WhileLoop(self.parse_while_loop()),
-            Token::Fn => Statement::FuncDef(self.parse_func_definition()),
-            _ => Statement::Expr(self.parse_expr()),
+            Token::Fn => panic!("Nested function definitions are not allowed"),
+            _ => Statement::ExprStatement(self.parse_expr()),
         };
 
         match self.next_token() {
@@ -317,68 +389,11 @@ impl<'a> Parser<'a> {
             None => panic!("Expected identifier or literal but file ended"),
         }
     }
-
-    fn parse_func_definition(&mut self) -> FuncDef {
-        self.assert_next_token(Token::Fn);
-
-        let name = self.parse_identifier();
-        let params = self.parse_func_params();
-
-        let return_type = match self.peek_token(1) {
-            Some(Token::LSquirly) => Type::Void,
-            // Some(Token::Type(t)) => t,
-            // _ => unreachable!("Expected return type for function {}", name,)
-            _ => self.parse_type(),
-        };
-
-        let body = self.parse_body();
-
-        FuncDef {
-            name,
-            params,
-            return_type,
-            body,
-        }
-    }
-
-    fn parse_func_params(&mut self) -> Vec<FuncParam> {
-        self.assert_next_token(Token::LParen);
-
-        let mut params = Vec::new();
-
-        if let Some(Token::RParen) = self.peek_token(1) {
-            self.skip_token();
-            return params;
-        }
-
-        loop {
-            params.push(self.parse_func_param());
-
-            match self.next_token() {
-                Some(Token::RParen) => break,
-                Some(Token::Comma) => continue,
-                Some(token) => panic!("Expected ')' but received {:?}", token),
-                None => panic!("Expected ')' but file ended"),
-            }
-        }
-
-        params
-    }
-
-    fn parse_func_param(&mut self) -> FuncParam {
-        let param_type = self.parse_type();
-        let param_name = self.parse_identifier();
-
-        FuncParam {
-            param_type,
-            param_name,
-        }
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::{BinExpr, CallExpr, FuncDef, FuncParam, VarDeclaration, WhileLoop};
+    use crate::ast::{BinExpr, CallExpr, FuncDef, FuncParam, Program, VarDeclaration, WhileLoop};
     use crate::lexer::Lexer;
     use crate::parser::{BinaryOperator, Expr, Parser, Statement};
     use crate::token::Type;
@@ -386,18 +401,18 @@ mod tests {
     #[test]
     fn var_declaration() {
         let source_code = "i64 N = 5";
-        let expected = vec![Statement::VarDeclaration(VarDeclaration {
+        let expected = Some(Statement::VarDeclaration(VarDeclaration {
             var_name: "N".to_string(),
             var_type: Type::I64,
             var_value: Expr::I64Literal(5),
-        })];
+        }));
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
         let lexer = Lexer::new(&source_code_chars);
         let tokens: Vec<_> = lexer.collect();
 
         let mut parser = Parser::new(&tokens);
-        let ast = parser.parse();
+        let ast = parser.parse_statement();
 
         assert_eq!(expected, ast);
     }
@@ -405,7 +420,7 @@ mod tests {
     #[test]
     fn var_modification() {
         let source_code = "num = a = 10";
-        let expected = vec![Statement::Expr(Expr::BinExpr(BinExpr {
+        let expected = Some(Statement::ExprStatement(Expr::BinExpr(BinExpr {
             left: Box::new(Expr::Identifier("num".to_string())),
             operator: BinaryOperator::Assign,
             right: Box::new(Expr::BinExpr(BinExpr {
@@ -413,14 +428,14 @@ mod tests {
                 operator: BinaryOperator::Assign,
                 right: Box::new(Expr::I64Literal(10)),
             })),
-        }))];
+        })));
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
         let lexer = Lexer::new(&source_code_chars);
         let tokens: Vec<_> = lexer.collect();
 
         let mut parser = Parser::new(&tokens);
-        let ast = parser.parse();
+        let ast = parser.parse_statement();
 
         assert_eq!(expected, ast);
     }
@@ -428,21 +443,21 @@ mod tests {
     #[test]
     fn empty_while_loop() {
         let source_code = "while i <= N {}";
-        let expected = vec![Statement::WhileLoop(WhileLoop {
+        let expected = Some(Statement::WhileLoop(WhileLoop {
             condition: Expr::BinExpr(BinExpr {
                 left: Box::new(Expr::Identifier("i".to_string())),
                 operator: BinaryOperator::LessOrEqualTo,
                 right: Box::new(Expr::Identifier("N".to_string())),
             }),
             body: vec![],
-        })];
+        }));
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
         let lexer = Lexer::new(&source_code_chars);
         let tokens: Vec<_> = lexer.collect();
 
         let mut parser = Parser::new(&tokens);
-        let ast = parser.parse();
+        let ast = parser.parse_statement();
 
         assert_eq!(expected, ast);
     }
@@ -450,7 +465,7 @@ mod tests {
     #[test]
     fn order_of_operations() {
         let source_code = "10 + 3 * 8 / 4 - 13 + 5";
-        let expected = vec![Statement::Expr(Expr::BinExpr(BinExpr {
+        let expected = Some(Statement::ExprStatement(Expr::BinExpr(BinExpr {
             left: Box::new(Expr::BinExpr(BinExpr {
                 left: Box::new(Expr::BinExpr(BinExpr {
                     left: Box::new(Expr::I64Literal(10)),
@@ -470,14 +485,14 @@ mod tests {
             })),
             operator: BinaryOperator::Add,
             right: Box::new(Expr::I64Literal(5)),
-        }))];
+        })));
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
         let lexer = Lexer::new(&source_code_chars);
         let tokens: Vec<_> = lexer.collect();
 
         let mut parser = Parser::new(&tokens);
-        let ast = parser.parse();
+        let ast = parser.parse_statement();
 
         assert_eq!(expected, ast);
     }
@@ -485,7 +500,7 @@ mod tests {
     #[test]
     fn parenthetical_expression() {
         let source_code = "9*(2+3)";
-        let expected = vec![Statement::Expr(Expr::BinExpr(BinExpr {
+        let expected = Some(Statement::ExprStatement(Expr::BinExpr(BinExpr {
             left: Box::new(Expr::I64Literal(9)),
             operator: BinaryOperator::Multiply,
             right: Box::new(Expr::BinExpr(BinExpr {
@@ -493,14 +508,14 @@ mod tests {
                 operator: BinaryOperator::Add,
                 right: Box::new(Expr::I64Literal(3)),
             })),
-        }))];
+        })));
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
         let lexer = Lexer::new(&source_code_chars);
         let tokens: Vec<_> = lexer.collect();
 
         let mut parser = Parser::new(&tokens);
-        let ast = parser.parse();
+        let ast = parser.parse_statement();
 
         assert_eq!(expected, ast);
     }
@@ -508,14 +523,14 @@ mod tests {
     #[test]
     fn spacing() {
         let source_code = "\n\n\n\t\t\ta\n\n";
-        let expected = vec![Statement::Expr(Expr::Identifier("a".to_string()))];
+        let expected = Some(Statement::ExprStatement(Expr::Identifier("a".to_string())));
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
         let lexer = Lexer::new(&source_code_chars);
         let tokens: Vec<_> = lexer.collect();
 
         let mut parser = Parser::new(&tokens);
-        let ast = parser.parse();
+        let ast = parser.parse_statement();
 
         assert_eq!(expected, ast);
     }
@@ -523,7 +538,7 @@ mod tests {
     #[test]
     fn function_call() {
         let source_code = "print(f(1)(2), 10, 20)";
-        let expected = vec![Statement::Expr(Expr::CallExpr(CallExpr {
+        let expected = Some(Statement::ExprStatement(Expr::CallExpr(CallExpr {
             function_name: Box::new(Expr::Identifier("print".to_string())),
             args: vec![
                 Expr::CallExpr(CallExpr {
@@ -536,14 +551,14 @@ mod tests {
                 Expr::I64Literal(10),
                 Expr::I64Literal(20),
             ],
-        }))];
+        })));
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
         let lexer = Lexer::new(&source_code_chars);
         let tokens: Vec<_> = lexer.collect();
 
         let mut parser = Parser::new(&tokens);
-        let ast = parser.parse();
+        let ast = parser.parse_statement();
 
         assert_eq!(expected, ast);
     }
@@ -551,22 +566,24 @@ mod tests {
     #[test]
     fn function_definition() {
         let source_code = "fn test(i64 a) i64 {}";
-        let expected = vec![Statement::FuncDef(FuncDef {
-            name: "test".to_string(),
-            params: vec![FuncParam {
-                param_type: Type::I64,
-                param_name: "a".to_string(),
+        let expected = Program {
+            func_defs: vec![FuncDef {
+                name: "test".to_string(),
+                params: vec![FuncParam {
+                    param_type: Type::I64,
+                    param_name: "a".to_string(),
+                }],
+                return_type: Type::I64,
+                body: vec![],
             }],
-            return_type: Type::I64,
-            body: vec![],
-        })];
+        };
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
         let lexer = Lexer::new(&source_code_chars);
         let tokens: Vec<_> = lexer.collect();
 
         let mut parser = Parser::new(&tokens);
-        let ast = parser.parse();
+        let ast = parser.parse_program();
 
         assert_eq!(expected, ast);
     }
