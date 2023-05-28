@@ -1,5 +1,5 @@
 use crate::token::OperatorSymbol::*;
-use crate::token::{OperatorSymbol, VarType};
+use crate::token::{OperatorSymbol, Type};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Statement {
@@ -11,7 +11,7 @@ pub enum Statement {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct VarDeclaration {
     pub var_name: String,
-    pub var_type: VarType,
+    pub var_type: Type,
     pub var_value: Expr,
 }
 

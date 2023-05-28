@@ -3,7 +3,7 @@ use crate::ast::{
 };
 use crate::token::OperatorSymbol::*;
 use crate::token::Token;
-use crate::token::{OperatorSymbol, VarType};
+use crate::token::{OperatorSymbol, Type};
 
 // TODO(tbreydo): get rid of Parser object (just use functions)
 pub struct Parser<'a> {
@@ -49,7 +49,7 @@ impl<'a> Parser<'a> {
         }
 
         let statement = match self.peek_token(1)? {
-            Token::VarType(_) => self.parse_var_dec(),
+            Token::Type(_) => self.parse_var_dec(),
             Token::While => self.parse_while_loop(),
             _ => Statement::Expr(self.parse_expr()),
         };
@@ -69,9 +69,9 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_type(&mut self) -> VarType {
+    fn parse_type(&mut self) -> Type {
         match self.next_token() {
-            Some(Token::VarType(var_type)) => *var_type,
+            Some(Token::Type(var_type)) => *var_type,
             Some(t) => panic!("Expected type of variable but received {:?}", t),
             None => panic!("Expected type of variable but file ended"),
         }
@@ -318,14 +318,14 @@ mod tests {
     use crate::ast::{BinExpr, CallExpr, VarDeclaration, WhileLoop};
     use crate::lexer::Lexer;
     use crate::parser::{BinaryOperator, Expr, Parser, Statement};
-    use crate::token::VarType;
+    use crate::token::Type;
 
     #[test]
     fn var_declaration() {
         let source_code = "int N = 5";
         let expected = vec![Statement::VarDeclaration(VarDeclaration {
             var_name: "N".to_string(),
-            var_type: VarType::Int,
+            var_type: Type::Int,
             var_value: Expr::Int(5),
         })];
 

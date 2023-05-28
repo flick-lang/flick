@@ -15,7 +15,7 @@ pub enum Token {
     While,
 
     // Types
-    VarType(VarType),
+    Type(Type),
 
     // Brackets
     LSquirly,
@@ -48,7 +48,7 @@ impl fmt::Display for Token {
             Self::Identifier(id) => write!(f, "{}", id),
             Self::Fn => write!(f, "fn"),
             Self::While => write!(f, "while"),
-            Self::VarType(var_type) => write!(f, "{}", var_type),
+            Self::Type(var_type) => write!(f, "{}", var_type),
             Self::LSquirly => write!(f, "{{"),
             Self::RSquirly => write!(f, "}}"),
             Self::LParen => write!(f, "("),
@@ -112,11 +112,11 @@ impl fmt::Display for OperatorSymbol {
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum VarType {
+pub enum Type {
     Int,
 }
 
-impl fmt::Display for VarType {
+impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Int => write!(f, "int"),

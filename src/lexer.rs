@@ -1,5 +1,5 @@
 use crate::token::OperatorSymbol::*;
-use crate::token::{Token, VarType};
+use crate::token::{Token, Type};
 
 pub struct Lexer<'a> {
     chars: &'a [char],
@@ -99,7 +99,7 @@ impl<'a> Lexer<'a> {
     fn read_word(&mut self) -> Token {
         let s = self.take_chars_while(|&c| c.is_ascii_alphanumeric() || c == '_');
         match s.as_str() {
-            "int" => Token::VarType(VarType::Int),
+            "int" => Token::Type(Type::Int),
             "while" => Token::While,
             "fn" => Token::Fn,
             _ => Token::Identifier(s),
@@ -133,7 +133,7 @@ impl<'a> Iterator for Lexer<'a> {
 #[cfg(test)]
 mod tests {
     use crate::lexer::Lexer;
-    use crate::token::{OperatorSymbol, Token, VarType};
+    use crate::token::{OperatorSymbol, Token, Type};
     // todo make macro to avoid last three lines of boilerplate
 
     #[test]
@@ -156,12 +156,12 @@ mod tests {
     fn variables() {
         let source_code = "int this_is_a_LONG_VARIABLE_NAME = 5\nint shortInt = 5";
         let expected_tokens = vec![
-            Token::VarType(VarType::Int),
+            Token::Type(Type::Int),
             Token::Identifier("this_is_a_LONG_VARIABLE_NAME".to_string()),
             Token::OperatorSymbol(OperatorSymbol::Assign),
             Token::IntLiteral(5),
             Token::Newline,
-            Token::VarType(VarType::Int),
+            Token::Type(Type::Int),
             Token::Identifier("shortInt".to_string()),
             Token::OperatorSymbol(OperatorSymbol::Assign),
             Token::IntLiteral(5),
