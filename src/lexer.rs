@@ -100,6 +100,7 @@ impl<'a> Lexer<'a> {
         let s = self.take_chars_while(|&c| c.is_ascii_alphanumeric() || c == '_');
         match s.as_str() {
             "int" => Token::Type(Type::Int),
+            "void" => Token::Type(Type::Void),
             "while" => Token::While,
             "fn" => Token::Fn,
             _ => Token::Identifier(s),

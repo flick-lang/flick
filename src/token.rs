@@ -114,6 +114,7 @@ impl fmt::Display for OperatorSymbol {
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Type {
     Int,
+    Void,
 }
 
 impl fmt::Display for Type {
