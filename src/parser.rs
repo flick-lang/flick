@@ -290,6 +290,7 @@ impl<'a> Parser<'a> {
         let mut args = Vec::new();
 
         if let Some(Token::RParen) = self.peek_token(1) {
+            self.skip_token();
             return args;
         }
 
@@ -346,6 +347,7 @@ impl<'a> Parser<'a> {
         let mut params = Vec::new();
 
         if let Some(Token::RParen) = self.peek_token(1) {
+            self.skip_token();
             return params;
         }
 
