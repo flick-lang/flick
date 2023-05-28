@@ -7,7 +7,7 @@ pub enum Token {
     Docstring(String),
     Comment(String),
 
-    IntLiteral(isize),
+    IntLiteral(i64),
     Identifier(String),
 
     // Keywords
