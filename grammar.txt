@@ -1,10 +1,11 @@
 statement   := var_dec | while_loop | expr | func_def
                     NOTE: statement must be FOLLOWED BY '\n' or EOF
 
-func_def := ...
+func_def    := 'fn' ID '(' [parameters] ')' [VARTYPE] '{' {statement} '}'
+parameters  := {VARTYPE ID ','} VARTYPE ID
 
 var_decl    := VARTYPE ID '=' expr
-while_loop  := 'while' expr
+while_loop  := 'while' '{' [statement]+ '}'
 
 expr            := assigment_expr
 assigment_expr  := {logical_or_expr =} logical_or_expr
@@ -15,7 +16,7 @@ add_sub_expr    := {mul_div_expr (+-)} mul_div_expr
 mul_div_expr    := {primary_expr (*/)} primary_expr
 primary_expr    := call_expr | atom | index_expr | '(' expr ')'
 
-call_expr   := ID ( {args} )
+call_expr   := ID ( [args] )
 args        := {arg ,} arg
 index_expr  := ID [ {index} ]
 atom        := ID | INTEGER_LITERAL | STR_LITERAL
