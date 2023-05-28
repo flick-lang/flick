@@ -1,0 +1,9 @@
+fn main() {
+    i64 x = 1111
+    i64 y = 2222
+    x * y
+}
+
+fn sum(i64 x, i64 y) i64 {
+    x+y
+}
