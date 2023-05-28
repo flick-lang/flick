@@ -103,6 +103,7 @@ impl<'a> Lexer<'a> {
             "void" => Token::Type(Type::Void),
             "while" => Token::While,
             "fn" => Token::Fn,
+            "ret" => Token::Ret,
             _ => Token::Identifier(s),
         }
     }

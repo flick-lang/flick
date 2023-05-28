@@ -1,6 +1,6 @@
 program     := {func_def}
 
-statement   := var_dec | while_loop | expr
+statement   := var_dec | while_loop | expr | return_stmt
                     NOTE: statement must be FOLLOWED BY '\n' or EOF
 
 func_def    := 'fn' IDENTIFIER '(' [parameters] ')' [VARTYPE] '{' {statement} '}'
@@ -9,6 +9,7 @@ parameters  := {VARTYPE IDENTIFIER ','} VARTYPE IDENTIFIER
 var_decl    := VARTYPE IDENTIFIER '=' expr
 while_loop  := 'while' '{' [statement]+ '}'
 
+return_stmt     := 'ret' expr
 expr            := assigment_expr
 assigment_expr  := {logical_or_expr =} logical_or_expr
 logical_or      := {logical_and or} logical_and

@@ -1,7 +1,4 @@
-use crate::ast::{
-    BinExpr, BinaryOperator, CallExpr, Expr, FuncDef, FuncParam, IndexExpr, Program, Statement,
-    VarDeclaration, WhileLoop,
-};
+use crate::ast::*;
 use crate::token::OperatorSymbol::*;
 use crate::token::Token;
 use crate::token::{OperatorSymbol, Type};
@@ -125,6 +122,7 @@ impl<'a> Parser<'a> {
             Token::Type(_) => Statement::VarDeclaration(self.parse_var_dec()),
             Token::While => Statement::WhileLoop(self.parse_while_loop()),
             Token::Fn => panic!("Nested function definitions are not allowed"),
+            Token::Ret => Statement::ReturnStatement(self.parse_return_statement()),
             _ => Statement::ExprStatement(self.parse_expr()),
         };
 
@@ -200,6 +198,12 @@ impl<'a> Parser<'a> {
         let body = self.parse_body();
 
         WhileLoop { condition, body }
+    }
+
+    fn parse_return_statement(&mut self) -> Expr {
+        self.assert_next_token(Token::Ret);
+
+        self.parse_expr()
     }
 
     fn parse_expr(&mut self) -> Expr {
@@ -393,10 +397,8 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::{BinExpr, CallExpr, FuncDef, FuncParam, Program, VarDeclaration, WhileLoop};
+    use super::*;
     use crate::lexer::Lexer;
-    use crate::parser::{BinaryOperator, Expr, Parser, Statement};
-    use crate::token::Type;
 
     #[test]
     fn var_declaration() {
@@ -584,6 +586,25 @@ mod tests {
 
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_program();
+
+        assert_eq!(expected, ast);
+    }
+
+    #[test]
+    fn return_statement() {
+        let source_code = "ret x + 5";
+        let expected = Some(Statement::ReturnStatement(Expr::BinExpr(BinExpr {
+            left: Box::new(Expr::Identifier("x".to_string())),
+            operator: BinaryOperator::Add,
+            right: Box::new(Expr::I64Literal(5)),
+        })));
+
+        let source_code_chars: Vec<_> = source_code.chars().collect();
+        let lexer = Lexer::new(&source_code_chars);
+        let tokens: Vec<_> = lexer.collect();
+
+        let mut parser = Parser::new(&tokens);
+        let ast = parser.parse_statement();
 
         assert_eq!(expected, ast);
     }

@@ -11,6 +11,7 @@ pub enum Token {
     // Keywords
     Fn,
     While,
+    Ret,
 
     // Types
     Type(Type),
@@ -42,20 +43,27 @@ impl fmt::Display for Token {
         match self {
             Self::Docstring(docstring) => write!(f, "{}", docstring),
             Self::Comment(comment) => write!(f, "{}", comment),
+
             Self::I64Literal(int) => write!(f, "{}", int),
             Self::Identifier(id) => write!(f, "{}", id),
+
             Self::Fn => write!(f, "fn"),
             Self::While => write!(f, "while"),
+            Self::Ret => write!(f, "ret"),
+
             Self::Type(var_type) => write!(f, "{}", var_type),
+
             Self::LSquirly => write!(f, "{{"),
             Self::RSquirly => write!(f, "}}"),
             Self::LParen => write!(f, "("),
             Self::RParen => write!(f, ")"),
             Self::LSquare => write!(f, "["),
             Self::RSquare => write!(f, "]"),
+
             Self::Newline => writeln!(f),
             Self::Colon => write!(f, ":"),
             Self::Comma => write!(f, ","),
+
             Self::OperatorSymbol(op_symbol) => write!(f, "{}", op_symbol),
         }
     }
