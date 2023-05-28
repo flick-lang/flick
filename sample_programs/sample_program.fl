@@ -1,12 +1,12 @@
 // Currently everything is wrapped with main() {...}
 
-int N = 5
+i64 N = 5
 
 // todo: introduce const/let
 // todo: introduce implicit types
-int answer = 1
+i64 answer = 1
 // todo: parse negative numbers
-int i = 1
+i64 i = 1
 
 while i <= N {
     answer = answer * i

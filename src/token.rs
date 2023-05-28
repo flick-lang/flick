@@ -1,5 +1,3 @@
-// todo: impl  Display or Debug or whatever
-
 use std::fmt;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -7,7 +5,7 @@ pub enum Token {
     Docstring(String),
     Comment(String),
 
-    IntLiteral(i64),
+    I64Literal(i64),
     Identifier(String),
 
     // Keywords
@@ -44,7 +42,7 @@ impl fmt::Display for Token {
         match self {
             Self::Docstring(docstring) => write!(f, "{}", docstring),
             Self::Comment(comment) => write!(f, "{}", comment),
-            Self::IntLiteral(int) => write!(f, "{}", int),
+            Self::I64Literal(int) => write!(f, "{}", int),
             Self::Identifier(id) => write!(f, "{}", id),
             Self::Fn => write!(f, "fn"),
             Self::While => write!(f, "while"),
@@ -113,14 +111,14 @@ impl fmt::Display for OperatorSymbol {
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Type {
-    Int,
+    I64,
     Void,
 }
 
 impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Int => write!(f, "int"),
+            Self::I64 => write!(f, "int"),
             Self::Void => write!(f, "void"),
         }
     }

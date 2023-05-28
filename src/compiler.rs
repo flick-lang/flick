@@ -60,7 +60,7 @@ impl<'a> Compiler<'a> {
     fn codegen_expr(&self, expr: &Expr) -> LLVMValueRef {
         match expr {
             Expr::Identifier(id) => self.codegen_identifier(id.as_str()),
-            Expr::Int(value) => self.codegen_int(*value),
+            Expr::I64Literal(value) => self.codegen_int(*value),
             Expr::BinExpr(_) => todo!(),
             Expr::CallExpr(_) => todo!(),
             Expr::IndexExpr(_) => todo!(),
@@ -73,6 +73,20 @@ impl<'a> Compiler<'a> {
 
     fn codegen_int(&self, value: i64) -> LLVMValueRef {
         // Unsigned (u)longlong because we need underlying bit data to then sign extend
-        unsafe { LLVMConstInt(LLVMInt64Type(), value as c_ulonglong, LLVMBool::from(true)) }
+        unsafe {
+            LLVMConstInt(
+                LLVMIntTypeInContext(self.context, 64),
+                value as c_ulonglong,
+                LLVMBool::from(true),
+            )
+        }
+    }
+}
+
+impl<'a> Drop for Compiler<'a> {
+    fn drop(&mut self) {
+        unsafe {
+            LLVMContextDispose(self.context);
+        }
     }
 }

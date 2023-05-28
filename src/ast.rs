@@ -25,7 +25,7 @@ pub struct WhileLoop {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expr {
     Identifier(String),
-    Int(i64),
+    I64Literal(i64),
     BinExpr(BinExpr),
     CallExpr(CallExpr),
     IndexExpr(IndexExpr),

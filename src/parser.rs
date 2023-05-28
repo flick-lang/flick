@@ -310,7 +310,7 @@ impl<'a> Parser<'a> {
     fn parse_atom(&mut self) -> Expr {
         match self.next_token() {
             Some(Token::Identifier(id)) => Expr::Identifier(id.clone()),
-            Some(Token::IntLiteral(n)) => Expr::Int(*n),
+            Some(Token::I64Literal(n)) => Expr::I64Literal(*n),
             // todo Some(Token::StrLiteral())
             Some(token) => panic!("Expected identifier or literal but received {:?}", token),
             None => panic!("Expected identifier or literal but file ended"),
@@ -383,11 +383,11 @@ mod tests {
 
     #[test]
     fn var_declaration() {
-        let source_code = "int N = 5";
+        let source_code = "i64 N = 5";
         let expected = vec![Statement::VarDeclaration(VarDeclaration {
             var_name: "N".to_string(),
-            var_type: Type::Int,
-            var_value: Expr::Int(5),
+            var_type: Type::I64,
+            var_value: Expr::I64Literal(5),
         })];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
@@ -409,7 +409,7 @@ mod tests {
             right: Box::new(Expr::BinExpr(BinExpr {
                 left: Box::new(Expr::Identifier("a".to_string())),
                 operator: BinaryOperator::Assign,
-                right: Box::new(Expr::Int(10)),
+                right: Box::new(Expr::I64Literal(10)),
             })),
         }))];
 
@@ -451,23 +451,23 @@ mod tests {
         let expected = vec![Statement::Expr(Expr::BinExpr(BinExpr {
             left: Box::new(Expr::BinExpr(BinExpr {
                 left: Box::new(Expr::BinExpr(BinExpr {
-                    left: Box::new(Expr::Int(10)),
+                    left: Box::new(Expr::I64Literal(10)),
                     operator: BinaryOperator::Add,
                     right: Box::new(Expr::BinExpr(BinExpr {
                         left: Box::new(Expr::BinExpr(BinExpr {
-                            left: Box::new(Expr::Int(3)),
+                            left: Box::new(Expr::I64Literal(3)),
                             operator: BinaryOperator::Multiply,
-                            right: Box::new(Expr::Int(8)),
+                            right: Box::new(Expr::I64Literal(8)),
                         })),
                         operator: BinaryOperator::Divide,
-                        right: Box::new(Expr::Int(4)),
+                        right: Box::new(Expr::I64Literal(4)),
                     })),
                 })),
                 operator: BinaryOperator::Subtract,
-                right: Box::new(Expr::Int(13)),
+                right: Box::new(Expr::I64Literal(13)),
             })),
             operator: BinaryOperator::Add,
-            right: Box::new(Expr::Int(5)),
+            right: Box::new(Expr::I64Literal(5)),
         }))];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
@@ -484,12 +484,12 @@ mod tests {
     fn parenthetical_expression() {
         let source_code = "9*(2+3)";
         let expected = vec![Statement::Expr(Expr::BinExpr(BinExpr {
-            left: Box::new(Expr::Int(9)),
+            left: Box::new(Expr::I64Literal(9)),
             operator: BinaryOperator::Multiply,
             right: Box::new(Expr::BinExpr(BinExpr {
-                left: Box::new(Expr::Int(2)),
+                left: Box::new(Expr::I64Literal(2)),
                 operator: BinaryOperator::Add,
-                right: Box::new(Expr::Int(3)),
+                right: Box::new(Expr::I64Literal(3)),
             })),
         }))];
 
@@ -527,12 +527,12 @@ mod tests {
                 Expr::CallExpr(CallExpr {
                     function_name: Box::new(Expr::CallExpr(CallExpr {
                         function_name: Box::new(Expr::Identifier("f".to_string())),
-                        args: vec![Expr::Int(1)],
+                        args: vec![Expr::I64Literal(1)],
                     })),
-                    args: vec![Expr::Int(2)],
+                    args: vec![Expr::I64Literal(2)],
                 }),
-                Expr::Int(10),
-                Expr::Int(20),
+                Expr::I64Literal(10),
+                Expr::I64Literal(20),
             ],
         }))];
 
@@ -548,14 +548,14 @@ mod tests {
 
     #[test]
     fn function_definition() {
-        let source_code = "fn test(int a) int {}";
+        let source_code = "fn test(i64 a) i64 {}";
         let expected = vec![Statement::FuncDef(FuncDef {
             name: "test".to_string(),
             params: vec![FuncParam {
-                param_type: Type::Int,
+                param_type: Type::I64,
                 param_name: "a".to_string(),
             }],
-            return_type: Type::Int,
+            return_type: Type::I64,
             body: vec![],
         })];
 

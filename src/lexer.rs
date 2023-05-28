@@ -32,7 +32,7 @@ impl<'a> Lexer<'a> {
         // Figure out what type the next token is and call handling function
         let peeked_token = match (self.peek_char(1)?, self.peek_char(2)) {
             ('a'..='z' | 'A'..='Z' | '_', _) => return Some(self.read_word()),
-            ('0'..='9', _) => return Some(self.read_int_literal()),
+            ('0'..='9', _) => return Some(self.read_i64_literal()),
             ('/', Some('/')) => return Some(self.read_comment()),
 
             ('>', Some('=')) => Token::OperatorSymbol(GreaterOrEqualTo),
@@ -99,7 +99,7 @@ impl<'a> Lexer<'a> {
     fn read_word(&mut self) -> Token {
         let s = self.take_chars_while(|&c| c.is_ascii_alphanumeric() || c == '_');
         match s.as_str() {
-            "int" => Token::Type(Type::Int),
+            "i64" => Token::Type(Type::I64),
             "void" => Token::Type(Type::Void),
             "while" => Token::While,
             "fn" => Token::Fn,
@@ -108,9 +108,10 @@ impl<'a> Lexer<'a> {
     }
 
     /// Assuming lexer peeked a digit.
-    fn read_int_literal(&mut self) -> Token {
+    fn read_i64_literal(&mut self) -> Token {
         let number = self.take_chars_while(|&c| c.is_ascii_digit());
-        Token::IntLiteral(number.parse().unwrap())
+        Token::I64Literal(number.parse().unwrap())
+        // TODO: Handle error parsing int! it could be too big for i64
     }
 
     /// Assuming lexer peeked a '#'.
@@ -155,17 +156,17 @@ mod tests {
 
     #[test]
     fn variables() {
-        let source_code = "int this_is_a_LONG_VARIABLE_NAME = 5\nint shortInt = 5";
+        let source_code = "i64 this_is_a_LONG_VARIABLE_NAME = 5\ni64 shortInt = 5";
         let expected_tokens = vec![
-            Token::Type(Type::Int),
+            Token::Type(Type::I64),
             Token::Identifier("this_is_a_LONG_VARIABLE_NAME".to_string()),
             Token::OperatorSymbol(OperatorSymbol::Assign),
-            Token::IntLiteral(5),
+            Token::I64Literal(5),
             Token::Newline,
-            Token::Type(Type::Int),
+            Token::Type(Type::I64),
             Token::Identifier("shortInt".to_string()),
             Token::OperatorSymbol(OperatorSymbol::Assign),
-            Token::IntLiteral(5),
+            Token::I64Literal(5),
         ];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
@@ -182,7 +183,7 @@ mod tests {
             Token::While,
             Token::Identifier("x".to_string()),
             Token::OperatorSymbol(OperatorSymbol::LessOrEqualTo),
-            Token::IntLiteral(5),
+            Token::I64Literal(5),
             Token::LSquirly,
             Token::RSquirly,
         ];
