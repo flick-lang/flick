@@ -34,8 +34,10 @@ fn main() -> Result<()> {
 
     let mut parser = Parser::new(&tokens);
     let statements = parser.parse();
-    let compiler = Compiler::new(&statements);
-    println!("{:?}", compiler.codegen());
+
+    let mut compiler = Compiler::new();
+    compiler.codegen(&statements);
+    compiler.print();
 
     Ok(())
 }
