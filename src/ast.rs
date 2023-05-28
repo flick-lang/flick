@@ -10,7 +10,7 @@ pub enum Statement {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct VarDeclaration {
-    pub var_name: Expr,
+    pub var_name: String,
     pub var_type: VarType,
     pub var_value: Expr,
 }

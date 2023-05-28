@@ -1,9 +1,9 @@
 use crate::ast::{
     BinExpr, BinaryOperator, CallExpr, Expr, IndexExpr, Statement, VarDeclaration, WhileLoop,
 };
-use crate::token::OperatorSymbol;
 use crate::token::OperatorSymbol::*;
 use crate::token::Token;
+use crate::token::{OperatorSymbol, VarType};
 
 // TODO(tbreydo): get rid of Parser object (just use functions)
 pub struct Parser<'a> {
@@ -56,7 +56,7 @@ impl<'a> Parser<'a> {
 
         match self.next_token() {
             Some(Token::Newline) | None => Some(statement),
-            Some(token) => panic!("unexpected token {:?}, expected newline or EOF", token),
+            Some(token) => panic!("Expected newline or EOF but received {:?}", token),
         }
     }
 
@@ -64,19 +64,31 @@ impl<'a> Parser<'a> {
     fn assert_next_token(&mut self, expected: Token) {
         match self.next_token() {
             Some(token) if *token == expected => (),
-            Some(token) => panic!("unexpected token {:?}, expected {:?}", token, expected),
-            None => panic!("unexpected end of file, expected {:?}", expected),
+            Some(token) => panic!("Expected {:?} but received {:?}", expected, token),
+            None => panic!("Expected {:?} but file ended", expected),
+        }
+    }
+
+    fn parse_type(&mut self) -> VarType {
+        match self.next_token() {
+            Some(Token::VarType(var_type)) => *var_type,
+            Some(t) => panic!("Expected type of variable but received {:?}", t),
+            None => panic!("Expected type of variable but file ended"),
+        }
+    }
+
+    fn parse_identifier(&mut self) -> String {
+        match self.next_token() {
+            Some(Token::Identifier(id)) => id.clone(), // TODO: Can we somehow get rid of this clone
+            Some(t) => panic!("Expected identifier but received {:?}", t),
+            None => panic!("Expected identifier but received end of file"),
         }
     }
 
     fn parse_var_dec(&mut self) -> Statement {
-        let var_type = match self.next_token() {
-            Some(Token::VarType(var_type)) => *var_type,
-            Some(t) => unreachable!("parse_var_dec but token is {:?} (expected VarType)", t),
-            None => unreachable!("parse_var_dec but file ended (expected VarType)"),
-        };
+        let var_type = self.parse_type();
 
-        let var_name = self.parse_primary_expr();
+        let var_name = self.parse_identifier();
 
         self.assert_next_token(Token::OperatorSymbol(Assign));
 
@@ -104,9 +116,7 @@ impl<'a> Parser<'a> {
 
             match self.parse_statement() {
                 Some(statement) => body.push(statement),
-                None => {
-                    panic!("Unexpected end of file, while loop should have a closing squirly")
-                }
+                None => panic!("Expected while loop to be closed ('}}') but file ended"),
             }
         }
 
@@ -269,8 +279,6 @@ impl<'a> Parser<'a> {
         todo!()
     }
 
-    // f(,3,answer,test)
-    // f()
     fn parse_args(&mut self) -> Vec<Expr> {
         self.assert_next_token(Token::LParen);
 
@@ -286,7 +294,8 @@ impl<'a> Parser<'a> {
             match self.next_token() {
                 Some(Token::RParen) => break,
                 Some(Token::Comma) => continue,
-                _ => panic!("unexpected end of function arguments"),
+                Some(token) => panic!("Expected ')' but received {:?}", token),
+                None => panic!("Expected ')' but file ended"),
             }
         }
 
@@ -298,8 +307,8 @@ impl<'a> Parser<'a> {
             Some(Token::Identifier(id)) => Expr::Identifier(id.clone()),
             Some(Token::IntLiteral(n)) => Expr::Int(*n),
             // todo Some(Token::StrLiteral())
-            Some(token) => panic!("unexpected token {:?}, expected an atom", token),
-            None => panic!("unexpected end of file, expected an atom"),
+            Some(token) => panic!("Expected identifier or literal but received {:?}", token),
+            None => panic!("Expected identifier or literal but file ended"),
         }
     }
 }
@@ -315,7 +324,7 @@ mod tests {
     fn var_declaration() {
         let source_code = "int N = 5";
         let expected = vec![Statement::VarDeclaration(VarDeclaration {
-            var_name: Expr::Identifier("N".to_string()),
+            var_name: "N".to_string(),
             var_type: VarType::Int,
             var_value: Expr::Int(5),
         })];
