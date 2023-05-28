@@ -6,6 +6,7 @@ pub enum Statement {
     VarDeclaration(VarDeclaration),
     WhileLoop(WhileLoop),
     Expr(Expr),
+    FuncDef(FuncDef),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -47,6 +48,20 @@ pub struct CallExpr {
 pub struct IndexExpr {
     pub container: Box<Expr>,
     pub index: (),
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct FuncDef {
+    pub name: String,
+    pub params: Vec<FuncParam>,
+    pub return_type: Type,
+    pub body: Vec<Statement>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct FuncParam {
+    pub param_name: String,
+    pub param_type: Type,
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]

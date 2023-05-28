@@ -1,5 +1,6 @@
 use crate::ast::{
-    BinExpr, BinaryOperator, CallExpr, Expr, IndexExpr, Statement, VarDeclaration, WhileLoop,
+    BinExpr, BinaryOperator, CallExpr, Expr, FuncDef, FuncParam, IndexExpr, Statement,
+    VarDeclaration, WhileLoop,
 };
 use crate::token::OperatorSymbol::*;
 use crate::token::Token;
@@ -49,8 +50,9 @@ impl<'a> Parser<'a> {
         }
 
         let statement = match self.peek_token(1)? {
-            Token::Type(_) => self.parse_var_dec(),
-            Token::While => self.parse_while_loop(),
+            Token::Type(_) => Statement::VarDeclaration(self.parse_var_dec()),
+            Token::While => Statement::WhileLoop(self.parse_while_loop()),
+            Token::Fn => Statement::FuncDef(self.parse_func_definition()),
             _ => Statement::Expr(self.parse_expr()),
         };
 
@@ -85,7 +87,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_var_dec(&mut self) -> Statement {
+    fn parse_var_dec(&mut self) -> VarDeclaration {
         let var_type = self.parse_type();
 
         let var_name = self.parse_identifier();
@@ -94,19 +96,15 @@ impl<'a> Parser<'a> {
 
         let var_value = self.parse_expr();
 
-        Statement::VarDeclaration(VarDeclaration {
+        VarDeclaration {
             var_name,
             var_type,
             var_value,
-        })
+        }
     }
 
-    fn parse_while_loop(&mut self) -> Statement {
-        self.assert_next_token(Token::While);
-
-        let condition = self.parse_expr();
+    fn parse_body(&mut self) -> Vec<Statement> {
         let mut body = Vec::new();
-
         self.assert_next_token(Token::LSquirly);
 
         while let Some(token) = self.peek_token(1) {
@@ -116,13 +114,20 @@ impl<'a> Parser<'a> {
 
             match self.parse_statement() {
                 Some(statement) => body.push(statement),
-                None => panic!("Expected while loop to be closed ('}}') but file ended"),
+                None => panic!("Expected body to be closed ('}}') but file ended"),
             }
         }
-
         self.assert_next_token(Token::RSquirly);
+        body
+    }
 
-        Statement::WhileLoop(WhileLoop { condition, body })
+    fn parse_while_loop(&mut self) -> WhileLoop {
+        self.assert_next_token(Token::While);
+
+        let condition = self.parse_expr();
+        let mut body = self.parse_body();
+
+        WhileLoop { condition, body }
     }
 
     fn parse_expr(&mut self) -> Expr {
@@ -311,6 +316,63 @@ impl<'a> Parser<'a> {
             None => panic!("Expected identifier or literal but file ended"),
         }
     }
+
+    fn parse_func_definition(&mut self) -> FuncDef {
+        self.assert_next_token(Token::Fn);
+
+        let name = self.parse_identifier();
+        let params = self.parse_func_params();
+
+        // fn test() blahblajdlskjlasdjf {
+        let return_type = match self.peek_token(1) {
+            Some(Token::LSquirly) => Type::Void,
+            // Some(Token::Type(t)) => t,
+            // _ => unreachable!("Expected return type for function {}", name,)
+            _ => self.parse_type(),
+        };
+
+        let body = self.parse_body();
+
+        FuncDef {
+            name,
+            params,
+            return_type,
+            body,
+        }
+    }
+
+    fn parse_func_params(&mut self) -> Vec<FuncParam> {
+        self.assert_next_token(Token::LParen);
+
+        let mut params = Vec::new();
+
+        if let Some(Token::RParen) = self.peek_token(1) {
+            return params;
+        }
+
+        loop {
+            params.push(self.parse_func_param());
+
+            match self.next_token() {
+                Some(Token::RParen) => break,
+                Some(Token::Comma) => continue,
+                Some(token) => panic!("Expected ')' but received {:?}", token),
+                None => panic!("Expected ')' but file ended"),
+            }
+        }
+
+        params
+    }
+
+    fn parse_func_param(&mut self) -> FuncParam {
+        let param_name = self.parse_identifier();
+        let param_type = self.parse_type();
+
+        FuncParam {
+            param_name,
+            param_type,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -460,6 +522,34 @@ mod tests {
     #[test]
     fn function_call() {
         let source_code = "print(f(1)(2), 10, 20)";
+        let expected = vec![Statement::Expr(Expr::CallExpr(CallExpr {
+            function_name: Box::new(Expr::Identifier("print".to_string())),
+            args: vec![
+                Expr::CallExpr(CallExpr {
+                    function_name: Box::new(Expr::CallExpr(CallExpr {
+                        function_name: Box::new(Expr::Identifier("f".to_string())),
+                        args: vec![Expr::Int(1)],
+                    })),
+                    args: vec![Expr::Int(2)],
+                }),
+                Expr::Int(10),
+                Expr::Int(20),
+            ],
+        }))];
+
+        let source_code_chars: Vec<_> = source_code.chars().collect();
+        let lexer = Lexer::new(&source_code_chars);
+        let tokens: Vec<_> = lexer.collect();
+
+        let mut parser = Parser::new(&tokens);
+        let ast = parser.parse();
+
+        assert_eq!(expected, ast);
+    }
+
+    #[test]
+    fn function_call() {
+        let source_code = "fn test(a: int) int {}";
         let expected = vec![Statement::Expr(Expr::CallExpr(CallExpr {
             function_name: Box::new(Expr::Identifier("print".to_string())),
             args: vec![
