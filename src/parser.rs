@@ -323,7 +323,6 @@ impl<'a> Parser<'a> {
         let name = self.parse_identifier();
         let params = self.parse_func_params();
 
-        // fn test() blahblajdlskjlasdjf {
         let return_type = match self.peek_token(1) {
             Some(Token::LSquirly) => Type::Void,
             // Some(Token::Type(t)) => t,
@@ -365,19 +364,19 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_func_param(&mut self) -> FuncParam {
-        let param_name = self.parse_identifier();
         let param_type = self.parse_type();
+        let param_name = self.parse_identifier();
 
         FuncParam {
-            param_name,
             param_type,
+            param_name,
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::{BinExpr, CallExpr, VarDeclaration, WhileLoop};
+    use crate::ast::{BinExpr, CallExpr, FuncDef, FuncParam, VarDeclaration, WhileLoop};
     use crate::lexer::Lexer;
     use crate::parser::{BinaryOperator, Expr, Parser, Statement};
     use crate::token::Type;
@@ -549,21 +548,16 @@ mod tests {
 
     #[test]
     fn function_definition() {
-        let source_code = "fn test(a: int) int {}";
-        let expected = vec![Statement::Expr(Expr::CallExpr(CallExpr {
-            function_name: Box::new(Expr::Identifier("print".to_string())),
-            args: vec![
-                Expr::CallExpr(CallExpr {
-                    function_name: Box::new(Expr::CallExpr(CallExpr {
-                        function_name: Box::new(Expr::Identifier("f".to_string())),
-                        args: vec![Expr::Int(1)],
-                    })),
-                    args: vec![Expr::Int(2)],
-                }),
-                Expr::Int(10),
-                Expr::Int(20),
-            ],
-        }))];
+        let source_code = "fn test(int a) int {}";
+        let expected = vec![Statement::FuncDef(FuncDef {
+            name: "test".to_string(),
+            params: vec![FuncParam {
+                param_type: Type::Int,
+                param_name: "a".to_string(),
+            }],
+            return_type: Type::Int,
+            body: vec![],
+        })];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
         let lexer = Lexer::new(&source_code_chars);

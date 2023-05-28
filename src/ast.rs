@@ -60,8 +60,8 @@ pub struct FuncDef {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct FuncParam {
-    pub param_name: String,
     pub param_type: Type,
+    pub param_name: String,
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]

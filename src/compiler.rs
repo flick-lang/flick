@@ -2,16 +2,19 @@ use std::collections::HashMap;
 
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
+
+use core::ffi::c_ulonglong;
 use std::ffi::CString;
 
-use crate::ast::Statement;
+use crate::ast::{BinaryOperator, Expr, Statement, VarDeclaration, WhileLoop};
+use crate::token::{Token, Type};
 
 pub struct Compiler<'a> {
     statements: &'a [Statement],
     context: LLVMContextRef,
     module: LLVMModuleRef,
     builder: LLVMBuilderRef,
-    named_values: HashMap<String, ValueRef>,
+    named_values: HashMap<String, LLVMValueRef>,
 }
 
 impl<'a> Compiler<'a> {
@@ -31,17 +34,45 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    pub fn codegen(&mut self) {
+    pub fn codegen(&self) {
         for statement in self.statements {
-            codegen_statement(statement);
+            self.codegen_statement(statement);
         }
     }
 
-    pub fn codegen_statement(&self, statement: Statement) {
-        match statement {
-            s @ Statement::VarDeclaration { .. } => self.codegen_var_declaration(s),
-            s @ Statement::WhileLoop { .. } => self.codegen_while_loop(s),
-            s @ Statement::Expr(_) => self.codegen_expr(s),
+    fn codegen_statement(&self, statement: &Statement) -> LLVMValueRef {
+        // match statement {
+        //     Statement::VarDeclaration(v) => self.codegen_var_declaration(v),
+        //     Statement::WhileLoop(w) => self.codegen_while_loop(w),
+        //     Statement::Expr(e) => self.codegen_expr(e),
+        // }
+        todo!()
+    }
+
+    fn codegen_var_declaration(&self, var_declaration: &VarDeclaration) -> LLVMValueRef {
+        todo!()
+    }
+
+    fn codegen_while_loop(&self, while_loop: &WhileLoop) -> LLVMValueRef {
+        todo!()
+    }
+
+    fn codegen_expr(&self, expr: &Expr) -> LLVMValueRef {
+        match expr {
+            Expr::Identifier(id) => self.codegen_identifier(id.as_str()),
+            Expr::Int(value) => self.codegen_int(*value),
+            Expr::BinExpr(_) => todo!(),
+            Expr::CallExpr(_) => todo!(),
+            Expr::IndexExpr(_) => todo!(),
         }
+    }
+
+    fn codegen_identifier(&self, identifier: &str) -> LLVMValueRef {
+        todo!()
+    }
+
+    fn codegen_int(&self, value: i64) -> LLVMValueRef {
+        // Unsigned (u)longlong because we need underlying bit data to then sign extend
+        unsafe { LLVMConstInt(LLVMInt64Type(), value as c_ulonglong, LLVMBool::from(true)) }
     }
 }
