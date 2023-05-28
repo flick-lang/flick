@@ -125,7 +125,7 @@ impl<'a> Parser<'a> {
         self.assert_next_token(Token::While);
 
         let condition = self.parse_expr();
-        let mut body = self.parse_body();
+        let body = self.parse_body();
 
         WhileLoop { condition, body }
     }
