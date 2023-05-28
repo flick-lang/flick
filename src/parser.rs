@@ -548,7 +548,7 @@ mod tests {
     }
 
     #[test]
-    fn function_call() {
+    fn function_definition() {
         let source_code = "fn test(a: int) int {}";
         let expected = vec![Statement::Expr(Expr::CallExpr(CallExpr {
             function_name: Box::new(Expr::Identifier("print".to_string())),
