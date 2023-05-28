@@ -12,15 +12,16 @@ use std::ffi::CString;
 use crate::ast::{BinExpr, BinaryOperator, Expr, FuncDef, Statement, VarDeclaration, WhileLoop};
 use crate::token::Type;
 
-pub struct Compiler {
+pub struct Compiler<'a> {
+    statements: &'a [Statement],
     context: LLVMContextRef,
     module: LLVMModuleRef,
     builder: LLVMBuilderRef,
     named_values: HashMap<String, LLVMValueRef>,
 }
 
-impl Compiler {
-    pub fn new() -> Self {
+impl<'a> Compiler<'a> {
+    pub fn new(statements: &'a [Statement]) -> Self {
         unsafe {
             let context = LLVMContextCreate();
             let module_name = CString::new("global_mod").unwrap(); // todo name of module
@@ -29,6 +30,7 @@ impl Compiler {
             let named_values = HashMap::new();
 
             Self {
+                statements,
                 context,
                 module,
                 builder,
@@ -37,8 +39,8 @@ impl Compiler {
         }
     }
 
-    pub fn codegen(&mut self, statements: &[Statement]) {
-        for statement in statements {
+    pub fn codegen(&mut self) {
+        for statement in self.statements {
             self.codegen_statement(statement);
         }
     }
@@ -281,7 +283,7 @@ impl Compiler {
     }
 }
 
-impl Drop for Compiler {
+impl<'a> Drop for Compiler<'a> {
     fn drop(&mut self) {
         unsafe {
             LLVMDisposeBuilder(self.builder);

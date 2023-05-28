@@ -6,6 +6,7 @@ mod token;
 
 use std::fs::File;
 use std::io::Read;
+use std::os::macos::raw::stat;
 use std::path::PathBuf;
 
 use crate::compiler::Compiler;
@@ -35,8 +36,8 @@ fn main() -> Result<()> {
     let mut parser = Parser::new(&tokens);
     let statements = parser.parse();
 
-    let mut compiler = Compiler::new();
-    compiler.codegen(&statements);
+    let mut compiler = Compiler::new(&statements);
+    compiler.codegen();
     compiler.print();
 
     Ok(())
