@@ -101,6 +101,7 @@ impl<'a> Lexer<'a> {
         match s.as_str() {
             "int" => Token::VarType(VarType::Int),
             "while" => Token::While,
+            "fn" => Token::Fn,
             _ => Token::Identifier(s),
         }
     }
