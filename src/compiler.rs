@@ -6,10 +6,10 @@ use llvm_sys::prelude::*;
 use core::ffi::{c_uint, c_ulonglong};
 use llvm_sys::analysis::LLVMVerifierFailureAction::LLVMPrintMessageAction;
 use llvm_sys::analysis::LLVMVerifyFunction;
-use llvm_sys::debuginfo::LLVMDIBuilderCreateFunction;
+use llvm_sys::LLVMIntPredicate::*;
 use std::ffi::CString;
 
-use crate::ast::{Expr, FuncDef, Statement, VarDeclaration, WhileLoop};
+use crate::ast::{BinExpr, BinaryOperator, Expr, FuncDef, Statement, VarDeclaration, WhileLoop};
 use crate::token::Type;
 
 pub struct Compiler {
@@ -58,23 +58,26 @@ impl Compiler {
         }
     }
 
-    fn codegen_var_declaration(&self, var_declaration: &VarDeclaration) -> LLVMValueRef {
+    fn codegen_var_declaration(&mut self, var_declaration: &VarDeclaration) -> LLVMValueRef {
         unsafe {
             let var_name = CString::new(var_declaration.var_name.clone()).unwrap();
             let var_type = self.to_llvm_type(var_declaration.var_type);
             let alloca = LLVMBuildAlloca(self.builder, var_type, var_name.as_ptr());
 
             let var_value = self.codegen_expr(&var_declaration.var_value);
-            LLVMBuildStore(self.builder, var_value, alloca)
-
-            // TODO: what to return?
+            LLVMBuildStore(self.builder, var_value, alloca);
 
             //   // Remember the old variable binding so that we can restore the binding when
             //   // we unrecurse.
             //   OldBindings.push_back(NamedValues[VarName]);
-            //
-            //   // Remember this binding.
-            //   NamedValues[VarName] = Alloca;
+
+            self.named_values
+                .insert(var_declaration.var_name.clone(), alloca); // TODO: Remove redundant clone
+
+            // TODO: what to return?
+            // let name = b"var_dec_load\0".as_ptr() as *const _;
+            // LLVMBuildLoad2(self.builder, var_type, alloca, name)
+            var_value
         }
     }
 
@@ -86,14 +89,23 @@ impl Compiler {
         match expr {
             Expr::Identifier(id) => self.codegen_identifier(id.as_str()),
             Expr::I64Literal(value) => self.codegen_int(*value),
-            Expr::BinExpr(_) => todo!(),
+            Expr::BinExpr(bin_expr) => self.codegen_bin_expr(bin_expr),
             Expr::CallExpr(_) => todo!(),
             Expr::IndexExpr(_) => todo!(),
         }
     }
 
+    // TODO: Better/cleaner implementation of this function?
     fn codegen_identifier(&self, identifier: &str) -> LLVMValueRef {
-        todo!()
+        if !self.named_values.contains_key(identifier) {
+            panic!("Variable not defined");
+        }
+
+        unsafe {
+            let alloca = *self.named_values.get(identifier).unwrap();
+            let name = b"ident_load\0".as_ptr() as *const _;
+            LLVMBuildLoad2(self.builder, LLVMGetAllocatedType(alloca), alloca, name)
+        }
     }
 
     fn codegen_int(&self, value: i64) -> LLVMValueRef {
@@ -102,8 +114,86 @@ impl Compiler {
             LLVMConstInt(
                 LLVMIntTypeInContext(self.context, 64),
                 value as c_ulonglong,
+                // TODO: Make this a constant LLVMTrue and the opposite LLVMFalse
                 LLVMBool::from(true),
             )
+        }
+    }
+
+    fn codegen_bin_expr(&self, bin_expr: &BinExpr) -> LLVMValueRef {
+        // NOTE: Dereference and then reference is necessary to get rid of Box
+        let left = self.codegen_expr(&*bin_expr.left);
+        let right = self.codegen_expr(&*bin_expr.right);
+
+        // if (!L || !R)
+        //     return nullptr;
+
+        unsafe {
+            match bin_expr.operator {
+                BinaryOperator::Add => {
+                    LLVMBuildAdd(self.builder, left, right, b"add\0".as_ptr() as *const _)
+                }
+                BinaryOperator::Subtract => {
+                    LLVMBuildSub(self.builder, left, right, b"sub\0".as_ptr() as *const _)
+                }
+                BinaryOperator::Multiply => {
+                    LLVMBuildMul(self.builder, left, right, b"mul\0".as_ptr() as *const _)
+                }
+                // TODO: Signed vs. unsigned division?
+                BinaryOperator::Divide => {
+                    LLVMBuildSDiv(self.builder, left, right, b"sdiv\0".as_ptr() as *const _)
+                }
+
+                // TODO: Not always integer compare and signed comparisons??
+                BinaryOperator::NotEqualTo => LLVMBuildICmp(
+                    self.builder,
+                    LLVMIntNE,
+                    left,
+                    right,
+                    b"neq\0".as_ptr() as *const _,
+                ),
+                BinaryOperator::EqualTo => LLVMBuildICmp(
+                    self.builder,
+                    LLVMIntEQ,
+                    left,
+                    right,
+                    b"eq\0".as_ptr() as *const _,
+                ),
+                BinaryOperator::LessThan => LLVMBuildICmp(
+                    self.builder,
+                    LLVMIntSLT,
+                    left,
+                    right,
+                    b"<\0".as_ptr() as *const _,
+                ),
+                BinaryOperator::GreaterThan => LLVMBuildICmp(
+                    self.builder,
+                    LLVMIntSGT,
+                    left,
+                    right,
+                    b">\0".as_ptr() as *const _,
+                ),
+                BinaryOperator::LessOrEqualTo => LLVMBuildICmp(
+                    self.builder,
+                    LLVMIntSLE,
+                    left,
+                    right,
+                    b"<=\0".as_ptr() as *const _,
+                ),
+                BinaryOperator::GreaterOrEqualTo => LLVMBuildICmp(
+                    self.builder,
+                    LLVMIntSLT,
+                    left,
+                    right,
+                    b">=\0".as_ptr() as *const _,
+                ),
+
+                BinaryOperator::PlusEq => todo!(),
+                BinaryOperator::TimesEq => todo!(),
+                BinaryOperator::MinusEq => todo!(),
+                BinaryOperator::DivideEq => todo!(),
+                BinaryOperator::Assign => todo!(),
+            }
         }
     }
 
@@ -127,12 +217,13 @@ impl Compiler {
             let function = LLVMAddFunction(self.module, function_name.as_ptr(), function_type);
             // TODO: 'function' might be null if LLVM fails to allocate -> result or smth to handle it?
 
-            // todo correctly set names of function params
+            // Set names of all function params
             for (i, p) in func_def.params.iter().enumerate() {
-                let param = LLVMGetArgOperand(function, i as c_uint);
-                // TODO: Write a better function for converting between rust strings and cstring pointers
+                let param = LLVMGetParam(function, i as c_uint);
+
+                // Set name of function parameters
                 let param_name = CString::new(p.param_name.clone()).unwrap();
-                LLVMSetValueName2(param, param_name.as_ptr(), p.param_name.len())
+                LLVMSetValueName2(param, param_name.as_ptr(), p.param_name.len());
             }
 
             // TODO:
@@ -143,11 +234,20 @@ impl Compiler {
             let bb = LLVMAppendBasicBlockInContext(self.context, function, bb_name);
             LLVMPositionBuilderAtEnd(self.builder, bb);
 
-            // TODO: Named value hashmap
-            //   // Record the function arguments in the NamedValues map.
-            //   NamedValues.clear();
-            //   for (auto &Arg : TheFunction->args())
-            //     NamedValues[std::string(Arg.getName())] = &Arg;
+            // Add argument to named_values hashmap
+            self.named_values.clear();
+            // TODO: Remove copied for loop?
+            for (i, p) in func_def.params.iter().enumerate() {
+                let param = LLVMGetParam(function, i as c_uint);
+
+                // TODO: Remove redundant statements below
+                let param_type = self.to_llvm_type(p.param_type);
+                let param_name = CString::new(p.param_name.clone()).unwrap();
+
+                let alloca = LLVMBuildAlloca(self.builder, param_type, param_name.as_ptr());
+                LLVMBuildStore(self.builder, param, alloca);
+                self.named_values.insert(p.param_name.clone(), alloca); // TODO: Remove redundant clone
+            }
 
             // Codegen the body
             for (i, statement) in func_def.body.iter().enumerate() {
@@ -156,7 +256,10 @@ impl Compiler {
 
                 let is_last_statement = i == func_def.body.len() - 1;
                 if is_last_statement {
-                    LLVMBuildRet(self.builder, statement);
+                    match func_def.return_type {
+                        Type::Void => LLVMBuildRetVoid(self.builder),
+                        _ => LLVMBuildRet(self.builder, statement),
+                    };
                 }
             }
 
