@@ -59,7 +59,7 @@ pub struct BinExpr {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CallExpr {
-    pub function_name: Box<Expr>,
+    pub function_name: String,
     pub args: Vec<Expr>,
 }
 

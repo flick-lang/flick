@@ -323,37 +323,49 @@ impl<'a> Parser<'a> {
                 self.assert_next_token(Token::RParen);
                 expr
             }
-            (Some(Token::Identifier(_)), Some(Token::LParen | Token::LSquare)) => {
-                self.parse_call_expr()
-            }
+            (Some(Token::Identifier(_)), Some(Token::LParen)) => self.parse_call_expr(),
+            // (Some(Token::Identifier(_)), Some(Token::LParen | Token::LSquare)) => self.parse_call_and_index_expr(),
             _ => self.parse_atom(),
         }
     }
 
-    // f[5 + 3*9](3)[3](5)
     fn parse_call_expr(&mut self) -> Expr {
-        let mut expr_so_far = self.parse_atom();
-
-        while let Some(Token::LParen | Token::LSquare) = self.peek_token(1) {
-            match self.peek_token(1).unwrap() {
-                Token::LParen => {
-                    expr_so_far = Expr::CallExpr(CallExpr {
-                        function_name: Box::new(expr_so_far),
-                        args: self.parse_args(),
-                    })
-                }
-                Token::LSquare => {
-                    expr_so_far = Expr::IndexExpr(IndexExpr {
-                        container: Box::new(expr_so_far),
-                        index: self.parse_index(),
-                    })
-                }
-                _ => unreachable!(),
-            }
+        let identifier = self.parse_identifier();
+        match self.peek_token(1) {
+            Some(Token::LParen) => Expr::CallExpr(CallExpr {
+                function_name: identifier,
+                args: self.parse_args(),
+            }),
+            _ => Expr::Identifier(identifier),
         }
-
-        expr_so_far
     }
+
+    // disallow functions as objects for now:
+    // f[5 + 3*9](3)[3](5)
+    // possibiliies = [add, sub, mul, div]
+    // fn parse_call_and_index_expr(&mut self) -> Expr {
+    //     let mut expr_so_far = self.parse_atom();
+    //
+    //     while let Some(Token::LParen | Token::LSquare) = self.peek_token(1) {
+    //         match self.peek_token(1).unwrap() {
+    //             Token::LParen => {
+    //                 expr_so_far = Expr::CallExpr(CallExpr {
+    //                     function_name: Box::new(expr_so_far),
+    //                     args: self.parse_args(),
+    //                 })
+    //             }
+    //             Token::LSquare => {
+    //                 expr_so_far = Expr::IndexExpr(IndexExpr {
+    //                     container: Box::new(expr_so_far),
+    //                     index: self.parse_index(),
+    //                 })
+    //             }
+    //             _ => unreachable!(),
+    //         }
+    //     }
+    //
+    //     expr_so_far
+    // }
 
     fn parse_index(&mut self) {
         // 0:3:0, 3:3:3, 0:3, 5:8, :8
@@ -539,16 +551,13 @@ mod tests {
 
     #[test]
     fn function_call() {
-        let source_code = "print(f(1)(2), 10, 20)";
+        let source_code = "print(f(1), 10, 20)";
         let expected = Some(Statement::ExprStatement(Expr::CallExpr(CallExpr {
-            function_name: Box::new(Expr::Identifier("print".to_string())),
+            function_name: "print".to_string(),
             args: vec![
                 Expr::CallExpr(CallExpr {
-                    function_name: Box::new(Expr::CallExpr(CallExpr {
-                        function_name: Box::new(Expr::Identifier("f".to_string())),
-                        args: vec![Expr::I64Literal(1)],
-                    })),
-                    args: vec![Expr::I64Literal(2)],
+                    function_name: "f".to_string(),
+                    args: vec![Expr::I64Literal(1)],
                 }),
                 Expr::I64Literal(10),
                 Expr::I64Literal(20),

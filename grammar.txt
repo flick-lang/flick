@@ -17,9 +17,9 @@ logical_and     := {eq_neq_expr and} eq_neq_expr
 comparison_expr := {add_sub_expr !=,==} add_sub_expr
 add_sub_expr    := {mul_div_expr (+-)} mul_div_expr
 mul_div_expr    := {primary_expr (*/)} primary_expr
-primary_expr    := call_expr | atom | index_expr | '(' expr ')'
+primary_expr    := atom | index_expr | '(' expr ')'
 
-call_expr   := IDENTIFIER ( [args] )
+index_expr  := call_expr { '[' [index]  ']' }
+call_expr   := IDENTIFIER [ '(' [args] ')' ]
 args        := {arg ,} arg
-index_expr  := IDENTIFIER [ {index} ]
 atom        := IDENTIFIER | INT_LITERAL | STR_LITERAL
