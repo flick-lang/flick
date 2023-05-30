@@ -1,5 +1,5 @@
-use crate::token::OperatorSymbol::*;
-use crate::token::{Token, Type};
+use crate::lexer::token::OperatorSymbol::*;
+use crate::lexer::token::{Token, Type};
 
 pub struct Lexer<'a> {
     chars: &'a [char],
@@ -35,8 +35,8 @@ impl<'a> Lexer<'a> {
             ('0'..='9', _) => return Some(self.read_i64_literal()),
             ('/', Some('/')) => return Some(self.read_comment()),
 
-            ('>', Some('=')) => Token::OperatorSymbol(GreaterOrEqualTo),
-            ('<', Some('=')) => Token::OperatorSymbol(LessOrEqualTo),
+            ('>', Some('=')) => Token::OperatorSymbol(GreaterThanOrEqualTo),
+            ('<', Some('=')) => Token::OperatorSymbol(LessThanOrEqualTo),
             ('=', Some('=')) => Token::OperatorSymbol(EqualTo),
             ('!', Some('=')) => Token::OperatorSymbol(NotEqualTo),
 
@@ -135,8 +135,7 @@ impl<'a> Iterator for Lexer<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::lexer::Lexer;
-    use crate::token::{OperatorSymbol, Token, Type};
+    use super::*;
     // todo make macro to avoid last three lines of boilerplate
 
     #[test]
@@ -161,12 +160,12 @@ mod tests {
         let expected_tokens = vec![
             Token::Type(Type::I64),
             Token::Identifier("this_is_a_LONG_VARIABLE_NAME".to_string()),
-            Token::OperatorSymbol(OperatorSymbol::Assign),
+            Token::OperatorSymbol(Assign),
             Token::I64Literal(5),
             Token::Newline,
             Token::Type(Type::I64),
             Token::Identifier("shortInt".to_string()),
-            Token::OperatorSymbol(OperatorSymbol::Assign),
+            Token::OperatorSymbol(Assign),
             Token::I64Literal(5),
         ];
 
@@ -183,7 +182,7 @@ mod tests {
         let expected_tokens = vec![
             Token::While,
             Token::Identifier("x".to_string()),
-            Token::OperatorSymbol(OperatorSymbol::LessOrEqualTo),
+            Token::OperatorSymbol(LessThanOrEqualTo),
             Token::I64Literal(5),
             Token::LSquirly,
             Token::RSquirly,

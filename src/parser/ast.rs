@@ -1,5 +1,5 @@
-use crate::token::OperatorSymbol::*;
-use crate::token::{OperatorSymbol, Type};
+use crate::lexer::token::OperatorSymbol::*;
+use crate::lexer::token::{OperatorSymbol, Type};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Program {
@@ -104,8 +104,8 @@ impl From<OperatorSymbol> for BinaryOperator {
             EqualTo => Self::EqualTo,
             LessThan => Self::LessThan,
             GreaterThan => Self::GreaterThan,
-            LessOrEqualTo => Self::LessOrEqualTo,
-            GreaterOrEqualTo => Self::GreaterOrEqualTo,
+            LessThanOrEqualTo => Self::LessOrEqualTo,
+            GreaterThanOrEqualTo => Self::GreaterOrEqualTo,
 
             PlusEq => Self::PlusEq,
             TimesEq => Self::TimesEq,

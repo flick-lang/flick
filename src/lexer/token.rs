@@ -76,8 +76,8 @@ pub enum OperatorSymbol {
     EqualTo,
     LessThan,
     GreaterThan,
-    LessOrEqualTo,
-    GreaterOrEqualTo,
+    LessThanOrEqualTo,
+    GreaterThanOrEqualTo,
 
     // Operators
     Plus,
@@ -100,8 +100,8 @@ impl fmt::Display for OperatorSymbol {
             Self::EqualTo => write!(f, "=="),
             Self::LessThan => write!(f, "<"),
             Self::GreaterThan => write!(f, ">"),
-            Self::LessOrEqualTo => write!(f, "<="),
-            Self::GreaterOrEqualTo => write!(f, ">="),
+            Self::LessThanOrEqualTo => write!(f, "<="),
+            Self::GreaterThanOrEqualTo => write!(f, ">="),
 
             Self::Plus => write!(f, "+"),
             Self::Minus => write!(f, "-"),

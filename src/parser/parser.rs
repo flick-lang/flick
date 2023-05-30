@@ -1,7 +1,6 @@
-use crate::ast::*;
-use crate::token::OperatorSymbol::*;
-use crate::token::Token;
-use crate::token::{OperatorSymbol, Type};
+use crate::lexer::token::OperatorSymbol::*;
+use crate::lexer::token::{OperatorSymbol, Token, Type};
+use crate::parser::ast::*;
 
 // TODO(tbreydo): get rid of Parser object (just use functions)
 pub struct Parser<'a> {
@@ -247,9 +246,9 @@ impl<'a> Parser<'a> {
             EqualTo,
             NotEqualTo,
             LessThan,
-            LessOrEqualTo,
+            LessThanOrEqualTo,
             GreaterThan,
-            GreaterOrEqualTo,
+            GreaterThanOrEqualTo,
         ];
 
         let left = self.parse_add_sub_expr();
@@ -413,17 +412,19 @@ mod tests {
     use crate::lexer::Lexer;
 
     #[test]
+    #[test]
     fn var_declaration() {
-        let source_code = "i64 N = 5";
+        let tokens = vec![
+            Token::Type(Type::I64),
+            Token::Identifier("N".to_string()),
+            Token::OperatorSymbol(Assign),
+            Token::I64Literal(5),
+        ];
         let expected = Some(Statement::VarDeclaration(VarDeclaration {
             var_name: "N".to_string(),
             var_type: Type::I64,
             var_value: Expr::I64Literal(5),
         }));
-
-        let source_code_chars: Vec<_> = source_code.chars().collect();
-        let lexer = Lexer::new(&source_code_chars);
-        let tokens: Vec<_> = lexer.collect();
 
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();
@@ -433,7 +434,13 @@ mod tests {
 
     #[test]
     fn var_modification() {
-        let source_code = "num = a = 10";
+        let tokens = vec![
+            Token::Identifier("num".to_string()),
+            Token::OperatorSymbol(Assign),
+            Token::Identifier("a".to_string()),
+            Token::OperatorSymbol(Assign),
+            Token::I64Literal(10),
+        ];
         let expected = Some(Statement::ExprStatement(Expr::BinExpr(BinExpr {
             left: Box::new(Expr::Identifier("num".to_string())),
             operator: BinaryOperator::Assign,
@@ -444,10 +451,6 @@ mod tests {
             })),
         })));
 
-        let source_code_chars: Vec<_> = source_code.chars().collect();
-        let lexer = Lexer::new(&source_code_chars);
-        let tokens: Vec<_> = lexer.collect();
-
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();
 
@@ -456,7 +459,14 @@ mod tests {
 
     #[test]
     fn empty_while_loop() {
-        let source_code = "while i <= N {}";
+        let tokens = vec![
+            Token::While,
+            Token::Identifier("i".to_string()),
+            Token::OperatorSymbol(LessThanOrEqualTo),
+            Token::Identifier("N".to_string()),
+            Token::LSquirly,
+            Token::RSquirly,
+        ];
         let expected = Some(Statement::WhileLoop(WhileLoop {
             condition: Expr::BinExpr(BinExpr {
                 left: Box::new(Expr::Identifier("i".to_string())),
@@ -466,10 +476,6 @@ mod tests {
             body: vec![],
         }));
 
-        let source_code_chars: Vec<_> = source_code.chars().collect();
-        let lexer = Lexer::new(&source_code_chars);
-        let tokens: Vec<_> = lexer.collect();
-
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();
 
@@ -478,7 +484,19 @@ mod tests {
 
     #[test]
     fn order_of_operations() {
-        let source_code = "10 + 3 * 8 / 4 - 13 + 5";
+        let tokens = vec![
+            Token::I64Literal(10),
+            Token::OperatorSymbol(Plus),
+            Token::I64Literal(3),
+            Token::OperatorSymbol(Asterisk),
+            Token::I64Literal(8),
+            Token::OperatorSymbol(Slash),
+            Token::I64Literal(4),
+            Token::OperatorSymbol(Minus),
+            Token::I64Literal(13),
+            Token::OperatorSymbol(Plus),
+            Token::I64Literal(5),
+        ];
         let expected = Some(Statement::ExprStatement(Expr::BinExpr(BinExpr {
             left: Box::new(Expr::BinExpr(BinExpr {
                 left: Box::new(Expr::BinExpr(BinExpr {
@@ -501,10 +519,6 @@ mod tests {
             right: Box::new(Expr::I64Literal(5)),
         })));
 
-        let source_code_chars: Vec<_> = source_code.chars().collect();
-        let lexer = Lexer::new(&source_code_chars);
-        let tokens: Vec<_> = lexer.collect();
-
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();
 
@@ -513,6 +527,15 @@ mod tests {
 
     #[test]
     fn parenthetical_expression() {
+        let tokens = vec![
+            Token::I64Literal(9),
+            Token::OperatorSymbol(Asterisk),
+            Token::LParen,
+            Token::I64Literal(2),
+            Token::OperatorSymbol(Plus),
+            Token::I64Literal(3),
+            Token::RParen,
+        ];
         let source_code = "9*(2+3)";
         let expected = Some(Statement::ExprStatement(Expr::BinExpr(BinExpr {
             left: Box::new(Expr::I64Literal(9)),
@@ -536,12 +559,15 @@ mod tests {
 
     #[test]
     fn spacing() {
-        let source_code = "\n\n\n\t\t\ta\n\n";
+        let tokens = vec![
+            Token::Newline,
+            Token::Newline,
+            Token::Newline,
+            Token::Identifier("a".to_string()),
+            Token::Newline,
+            Token::Newline,
+        ];
         let expected = Some(Statement::ExprStatement(Expr::Identifier("a".to_string())));
-
-        let source_code_chars: Vec<_> = source_code.chars().collect();
-        let lexer = Lexer::new(&source_code_chars);
-        let tokens: Vec<_> = lexer.collect();
 
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();
@@ -551,6 +577,19 @@ mod tests {
 
     #[test]
     fn function_call() {
+        let tokens = vec![
+            Token::Identifier("print".to_string()),
+            Token::LParen,
+            Token::Identifier("f".to_string()),
+            Token::LParen,
+            Token::I64Literal(1),
+            Token::RParen,
+            Token::Comma,
+            Token::I64Literal(10),
+            Token::Comma,
+            Token::I64Literal(20),
+            Token::RParen,
+        ];
         let source_code = "print(f(1), 10, 20)";
         let expected = Some(Statement::ExprStatement(Expr::CallExpr(CallExpr {
             function_name: "print".to_string(),
@@ -576,7 +615,17 @@ mod tests {
 
     #[test]
     fn function_definition() {
-        let source_code = "fn test(i64 a) i64 {}";
+        let tokens = vec![
+            Token::Fn,
+            Token::Identifier("test".to_string()),
+            Token::LParen,
+            Token::Type(Type::I64),
+            Token::Identifier("a".to_string()),
+            Token::RParen,
+            Token::Type(Type::I64),
+            Token::LSquirly,
+            Token::RSquirly,
+        ];
         let expected = Program {
             func_defs: vec![FuncDef {
                 name: "test".to_string(),
@@ -589,10 +638,6 @@ mod tests {
             }],
         };
 
-        let source_code_chars: Vec<_> = source_code.chars().collect();
-        let lexer = Lexer::new(&source_code_chars);
-        let tokens: Vec<_> = lexer.collect();
-
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_program();
 
@@ -601,16 +646,17 @@ mod tests {
 
     #[test]
     fn return_statement() {
-        let source_code = "ret x + 5";
+        let tokens = vec![
+            Token::Ret,
+            Token::Identifier("x".to_string()),
+            Token::OperatorSymbol(Plus),
+            Token::I64Literal(5),
+        ];
         let expected = Some(Statement::ReturnStatement(Expr::BinExpr(BinExpr {
             left: Box::new(Expr::Identifier("x".to_string())),
             operator: BinaryOperator::Add,
             right: Box::new(Expr::I64Literal(5)),
         })));
-
-        let source_code_chars: Vec<_> = source_code.chars().collect();
-        let lexer = Lexer::new(&source_code_chars);
-        let tokens: Vec<_> = lexer.collect();
 
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();
