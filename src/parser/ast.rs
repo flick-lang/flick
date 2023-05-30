@@ -47,7 +47,7 @@ pub enum Expr {
     I64Literal(i64),
     BinExpr(BinExpr),
     CallExpr(CallExpr),
-    IndexExpr(IndexExpr),
+    // IndexExpr(IndexExpr),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -63,11 +63,11 @@ pub struct CallExpr {
     pub args: Vec<Expr>,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct IndexExpr {
-    pub container: Box<Expr>,
-    pub index: (),
-}
+// #[derive(Debug, PartialEq, Eq, Clone)]
+// pub struct IndexExpr {
+//     pub container: Box<Expr>,
+//     pub index: (),
+// }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum BinaryOperator {

@@ -339,9 +339,10 @@ impl<'a> Parser<'a> {
         }
     }
 
-    // disallow functions as objects for now:
+    // Later, once we want to support stuff like this:
     // f[5 + 3*9](3)[3](5)
-    // possibiliies = [add, sub, mul, div]
+    // we can uncomment:
+    //
     // fn parse_call_and_index_expr(&mut self) -> Expr {
     //     let mut expr_so_far = self.parse_atom();
     //
@@ -366,10 +367,10 @@ impl<'a> Parser<'a> {
     //     expr_so_far
     // }
 
-    fn parse_index(&mut self) {
-        // 0:3:0, 3:3:3, 0:3, 5:8, :8
-        todo!()
-    }
+    // fn parse_index(&mut self) {
+    //     // 0:3:0, 3:3:3, 0:3, 5:8, :8
+    //     todo!()
+    // }
 
     fn parse_args(&mut self) -> Vec<Expr> {
         self.assert_next_token(Token::LParen);
@@ -536,7 +537,6 @@ mod tests {
             Token::I64Literal(3),
             Token::RParen,
         ];
-        let source_code = "9*(2+3)";
         let expected = Some(Statement::ExprStatement(Expr::BinExpr(BinExpr {
             left: Box::new(Expr::I64Literal(9)),
             operator: BinaryOperator::Multiply,
@@ -546,10 +546,6 @@ mod tests {
                 right: Box::new(Expr::I64Literal(3)),
             })),
         })));
-
-        let source_code_chars: Vec<_> = source_code.chars().collect();
-        let lexer = Lexer::new(&source_code_chars);
-        let tokens: Vec<_> = lexer.collect();
 
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();
@@ -590,7 +586,6 @@ mod tests {
             Token::I64Literal(20),
             Token::RParen,
         ];
-        let source_code = "print(f(1), 10, 20)";
         let expected = Some(Statement::ExprStatement(Expr::CallExpr(CallExpr {
             function_name: "print".to_string(),
             args: vec![
@@ -602,10 +597,6 @@ mod tests {
                 Expr::I64Literal(20),
             ],
         })));
-
-        let source_code_chars: Vec<_> = source_code.chars().collect();
-        let lexer = Lexer::new(&source_code_chars);
-        let tokens: Vec<_> = lexer.collect();
 
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();

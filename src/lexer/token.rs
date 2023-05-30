@@ -21,8 +21,8 @@ pub enum Token {
     RSquirly,
     LParen,
     RParen,
-    LSquare,
-    RSquare,
+    // LSquare,
+    // RSquare,
 
     // Punctuation
     Newline,
@@ -57,9 +57,8 @@ impl fmt::Display for Token {
             Self::RSquirly => write!(f, "}}"),
             Self::LParen => write!(f, "("),
             Self::RParen => write!(f, ")"),
-            Self::LSquare => write!(f, "["),
-            Self::RSquare => write!(f, "]"),
-
+            // Self::LSquare => write!(f, "["),
+            // Self::RSquare => write!(f, "]"),
             Self::Newline => writeln!(f),
             Self::Colon => write!(f, ":"),
             Self::Comma => write!(f, ","),
