@@ -126,7 +126,7 @@ impl<'a> Parser<'a> {
         };
 
         match self.next_token() {
-            Some(Token::Newline) | None => Some(statement),
+            Some(Token::Newline | Token::Semicolon) | None => Some(statement),
             Some(token) => panic!("Expected newline or EOF but received {:?}", token),
         }
     }
@@ -159,7 +159,7 @@ impl<'a> Parser<'a> {
     fn parse_var_dec(&mut self) -> VarDeclaration {
         // TODO:::::::::::::::::::::::::::
         // we should parse into a CompoundStatement of
-        // VarDeclarations!!!!!!!
+        //
         let var_type = self.parse_type();
 
         let var_name = self.parse_identifier();

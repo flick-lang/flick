@@ -26,6 +26,7 @@ pub enum Token {
 
     // Punctuation
     Newline,
+    Semicolon,
     Colon,
     Comma,
 
@@ -60,6 +61,7 @@ impl fmt::Display for Token {
             // Self::LSquare => write!(f, "["),
             // Self::RSquare => write!(f, "]"),
             Self::Newline => writeln!(f),
+            Self::Semicolon => write!(f, ";"),
             Self::Colon => write!(f, ":"),
             Self::Comma => write!(f, ","),
 

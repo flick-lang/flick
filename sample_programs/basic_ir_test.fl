@@ -3,9 +3,5 @@ fn sum(i64 x, i64 y) i64 {
 }
 
 fn main() {
-    i64 a = 3
-    i64 y = 2 + 1
-    a = y = 5
-    //i64 a = sum(2, 3)
-    ret
+    i64 a = 3; i64 a = sum(2, 3); ret
 }
