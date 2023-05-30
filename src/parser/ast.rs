@@ -83,10 +83,6 @@ pub enum BinaryOperator {
     LessOrEqualTo,
     GreaterOrEqualTo,
 
-    PlusEq,
-    TimesEq,
-    MinusEq,
-    DivideEq,
     Assign,
     // LogicalAnd,
     // LogicalOr,
@@ -107,11 +103,9 @@ impl From<OperatorSymbol> for BinaryOperator {
             LessThanOrEqualTo => Self::LessOrEqualTo,
             GreaterThanOrEqualTo => Self::GreaterOrEqualTo,
 
-            PlusEq => Self::PlusEq,
-            TimesEq => Self::TimesEq,
-            MinusEq => Self::MinusEq,
-            DivideEq => Self::DivideEq,
             Assign => Self::Assign,
+
+            _ => panic!(),
         }
     }
 }

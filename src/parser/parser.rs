@@ -215,20 +215,41 @@ impl<'a> Parser<'a> {
         static ASSIGNMENT_SYMBOLS: [OperatorSymbol; 5] =
             [PlusEq, TimesEq, MinusEq, DivideEq, Assign];
 
-        let operator = match self.peek_token(1) {
-            Some(Token::OperatorSymbol(op_symbol)) if ASSIGNMENT_SYMBOLS.contains(op_symbol) => {
-                let operator = BinaryOperator::from(*op_symbol);
-                self.skip_token();
-                operator
-            }
+        let operator_symbol = match self.peek_token(1) {
+            Some(Token::OperatorSymbol(op)) if ASSIGNMENT_SYMBOLS.contains(op) => *op,
             _ => return left,
         };
 
-        let right = self.parse_assignment_expr();
+        self.skip_token();
+
+        let right = match operator_symbol {
+            PlusEq => Expr::BinExpr(BinExpr {
+                left: Box::new(left.clone()),
+                operator: BinaryOperator::Add,
+                right: Box::new(self.parse_expr()),
+            }),
+            TimesEq => Expr::BinExpr(BinExpr {
+                left: Box::new(left.clone()),
+                operator: BinaryOperator::Multiply,
+                right: Box::new(self.parse_expr()),
+            }),
+            MinusEq => Expr::BinExpr(BinExpr {
+                left: Box::new(left.clone()),
+                operator: BinaryOperator::Subtract,
+                right: Box::new(self.parse_expr()),
+            }),
+            DivideEq => Expr::BinExpr(BinExpr {
+                left: Box::new(left.clone()),
+                operator: BinaryOperator::Divide,
+                right: Box::new(self.parse_expr()),
+            }),
+            Assign => self.parse_expr(),
+            _ => unreachable!(),
+        };
 
         Expr::BinExpr(BinExpr {
             left: Box::new(left),
-            operator,
+            operator: BinaryOperator::Assign,
             right: Box::new(right),
         })
     }
@@ -647,6 +668,29 @@ mod tests {
             left: Box::new(Expr::Identifier("x".to_string())),
             operator: BinaryOperator::Add,
             right: Box::new(Expr::I64Literal(5)),
+        })));
+
+        let mut parser = Parser::new(&tokens);
+        let ast = parser.parse_statement();
+
+        assert_eq!(expected, ast);
+    }
+
+    #[test]
+    fn plus_eq() {
+        let tokens = vec![
+            Token::Identifier("x".to_string()),
+            Token::OperatorSymbol(PlusEq),
+            Token::I64Literal(5),
+        ];
+        let expected = Some(Statement::ExprStatement(Expr::BinExpr(BinExpr {
+            left: Box::new(Expr::Identifier("x".to_string())),
+            operator: BinaryOperator::Assign,
+            right: Box::new(Expr::BinExpr(BinExpr {
+                left: Box::new(Expr::Identifier("x".to_string())),
+                operator: BinaryOperator::Add,
+                right: Box::new(Expr::I64Literal(5)),
+            })),
         })));
 
         let mut parser = Parser::new(&tokens);
