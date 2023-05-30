@@ -199,10 +199,13 @@ impl<'a> Parser<'a> {
         WhileLoop { condition, body }
     }
 
-    fn parse_return_statement(&mut self) -> Expr {
+    fn parse_return_statement(&mut self) -> Option<Expr> {
         self.assert_next_token(Token::Ret);
 
-        self.parse_expr()
+        match self.peek_token(1)? {
+            Token::Newline => None,
+            _ => Some(self.parse_expr()),
+        }
     }
 
     fn parse_expr(&mut self) -> Expr {

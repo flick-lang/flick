@@ -25,7 +25,7 @@ pub enum Statement {
     VarDeclaration(VarDeclaration),
     WhileLoop(WhileLoop),
     ExprStatement(Expr),
-    ReturnStatement(Expr),
+    ReturnStatement(Option<Expr>),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
