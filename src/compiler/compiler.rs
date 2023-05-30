@@ -147,16 +147,16 @@ impl Compiler {
     }
 
     unsafe fn compile_var_declaration(&mut self, var_declaration: &VarDeclaration) {
-        // declare the variable
         let func = self.get_cur_function();
         let var_name = var_declaration.var_name.as_str();
         let var_type = var_declaration.var_type;
         let alloca = self.create_entry_block_alloca(func, var_name, var_type);
         self.scope_manager.set_value(var_name, alloca);
 
-        // set the value of the variable
-        let value = self.compile_expr(&var_declaration.var_value);
-        LLVMBuildStore(self.builder, value, alloca);
+        if let Some(value_expr) = &var_declaration.var_value {
+            let value = self.compile_expr(value_expr);
+            LLVMBuildStore(self.builder, value, alloca);
+        }
     }
 
     unsafe fn compile_expr_statement(&mut self, expr: &Expr) {
@@ -287,7 +287,6 @@ impl Compiler {
         let temp_builder = LLVMCreateBuilderInContext(self.context);
         let entry_block = LLVMGetEntryBasicBlock(func);
         LLVMPositionBuilderAtEnd(temp_builder, entry_block);
-
         let name = CString::new(var_name).unwrap();
         let alloca = LLVMBuildAlloca(temp_builder, self.to_llvm_type(var_type), name.as_ptr());
         LLVMDisposeBuilder(temp_builder);

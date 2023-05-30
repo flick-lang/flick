@@ -26,13 +26,14 @@ pub enum Statement {
     WhileLoop(WhileLoop),
     ExprStatement(Expr),
     ReturnStatement(Option<Expr>),
+    // CompoundStatement(Vec<Statement>),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct VarDeclaration {
     pub var_name: String,
     pub var_type: Type,
-    pub var_value: Expr,
+    pub var_value: Option<Expr>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

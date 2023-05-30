@@ -157,13 +157,16 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_var_dec(&mut self) -> VarDeclaration {
+        // TODO:::::::::::::::::::::::::::
+        // we should parse into a CompoundStatement of
+        // VarDeclarations!!!!!!!
         let var_type = self.parse_type();
 
         let var_name = self.parse_identifier();
 
         self.assert_next_token(Token::OperatorSymbol(Assign));
 
-        let var_value = self.parse_expr();
+        let var_value = Some(self.parse_expr());
 
         VarDeclaration {
             var_name,
