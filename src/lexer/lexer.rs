@@ -1,3 +1,4 @@
+use crate::lexer::token::AssignmentSymbol::*;
 use crate::lexer::token::OperatorSymbol::*;
 use crate::lexer::token::{Token, Type};
 
@@ -40,14 +41,14 @@ impl<'a> Lexer<'a> {
             ('=', Some('=')) => Token::OperatorSymbol(EqualTo),
             ('!', Some('=')) => Token::OperatorSymbol(NotEqualTo),
 
-            ('*', Some('=')) => Token::OperatorSymbol(TimesEq),
-            ('/', Some('=')) => Token::OperatorSymbol(DivideEq),
-            ('-', Some('=')) => Token::OperatorSymbol(MinusEq),
-            ('+', Some('=')) => Token::OperatorSymbol(PlusEq),
+            ('*', Some('=')) => Token::AssignmentSymbol(TimesEq),
+            ('/', Some('=')) => Token::AssignmentSymbol(DivideEq),
+            ('-', Some('=')) => Token::AssignmentSymbol(MinusEq),
+            ('+', Some('=')) => Token::AssignmentSymbol(PlusEq),
+            ('=', _) => Token::AssignmentSymbol(Eq),
 
             ('>', _) => Token::OperatorSymbol(GreaterThan),
             ('<', _) => Token::OperatorSymbol(LessThan),
-            ('=', _) => Token::OperatorSymbol(Assign),
             ('*', _) => Token::OperatorSymbol(Asterisk),
             ('/', _) => Token::OperatorSymbol(Slash),
             ('-', _) => Token::OperatorSymbol(Minus),
@@ -162,12 +163,12 @@ mod tests {
         let expected_tokens = vec![
             Token::Type(Type::I64),
             Token::Identifier("this_is_a_LONG_VARIABLE_NAME".to_string()),
-            Token::OperatorSymbol(Assign),
+            Token::AssignmentSymbol(Eq),
             Token::I64Literal(5),
             Token::Newline,
             Token::Type(Type::I64),
             Token::Identifier("shortInt".to_string()),
-            Token::OperatorSymbol(Assign),
+            Token::AssignmentSymbol(Eq),
             Token::I64Literal(5),
         ];
 

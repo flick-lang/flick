@@ -1,4 +1,5 @@
 use std::fmt;
+use std::fmt::Formatter;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token {
@@ -31,6 +32,7 @@ pub enum Token {
     Comma,
 
     OperatorSymbol(OperatorSymbol),
+    AssignmentSymbol(AssignmentSymbol),
 }
 
 impl Token {
@@ -66,6 +68,22 @@ impl fmt::Display for Token {
             Self::Comma => write!(f, ","),
 
             Self::OperatorSymbol(op_symbol) => write!(f, "{}", op_symbol),
+            Self::AssignmentSymbol(assignment_symbol) => write!(f, "{}", assignment_symbol),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum Type {
+    I64,
+    Void,
+}
+
+impl fmt::Display for Type {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::I64 => write!(f, "int"),
+            Self::Void => write!(f, "void"),
         }
     }
 }
@@ -85,13 +103,6 @@ pub enum OperatorSymbol {
     Minus,
     Asterisk,
     Slash,
-
-    // Assigners
-    PlusEq,
-    MinusEq,
-    TimesEq,
-    DivideEq,
-    Assign,
 }
 
 impl fmt::Display for OperatorSymbol {
@@ -108,27 +119,27 @@ impl fmt::Display for OperatorSymbol {
             Self::Minus => write!(f, "-"),
             Self::Asterisk => write!(f, "*"),
             Self::Slash => write!(f, "/"),
-
-            Self::PlusEq => write!(f, "+="),
-            Self::MinusEq => write!(f, "-="),
-            Self::TimesEq => write!(f, "*="),
-            Self::DivideEq => write!(f, "/="),
-            Self::Assign => write!(f, "="),
         }
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum Type {
-    I64,
-    Void,
+pub enum AssignmentSymbol {
+    PlusEq,
+    MinusEq,
+    TimesEq,
+    DivideEq,
+    Eq,
 }
 
-impl fmt::Display for Type {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl fmt::Display for AssignmentSymbol {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Self::I64 => write!(f, "int"),
-            Self::Void => write!(f, "void"),
+            Self::PlusEq => write!(f, "+="),
+            Self::MinusEq => write!(f, "-="),
+            Self::TimesEq => write!(f, "*="),
+            Self::DivideEq => write!(f, "/="),
+            Self::Eq => write!(f, "="),
         }
     }
 }

@@ -45,20 +45,27 @@ pub struct WhileLoop {
 pub enum Expr {
     Identifier(String),
     I64Literal(i64),
-    BinExpr(BinExpr),
-    CallExpr(CallExpr),
+    Assign(Assign),
+    Binary(Binary),
+    Call(Call),
     // IndexExpr(IndexExpr),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct BinExpr {
+pub struct Assign {
+    pub name: String,
+    pub value: Box<Expr>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Binary {
     pub left: Box<Expr>,
     pub operator: BinaryOperator,
     pub right: Box<Expr>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct CallExpr {
+pub struct Call {
     pub function_name: String,
     pub args: Vec<Expr>,
 }
@@ -82,8 +89,6 @@ pub enum BinaryOperator {
     GreaterThan,
     LessOrEqualTo,
     GreaterOrEqualTo,
-
-    Assign,
     // LogicalAnd,
     // LogicalOr,
 }
@@ -102,8 +107,6 @@ impl From<OperatorSymbol> for BinaryOperator {
             GreaterThan => Self::GreaterThan,
             LessThanOrEqualTo => Self::LessOrEqualTo,
             GreaterThanOrEqualTo => Self::GreaterOrEqualTo,
-
-            Assign => Self::Assign,
 
             _ => panic!(),
         }

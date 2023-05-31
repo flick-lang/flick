@@ -11,7 +11,7 @@ while_loop  := 'while' '{' [statement]+ '}'
 
 return_stmt     := 'ret' expr
 expr            := assigment_expr
-assigment_expr  := {logical_or_expr =} logical_or_expr
+assigment_expr  := {IDENTIFIER =} logical_or_expr
 logical_or      := {logical_and or} logical_and
 logical_and     := {eq_neq_expr and} eq_neq_expr
 comparison_expr := {add_sub_expr !=,==} add_sub_expr

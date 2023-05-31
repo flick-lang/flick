@@ -109,10 +109,10 @@ impl Compiler {
 
     unsafe fn compile_statement(&mut self, statement: &Statement) {
         match statement {
-            Statement::VarDeclaration(v) => self.compile_var_declaration(v),
+            Statement::VarDeclarations(v) => self.compile_var_declarations(v),
             Statement::WhileLoop(w) => self.compile_while_loop(w),
-            Statement::ExprStatement(e) => self.compile_expr_statement(e),
-            Statement::ReturnStatement(r) => self.compile_ret_statement(r),
+            Statement::Expr(e) => self.compile_expr_statement(e),
+            Statement::Return(r) => self.compile_ret_statement(r),
         }
     }
 
@@ -131,14 +131,9 @@ impl Compiler {
         LLVMGetBasicBlockParent(LLVMGetInsertBlock(self.builder))
     }
 
-    unsafe fn compile_assignment(&mut self, lhs: &Expr, rhs: &Expr) -> LLVMValueRef {
-        let var_name = match lhs {
-            Expr::Identifier(id) => id,
-            _ => panic!("Setting non-variables isn't supported"),
-        };
-
-        let value = self.compile_expr(rhs);
-        let alloca = match self.scope_manager.get_value(var_name) {
+    unsafe fn compile_assignment(&mut self, assign: &Assign) -> LLVMValueRef {
+        let value = self.compile_expr(assign.value.as_ref());
+        let alloca = match self.scope_manager.get_value(assign.name.as_str()) {
             Some(alloca) => alloca,
             None => panic!("Setting a variable that has not been declared"),
         };
@@ -146,16 +141,18 @@ impl Compiler {
         value
     }
 
-    unsafe fn compile_var_declaration(&mut self, var_declaration: &VarDeclaration) {
+    unsafe fn compile_var_declarations(&mut self, var_declarations: &[VarDeclaration]) {
         let func = self.get_cur_function();
-        let var_name = var_declaration.var_name.as_str();
-        let var_type = var_declaration.var_type;
-        let alloca = self.create_entry_block_alloca(func, var_name, var_type);
-        self.scope_manager.set_value(var_name, alloca);
+        for var_declaration in var_declarations {
+            let var_name = var_declaration.var_name.as_str();
+            let var_type = var_declaration.var_type;
+            let alloca = self.create_entry_block_alloca(func, var_name, var_type);
+            self.scope_manager.set_value(var_name, alloca);
 
-        if let Some(value_expr) = &var_declaration.var_value {
-            let value = self.compile_expr(value_expr);
-            LLVMBuildStore(self.builder, value, alloca);
+            if let Some(value_expr) = &var_declaration.var_value {
+                let value = self.compile_expr(value_expr);
+                LLVMBuildStore(self.builder, value, alloca);
+            }
         }
     }
 
@@ -167,8 +164,9 @@ impl Compiler {
         match expr {
             Expr::Identifier(id) => self.compile_identifier(id),
             Expr::I64Literal(x) => self.compile_i64_literal(*x),
-            Expr::BinExpr(bin_expr) => self.compile_bin_expr(bin_expr),
-            Expr::CallExpr(call_expr) => self.compile_call_expr(call_expr),
+            Expr::Binary(bin_expr) => self.compile_bin_expr(bin_expr),
+            Expr::Call(call_expr) => self.compile_call_expr(call_expr),
+            Expr::Assign(assign) => self.compile_assignment(assign),
             // Expr::IndexExpr(index_expr) => self.compile_index_expr(index_expr),
         }
     }
@@ -194,13 +192,8 @@ impl Compiler {
         LLVMConstInt(self.to_llvm_type(Type::I64), x as c_ulonglong, 1)
     }
 
-    unsafe fn compile_bin_expr(&mut self, bin_expr: &BinExpr) -> LLVMValueRef {
+    unsafe fn compile_bin_expr(&mut self, bin_expr: &Binary) -> LLVMValueRef {
         use BinaryOperator::*;
-
-        // TODO: Rework this
-        if bin_expr.operator == Assign {
-            return self.compile_assignment(&bin_expr.left, &bin_expr.right);
-        }
 
         let lhs = self.compile_expr(&bin_expr.left);
         let rhs = self.compile_expr(&bin_expr.right);
@@ -217,12 +210,10 @@ impl Compiler {
             GreaterThan => LLVMBuildICmp(self.builder, LLVMIntSGT, lhs, rhs, cstr!("gt")),
             LessOrEqualTo => LLVMBuildICmp(self.builder, LLVMIntSLE, lhs, rhs, cstr!("lte")),
             GreaterOrEqualTo => LLVMBuildICmp(self.builder, LLVMIntSGE, lhs, rhs, cstr!("gte")),
-
-            Assign => LLVMBuildStore(self.builder, rhs, lhs),
         }
     }
 
-    unsafe fn compile_call_expr(&mut self, call_expr: &CallExpr) -> LLVMValueRef {
+    unsafe fn compile_call_expr(&mut self, call_expr: &Call) -> LLVMValueRef {
         let func_name = CString::new(call_expr.function_name.as_str()).unwrap();
         let func = LLVMGetNamedFunction(self.module, func_name.as_ptr());
 

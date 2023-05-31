@@ -1,3 +1,4 @@
+use crate::lexer::token::AssignmentSymbol::*;
 use crate::lexer::token::OperatorSymbol::*;
 use crate::lexer::token::{OperatorSymbol, Token, Type};
 use crate::parser::ast::*;
@@ -164,7 +165,7 @@ impl<'a> Parser<'a> {
             let var_name = self.parse_identifier();
 
             let var_value = match self.peek_token(1) {
-                Some(Token::OperatorSymbol(Assign)) => {
+                Some(Token::AssignmentSymbol(Eq)) => {
                     self.skip_token();
                     Some(self.parse_expr())
                 }
@@ -230,47 +231,47 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_assignment_expr(&mut self) -> Expr {
-        let left = self.parse_logical_or_expr();
+        let first_token_is_ident = matches!(self.peek_token(1), Some(Token::Identifier(_)));
+        let second_token_is_assignment_symbol =
+            matches!(self.peek_token(2), Some(Token::AssignmentSymbol(_)));
 
-        static ASSIGNMENT_SYMBOLS: [OperatorSymbol; 5] =
-            [PlusEq, TimesEq, MinusEq, DivideEq, Assign];
+        if !first_token_is_ident || !second_token_is_assignment_symbol {
+            return self.parse_logical_or_expr();
+        }
 
-        let operator_symbol = match self.peek_token(1) {
-            Some(Token::OperatorSymbol(op)) if ASSIGNMENT_SYMBOLS.contains(op) => *op,
-            _ => return left,
-        };
+        let name = self.parse_identifier();
+        let operator_symbol = self.next_token().unwrap();
 
-        self.skip_token();
+        let name_expr = Expr::Identifier(name.clone());
 
-        let right = match operator_symbol {
-            PlusEq => Expr::BinExpr(BinExpr {
-                left: Box::new(left.clone()),
+        let value = match operator_symbol {
+            Token::AssignmentSymbol(PlusEq) => Expr::Binary(Binary {
+                left: Box::new(name_expr),
                 operator: BinaryOperator::Add,
                 right: Box::new(self.parse_expr()),
             }),
-            TimesEq => Expr::BinExpr(BinExpr {
-                left: Box::new(left.clone()),
+            Token::AssignmentSymbol(TimesEq) => Expr::Binary(Binary {
+                left: Box::new(name_expr),
                 operator: BinaryOperator::Multiply,
                 right: Box::new(self.parse_expr()),
             }),
-            MinusEq => Expr::BinExpr(BinExpr {
-                left: Box::new(left.clone()),
+            Token::AssignmentSymbol(MinusEq) => Expr::Binary(Binary {
+                left: Box::new(name_expr),
                 operator: BinaryOperator::Subtract,
                 right: Box::new(self.parse_expr()),
             }),
-            DivideEq => Expr::BinExpr(BinExpr {
-                left: Box::new(left.clone()),
+            Token::AssignmentSymbol(DivideEq) => Expr::Binary(Binary {
+                left: Box::new(name_expr),
                 operator: BinaryOperator::Divide,
                 right: Box::new(self.parse_expr()),
             }),
-            Assign => self.parse_expr(),
+            Token::AssignmentSymbol(Eq) => self.parse_expr(),
             _ => unreachable!(),
         };
 
-        Expr::BinExpr(BinExpr {
-            left: Box::new(left),
-            operator: BinaryOperator::Assign,
-            right: Box::new(right),
+        Expr::Assign(Assign {
+            name,
+            value: Box::new(value),
         })
     }
 
@@ -312,7 +313,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        Expr::BinExpr(BinExpr {
+        Expr::Binary(Binary {
             left: Box::new(left),
             operator,
             right: Box::new(right),
@@ -327,7 +328,7 @@ impl<'a> Parser<'a> {
             self.skip_token();
             let right = self.parse_mul_div_expr();
 
-            left_expr_so_far = Expr::BinExpr(BinExpr {
+            left_expr_so_far = Expr::Binary(Binary {
                 left: Box::new(left_expr_so_far),
                 operator,
                 right: Box::new(right),
@@ -345,7 +346,7 @@ impl<'a> Parser<'a> {
             self.skip_token();
             let right = self.parse_primary_expr();
 
-            left_expr_so_far = Expr::BinExpr(BinExpr {
+            left_expr_so_far = Expr::Binary(Binary {
                 left: Box::new(left_expr_so_far),
                 operator,
                 right: Box::new(right),
@@ -372,7 +373,7 @@ impl<'a> Parser<'a> {
     fn parse_call_expr(&mut self) -> Expr {
         let identifier = self.parse_identifier();
         match self.peek_token(1) {
-            Some(Token::LParen) => Expr::CallExpr(CallExpr {
+            Some(Token::LParen) => Expr::Call(Call {
                 function_name: identifier,
                 args: self.parse_args(),
             }),
@@ -451,20 +452,19 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lexer::Lexer;
 
     #[test]
     fn var_declaration() {
         let tokens = vec![
             Token::Type(Type::I64),
             Token::Identifier("x".to_string()),
-            Token::OperatorSymbol(Assign),
+            Token::AssignmentSymbol(Eq),
             Token::I64Literal(5),
             Token::Comma,
             Token::Identifier("a".to_string()),
             Token::Comma,
             Token::Identifier("m".to_string()),
-            Token::OperatorSymbol(Assign),
+            Token::AssignmentSymbol(Eq),
             Token::I64Literal(3),
         ];
         let expected = Some(Statement::VarDeclarations(vec![
@@ -495,18 +495,16 @@ mod tests {
     fn var_modification() {
         let tokens = vec![
             Token::Identifier("num".to_string()),
-            Token::OperatorSymbol(Assign),
+            Token::AssignmentSymbol(Eq),
             Token::Identifier("a".to_string()),
-            Token::OperatorSymbol(Assign),
+            Token::AssignmentSymbol(Eq),
             Token::I64Literal(10),
         ];
-        let expected = Some(Statement::Expr(Expr::BinExpr(BinExpr {
-            left: Box::new(Expr::Identifier("num".to_string())),
-            operator: BinaryOperator::Assign,
-            right: Box::new(Expr::BinExpr(BinExpr {
-                left: Box::new(Expr::Identifier("a".to_string())),
-                operator: BinaryOperator::Assign,
-                right: Box::new(Expr::I64Literal(10)),
+        let expected = Some(Statement::Expr(Expr::Assign(Assign {
+            name: "num".to_string(),
+            value: Box::new(Expr::Assign(Assign {
+                name: "a".to_string(),
+                value: Box::new(Expr::I64Literal(10)),
             })),
         })));
 
@@ -527,7 +525,7 @@ mod tests {
             Token::RSquirly,
         ];
         let expected = Some(Statement::WhileLoop(WhileLoop {
-            condition: Expr::BinExpr(BinExpr {
+            condition: Expr::Binary(Binary {
                 left: Box::new(Expr::Identifier("i".to_string())),
                 operator: BinaryOperator::LessOrEqualTo,
                 right: Box::new(Expr::Identifier("N".to_string())),
@@ -556,13 +554,13 @@ mod tests {
             Token::OperatorSymbol(Plus),
             Token::I64Literal(5),
         ];
-        let expected = Some(Statement::Expr(Expr::BinExpr(BinExpr {
-            left: Box::new(Expr::BinExpr(BinExpr {
-                left: Box::new(Expr::BinExpr(BinExpr {
+        let expected = Some(Statement::Expr(Expr::Binary(Binary {
+            left: Box::new(Expr::Binary(Binary {
+                left: Box::new(Expr::Binary(Binary {
                     left: Box::new(Expr::I64Literal(10)),
                     operator: BinaryOperator::Add,
-                    right: Box::new(Expr::BinExpr(BinExpr {
-                        left: Box::new(Expr::BinExpr(BinExpr {
+                    right: Box::new(Expr::Binary(Binary {
+                        left: Box::new(Expr::Binary(Binary {
                             left: Box::new(Expr::I64Literal(3)),
                             operator: BinaryOperator::Multiply,
                             right: Box::new(Expr::I64Literal(8)),
@@ -595,10 +593,10 @@ mod tests {
             Token::I64Literal(3),
             Token::RParen,
         ];
-        let expected = Some(Statement::Expr(Expr::BinExpr(BinExpr {
+        let expected = Some(Statement::Expr(Expr::Binary(Binary {
             left: Box::new(Expr::I64Literal(9)),
             operator: BinaryOperator::Multiply,
-            right: Box::new(Expr::BinExpr(BinExpr {
+            right: Box::new(Expr::Binary(Binary {
                 left: Box::new(Expr::I64Literal(2)),
                 operator: BinaryOperator::Add,
                 right: Box::new(Expr::I64Literal(3)),
@@ -644,10 +642,10 @@ mod tests {
             Token::I64Literal(20),
             Token::RParen,
         ];
-        let expected = Some(Statement::Expr(Expr::CallExpr(CallExpr {
+        let expected = Some(Statement::Expr(Expr::Call(Call {
             function_name: "print".to_string(),
             args: vec![
-                Expr::CallExpr(CallExpr {
+                Expr::Call(Call {
                     function_name: "f".to_string(),
                     args: vec![Expr::I64Literal(1)],
                 }),
@@ -701,7 +699,7 @@ mod tests {
             Token::OperatorSymbol(Plus),
             Token::I64Literal(5),
         ];
-        let expected = Some(Statement::Return(Some(Expr::BinExpr(BinExpr {
+        let expected = Some(Statement::Return(Some(Expr::Binary(Binary {
             left: Box::new(Expr::Identifier("x".to_string())),
             operator: BinaryOperator::Add,
             right: Box::new(Expr::I64Literal(5)),
@@ -717,13 +715,12 @@ mod tests {
     fn plus_eq() {
         let tokens = vec![
             Token::Identifier("x".to_string()),
-            Token::OperatorSymbol(PlusEq),
+            Token::AssignmentSymbol(PlusEq),
             Token::I64Literal(5),
         ];
-        let expected = Some(Statement::Expr(Expr::BinExpr(BinExpr {
-            left: Box::new(Expr::Identifier("x".to_string())),
-            operator: BinaryOperator::Assign,
-            right: Box::new(Expr::BinExpr(BinExpr {
+        let expected = Some(Statement::Expr(Expr::Assign(Assign {
+            name: "x".to_string(),
+            value: Box::new(Expr::Binary(Binary {
                 left: Box::new(Expr::Identifier("x".to_string())),
                 operator: BinaryOperator::Add,
                 right: Box::new(Expr::I64Literal(5)),
