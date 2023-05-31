@@ -94,12 +94,17 @@ impl Compiler {
             let param_value_ref = LLVMGetParam(func, i as c_uint);
             let alloca = self.create_entry_block_alloca(func, param_name, param.param_type);
             LLVMBuildStore(self.builder, param_value_ref, alloca);
-            self.scope_manager.set_value(param_name, alloca);
+            self.scope_manager.set_var(param_name, alloca);
         }
 
         for statement in func_def.body.iter() {
             // TODO: Error if compiling statement fails?
             self.compile_statement(statement)
+        }
+
+        match func_def.body.last() {
+            Some(Statement::Return(_)) => {}
+            _ => self.compile_ret_statement(&None),
         }
 
         self.scope_manager.exit_scope();
@@ -133,7 +138,7 @@ impl Compiler {
 
     unsafe fn compile_assignment(&mut self, assign: &Assign) -> LLVMValueRef {
         let value = self.compile_expr(assign.value.as_ref());
-        let alloca = match self.scope_manager.get_value(assign.name.as_str()) {
+        let alloca = match self.scope_manager.get_var(assign.name.as_str()) {
             Some(alloca) => alloca,
             None => panic!("Setting a variable that has not been declared"),
         };
@@ -147,7 +152,7 @@ impl Compiler {
             let var_name = var_declaration.var_name.as_str();
             let var_type = var_declaration.var_type;
             let alloca = self.create_entry_block_alloca(func, var_name, var_type);
-            self.scope_manager.set_value(var_name, alloca);
+            self.scope_manager.set_var(var_name, alloca);
 
             if let Some(value_expr) = &var_declaration.var_value {
                 let value = self.compile_expr(value_expr);
@@ -172,6 +177,9 @@ impl Compiler {
     }
 
     unsafe fn compile_ret_statement(&mut self, ret_value: &Option<Expr>) {
+        // TODO once we set up type checking and once we can do
+        // Expr::get_type(), we should make sure that ret_value matches
+        // LLVMGETReturnType(self.cur_function())
         match ret_value {
             Some(expr) => LLVMBuildRet(self.builder, self.compile_expr(expr)),
             None => LLVMBuildRetVoid(self.builder),
@@ -179,7 +187,7 @@ impl Compiler {
     }
 
     unsafe fn compile_identifier(&mut self, id: &str) -> LLVMValueRef {
-        let alloca_ref = match self.scope_manager.get_value(id) {
+        let alloca_ref = match self.scope_manager.get_var(id) {
             Some(alloca_ref) => alloca_ref,
             None => panic!("Compiler error: undefined identifier '{}'", id),
         };

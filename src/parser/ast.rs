@@ -107,8 +107,6 @@ impl From<OperatorSymbol> for BinaryOperator {
             GreaterThan => Self::GreaterThan,
             LessThanOrEqualTo => Self::LessOrEqualTo,
             GreaterThanOrEqualTo => Self::GreaterOrEqualTo,
-
-            _ => panic!(),
         }
     }
 }

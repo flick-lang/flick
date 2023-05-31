@@ -1,7 +1,15 @@
+fn test() i64 {
+    i64 a = 2
+}
+
 fn sum(i64 x, i64 y) i64 {
     ret x+y
 }
 
 fn main() {
-    i64 a = 3; i64 a = sum(2, 3); ret
+    i64 a, b, c
+    a = b = c = 3
+    a += b
+    b *= c
+    i64 d = 3
 }

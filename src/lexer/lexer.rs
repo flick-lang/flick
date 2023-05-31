@@ -58,7 +58,6 @@ impl<'a> Lexer<'a> {
             (':', _) => Token::Colon,
             ('(', _) => Token::LParen,
             (')', _) => Token::RParen,
-            (';', _) => Token::Semicolon,
             // ('[', _) => Token::LSquare,
             // (']', _) => Token::RSquare,
             ('{', _) => Token::LSquirly,

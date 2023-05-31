@@ -23,11 +23,11 @@ impl ScopeManager {
         self.scopes.pop().unwrap();
     }
 
-    pub fn get_value(&self, name: &str) -> Option<LLVMValueRef> {
+    pub fn get_var(&self, name: &str) -> Option<LLVMValueRef> {
         self.scopes.iter().rev().find_map(|s| s.get(name)).copied()
     }
 
-    pub fn set_value(&mut self, name: &str, value: LLVMValueRef) {
+    pub fn set_var(&mut self, name: &str, value: LLVMValueRef) {
         let cur_scope = self.scopes.last_mut().unwrap();
         cur_scope.insert(name.to_string(), value);
     }
