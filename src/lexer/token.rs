@@ -1,5 +1,4 @@
 use std::fmt;
-use std::fmt::Formatter;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token {
@@ -32,6 +31,7 @@ pub enum Token {
     Comma,
 
     OperatorSymbol(OperatorSymbol),
+    ComparatorSymbol(ComparatorSymbol),
     AssignmentSymbol(AssignmentSymbol),
 }
 
@@ -67,7 +67,8 @@ impl fmt::Display for Token {
             Self::Colon => write!(f, ":"),
             Self::Comma => write!(f, ","),
 
-            Self::OperatorSymbol(op_symbol) => write!(f, "{}", op_symbol),
+            Self::OperatorSymbol(operator_symbol) => write!(f, "{}", operator_symbol),
+            Self::ComparatorSymbol(comparator_symbol) => write!(f, "{}", comparator_symbol),
             Self::AssignmentSymbol(assignment_symbol) => write!(f, "{}", assignment_symbol),
         }
     }
@@ -90,15 +91,6 @@ impl fmt::Display for Type {
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum OperatorSymbol {
-    // Comparators
-    NotEqualTo,
-    EqualTo,
-    LessThan,
-    GreaterThan,
-    LessThanOrEqualTo,
-    GreaterThanOrEqualTo,
-
-    // Operators
     Plus,
     Minus,
     Asterisk,
@@ -108,17 +100,33 @@ pub enum OperatorSymbol {
 impl fmt::Display for OperatorSymbol {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Plus => write!(f, "+"),
+            Self::Minus => write!(f, "-"),
+            Self::Asterisk => write!(f, "*"),
+            Self::Slash => write!(f, "/"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum ComparatorSymbol {
+    NotEqualTo,
+    EqualTo,
+    LessThan,
+    GreaterThan,
+    LessThanOrEqualTo,
+    GreaterThanOrEqualTo,
+}
+
+impl fmt::Display for ComparatorSymbol {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
             Self::NotEqualTo => write!(f, "!="),
             Self::EqualTo => write!(f, "=="),
             Self::LessThan => write!(f, "<"),
             Self::GreaterThan => write!(f, ">"),
             Self::LessThanOrEqualTo => write!(f, "<="),
             Self::GreaterThanOrEqualTo => write!(f, ">="),
-
-            Self::Plus => write!(f, "+"),
-            Self::Minus => write!(f, "-"),
-            Self::Asterisk => write!(f, "*"),
-            Self::Slash => write!(f, "/"),
         }
     }
 }
@@ -133,7 +141,7 @@ pub enum AssignmentSymbol {
 }
 
 impl fmt::Display for AssignmentSymbol {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::PlusEq => write!(f, "+="),
             Self::MinusEq => write!(f, "-="),

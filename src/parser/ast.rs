@@ -1,5 +1,6 @@
+use crate::lexer::token::ComparatorSymbol::*;
 use crate::lexer::token::OperatorSymbol::*;
-use crate::lexer::token::{OperatorSymbol, Type};
+use crate::lexer::token::{ComparatorSymbol, OperatorSymbol, Type};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Program {
@@ -100,7 +101,13 @@ impl From<OperatorSymbol> for BinaryOperator {
             Minus => Self::Subtract,
             Asterisk => Self::Multiply,
             Slash => Self::Divide,
+        }
+    }
+}
 
+impl From<ComparatorSymbol> for BinaryOperator {
+    fn from(comparator: ComparatorSymbol) -> Self {
+        match comparator {
             NotEqualTo => Self::NotEqualTo,
             EqualTo => Self::EqualTo,
             LessThan => Self::LessThan,

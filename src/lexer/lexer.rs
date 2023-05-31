@@ -1,4 +1,5 @@
 use crate::lexer::token::AssignmentSymbol::*;
+use crate::lexer::token::ComparatorSymbol::*;
 use crate::lexer::token::OperatorSymbol::*;
 use crate::lexer::token::{Token, Type};
 
@@ -36,10 +37,10 @@ impl<'a> Lexer<'a> {
             ('0'..='9', _) => return Some(self.read_i64_literal()),
             ('/', Some('/')) => return Some(self.read_comment()),
 
-            ('>', Some('=')) => Token::OperatorSymbol(GreaterThanOrEqualTo),
-            ('<', Some('=')) => Token::OperatorSymbol(LessThanOrEqualTo),
-            ('=', Some('=')) => Token::OperatorSymbol(EqualTo),
-            ('!', Some('=')) => Token::OperatorSymbol(NotEqualTo),
+            ('>', Some('=')) => Token::ComparatorSymbol(GreaterThanOrEqualTo),
+            ('<', Some('=')) => Token::ComparatorSymbol(LessThanOrEqualTo),
+            ('=', Some('=')) => Token::ComparatorSymbol(EqualTo),
+            ('!', Some('=')) => Token::ComparatorSymbol(NotEqualTo),
 
             ('*', Some('=')) => Token::AssignmentSymbol(TimesEq),
             ('/', Some('=')) => Token::AssignmentSymbol(DivideEq),
@@ -47,8 +48,8 @@ impl<'a> Lexer<'a> {
             ('+', Some('=')) => Token::AssignmentSymbol(PlusEq),
             ('=', _) => Token::AssignmentSymbol(Eq),
 
-            ('>', _) => Token::OperatorSymbol(GreaterThan),
-            ('<', _) => Token::OperatorSymbol(LessThan),
+            ('>', _) => Token::ComparatorSymbol(GreaterThan),
+            ('<', _) => Token::ComparatorSymbol(LessThan),
             ('*', _) => Token::OperatorSymbol(Asterisk),
             ('/', _) => Token::OperatorSymbol(Slash),
             ('-', _) => Token::OperatorSymbol(Minus),
@@ -184,7 +185,7 @@ mod tests {
         let expected_tokens = vec![
             Token::While,
             Token::Identifier("x".to_string()),
-            Token::OperatorSymbol(LessThanOrEqualTo),
+            Token::ComparatorSymbol(LessThanOrEqualTo),
             Token::I64Literal(5),
             Token::LSquirly,
             Token::RSquirly,

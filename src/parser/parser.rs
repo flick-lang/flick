@@ -1,6 +1,7 @@
 use crate::lexer::token::AssignmentSymbol::*;
+use crate::lexer::token::ComparatorSymbol::*;
 use crate::lexer::token::OperatorSymbol::*;
-use crate::lexer::token::{OperatorSymbol, Token, Type};
+use crate::lexer::token::{Token, Type};
 use crate::parser::ast::*;
 
 // TODO(tbreydo): get rid of Parser object (just use functions)
@@ -284,20 +285,12 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_comparison_expression(&mut self) -> Expr {
-        static COMPARISON_SYMBOLS: [OperatorSymbol; 6] = [
-            EqualTo,
-            NotEqualTo,
-            LessThan,
-            LessThanOrEqualTo,
-            GreaterThan,
-            GreaterThanOrEqualTo,
-        ];
-
         let left = self.parse_add_sub_expr();
 
+        // TODO: Rewrite this to match the above function that we just rewrote
         let operator = match self.peek_token(1) {
-            Some(Token::OperatorSymbol(op_symbol)) if COMPARISON_SYMBOLS.contains(op_symbol) => {
-                let operator = BinaryOperator::from(*op_symbol);
+            Some(Token::ComparatorSymbol(comparator_symbol)) => {
+                let operator = BinaryOperator::from(*comparator_symbol);
                 self.skip_token();
                 operator
             }
@@ -306,11 +299,9 @@ impl<'a> Parser<'a> {
 
         let right = self.parse_add_sub_expr();
 
-        if let Some(Token::OperatorSymbol(op_symbol)) = self.peek_token(1) {
-            if COMPARISON_SYMBOLS.contains(op_symbol) {
-                // TODO: print a useful error message for the user
-                panic!("Comparison operators cannot be chained")
-            }
+        if let Some(Token::ComparatorSymbol(op_symbol)) = self.peek_token(1) {
+            // TODO: print a useful error message for the user
+            panic!("Comparison operators cannot be chained")
         }
 
         Expr::Binary(Binary {
@@ -519,7 +510,7 @@ mod tests {
         let tokens = vec![
             Token::While,
             Token::Identifier("i".to_string()),
-            Token::OperatorSymbol(LessThanOrEqualTo),
+            Token::ComparatorSymbol(LessThanOrEqualTo),
             Token::Identifier("N".to_string()),
             Token::LSquirly,
             Token::RSquirly,
