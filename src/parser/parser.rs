@@ -91,7 +91,15 @@ impl<'a> Parser<'a> {
         }
 
         loop {
-            params.push(self.parse_func_param());
+            let param_type = self.parse_type();
+            let param_name = self.parse_identifier();
+
+            let func_param = FuncParam {
+                param_type,
+                param_name,
+            };
+
+            params.push(func_param);
 
             match self.next_token() {
                 Some(Token::RParen) => break,
@@ -104,21 +112,11 @@ impl<'a> Parser<'a> {
         params
     }
 
-    fn parse_func_param(&mut self) -> FuncParam {
-        let param_type = self.parse_type();
-        let param_name = self.parse_identifier();
-
-        FuncParam {
-            param_type,
-            param_name,
-        }
-    }
-
     fn parse_statement(&mut self) -> Option<Statement> {
         self.skip_newlines_comments_and_docstrings();
 
         let statement = match self.peek_token(1)? {
-            Token::Type(_) => Statement::VarDeclaration(self.parse_var_dec()),
+            Token::Type(_) => Statement::VarDeclarations(self.parse_var_decs()),
             Token::While => Statement::WhileLoop(self.parse_while_loop()),
             Token::Fn => panic!("Nested function definitions are not allowed"),
             Token::Ret => Statement::ReturnStatement(self.parse_return_statement()),
@@ -156,23 +154,39 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_var_dec(&mut self) -> VarDeclaration {
-        // TODO:::::::::::::::::::::::::::
-        // we should parse into a CompoundStatement of
-        //
+    fn parse_var_decs(&mut self) -> Vec<VarDeclaration> {
         let var_type = self.parse_type();
 
-        let var_name = self.parse_identifier();
+        let mut var_decs = Vec::new();
 
-        self.assert_next_token(Token::OperatorSymbol(Assign));
+        // i64 a
+        loop {
+            let var_name = self.parse_identifier();
 
-        let var_value = Some(self.parse_expr());
+            let var_value = match self.peek_token(1) {
+                Some(Token::OperatorSymbol(Assign)) => {
+                    self.skip_token();
+                    Some(self.parse_expr())
+                }
+                _ => None,
+            };
 
-        VarDeclaration {
-            var_name,
-            var_type,
-            var_value,
+            let var_dec = VarDeclaration {
+                var_name,
+                var_type,
+                var_value,
+            };
+
+            var_decs.push(var_dec);
+
+            match self.peek_token(1) {
+                Some(Token::Comma) => self.skip_token(),
+                _ => break,
+            }
         }
+        // i64 a =
+
+        var_decs
     }
 
     fn parse_body(&mut self) -> Vec<Statement> {
@@ -206,7 +220,7 @@ impl<'a> Parser<'a> {
         self.assert_next_token(Token::Ret);
 
         match self.peek_token(1)? {
-            Token::Newline => None,
+            Token::Newline | Token::Semicolon => None,
             _ => Some(self.parse_expr()),
         }
     }
@@ -440,19 +454,36 @@ mod tests {
     use crate::lexer::Lexer;
 
     #[test]
-    #[test]
     fn var_declaration() {
         let tokens = vec![
             Token::Type(Type::I64),
-            Token::Identifier("N".to_string()),
+            Token::Identifier("x".to_string()),
             Token::OperatorSymbol(Assign),
             Token::I64Literal(5),
+            Token::Comma,
+            Token::Identifier("a".to_string()),
+            Token::Comma,
+            Token::Identifier("m".to_string()),
+            Token::OperatorSymbol(Assign),
+            Token::I64Literal(3),
         ];
-        let expected = Some(Statement::VarDeclaration(VarDeclaration {
-            var_name: "N".to_string(),
-            var_type: Type::I64,
-            var_value: Expr::I64Literal(5),
-        }));
+        let expected = Some(Statement::VarDeclarations(vec![
+            VarDeclaration {
+                var_name: "x".to_string(),
+                var_type: Type::I64,
+                var_value: Some(Expr::I64Literal(5)),
+            },
+            VarDeclaration {
+                var_name: "a".to_string(),
+                var_type: Type::I64,
+                var_value: None,
+            },
+            VarDeclaration {
+                var_name: "m".to_string(),
+                var_type: Type::I64,
+                var_value: Some(Expr::I64Literal(3)),
+            },
+        ]));
 
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();
@@ -670,11 +701,11 @@ mod tests {
             Token::OperatorSymbol(Plus),
             Token::I64Literal(5),
         ];
-        let expected = Some(Statement::ReturnStatement(Expr::BinExpr(BinExpr {
+        let expected = Some(Statement::ReturnStatement(Some(Expr::BinExpr(BinExpr {
             left: Box::new(Expr::Identifier("x".to_string())),
             operator: BinaryOperator::Add,
             right: Box::new(Expr::I64Literal(5)),
-        })));
+        }))));
 
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();

@@ -22,11 +22,10 @@ pub struct FuncParam {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Statement {
-    VarDeclaration(VarDeclaration),
+    VarDeclarations(Vec<VarDeclaration>),
     WhileLoop(WhileLoop),
     ExprStatement(Expr),
     ReturnStatement(Option<Expr>),
-    // CompoundStatement(Vec<Statement>),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
