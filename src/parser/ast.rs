@@ -24,8 +24,8 @@ pub struct FuncParam {
 pub enum Statement {
     VarDeclarations(Vec<VarDeclaration>),
     WhileLoop(WhileLoop),
-    ExprStatement(Expr),
-    ReturnStatement(Option<Expr>),
+    Expr(Expr),
+    Return(Option<Expr>),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

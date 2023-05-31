@@ -119,8 +119,8 @@ impl<'a> Parser<'a> {
             Token::Type(_) => Statement::VarDeclarations(self.parse_var_decs()),
             Token::While => Statement::WhileLoop(self.parse_while_loop()),
             Token::Fn => panic!("Nested function definitions are not allowed"),
-            Token::Ret => Statement::ReturnStatement(self.parse_return_statement()),
-            _ => Statement::ExprStatement(self.parse_expr()),
+            Token::Ret => Statement::Return(self.parse_return_statement()),
+            _ => Statement::Expr(self.parse_expr()),
         };
 
         match self.next_token() {
@@ -500,7 +500,7 @@ mod tests {
             Token::OperatorSymbol(Assign),
             Token::I64Literal(10),
         ];
-        let expected = Some(Statement::ExprStatement(Expr::BinExpr(BinExpr {
+        let expected = Some(Statement::Expr(Expr::BinExpr(BinExpr {
             left: Box::new(Expr::Identifier("num".to_string())),
             operator: BinaryOperator::Assign,
             right: Box::new(Expr::BinExpr(BinExpr {
@@ -556,7 +556,7 @@ mod tests {
             Token::OperatorSymbol(Plus),
             Token::I64Literal(5),
         ];
-        let expected = Some(Statement::ExprStatement(Expr::BinExpr(BinExpr {
+        let expected = Some(Statement::Expr(Expr::BinExpr(BinExpr {
             left: Box::new(Expr::BinExpr(BinExpr {
                 left: Box::new(Expr::BinExpr(BinExpr {
                     left: Box::new(Expr::I64Literal(10)),
@@ -595,7 +595,7 @@ mod tests {
             Token::I64Literal(3),
             Token::RParen,
         ];
-        let expected = Some(Statement::ExprStatement(Expr::BinExpr(BinExpr {
+        let expected = Some(Statement::Expr(Expr::BinExpr(BinExpr {
             left: Box::new(Expr::I64Literal(9)),
             operator: BinaryOperator::Multiply,
             right: Box::new(Expr::BinExpr(BinExpr {
@@ -621,7 +621,7 @@ mod tests {
             Token::Newline,
             Token::Newline,
         ];
-        let expected = Some(Statement::ExprStatement(Expr::Identifier("a".to_string())));
+        let expected = Some(Statement::Expr(Expr::Identifier("a".to_string())));
 
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();
@@ -644,7 +644,7 @@ mod tests {
             Token::I64Literal(20),
             Token::RParen,
         ];
-        let expected = Some(Statement::ExprStatement(Expr::CallExpr(CallExpr {
+        let expected = Some(Statement::Expr(Expr::CallExpr(CallExpr {
             function_name: "print".to_string(),
             args: vec![
                 Expr::CallExpr(CallExpr {
@@ -701,7 +701,7 @@ mod tests {
             Token::OperatorSymbol(Plus),
             Token::I64Literal(5),
         ];
-        let expected = Some(Statement::ReturnStatement(Some(Expr::BinExpr(BinExpr {
+        let expected = Some(Statement::Return(Some(Expr::BinExpr(BinExpr {
             left: Box::new(Expr::Identifier("x".to_string())),
             operator: BinaryOperator::Add,
             right: Box::new(Expr::I64Literal(5)),
@@ -720,7 +720,7 @@ mod tests {
             Token::OperatorSymbol(PlusEq),
             Token::I64Literal(5),
         ];
-        let expected = Some(Statement::ExprStatement(Expr::BinExpr(BinExpr {
+        let expected = Some(Statement::Expr(Expr::BinExpr(BinExpr {
             left: Box::new(Expr::Identifier("x".to_string())),
             operator: BinaryOperator::Assign,
             right: Box::new(Expr::BinExpr(BinExpr {
