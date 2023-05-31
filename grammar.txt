@@ -1,7 +1,7 @@
 program     := {func_def}
 
 statement   := var_dec | while_loop | expr | return_stmt
-                    NOTE: statement must be FOLLOWED BY '\n' or EOF
+                    NOTE: statement must be FOLLOWED BY '\n' or EOF or ';'
 
 func_def    := 'fn' IDENTIFIER '(' [parameters] ')' [VARTYPE] '{' {statement} '}'
 parameters  := {VARTYPE IDENTIFIER ','} VARTYPE IDENTIFIER
@@ -17,9 +17,10 @@ logical_and     := {eq_neq_expr and} eq_neq_expr
 comparison_expr := {add_sub_expr !=,==} add_sub_expr
 add_sub_expr    := {mul_div_expr (+-)} mul_div_expr
 mul_div_expr    := {primary_expr (*/)} primary_expr
-primary_expr    := call_expr | atom | index_expr | '(' expr ')'
+primary_expr    := atom | call_expr | '(' expr ')'
+                          ^^^^^^^^^ will become call_and_index_expr
 
-call_expr   := IDENTIFIER ( [args] )
+// call_and_index_expr  := IDENTIFIER { [ '(' [args] ')' ] { '[' [index]  ']' } }
+call_expr   := IDENTIFIER [ '(' [args] ')' ]
 args        := {arg ,} arg
-index_expr  := IDENTIFIER [ {index} ]
 atom        := IDENTIFIER | INT_LITERAL | STR_LITERAL

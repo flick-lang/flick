@@ -1,5 +1,5 @@
-use crate::token::OperatorSymbol::*;
-use crate::token::{OperatorSymbol, Type};
+use crate::lexer::token::OperatorSymbol::*;
+use crate::lexer::token::{OperatorSymbol, Type};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Program {
@@ -25,14 +25,15 @@ pub enum Statement {
     VarDeclaration(VarDeclaration),
     WhileLoop(WhileLoop),
     ExprStatement(Expr),
-    ReturnStatement(Expr),
+    ReturnStatement(Option<Expr>),
+    // CompoundStatement(Vec<Statement>),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct VarDeclaration {
     pub var_name: String,
     pub var_type: Type,
-    pub var_value: Expr,
+    pub var_value: Option<Expr>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -47,7 +48,7 @@ pub enum Expr {
     I64Literal(i64),
     BinExpr(BinExpr),
     CallExpr(CallExpr),
-    IndexExpr(IndexExpr),
+    // IndexExpr(IndexExpr),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -59,15 +60,15 @@ pub struct BinExpr {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CallExpr {
-    pub function_name: Box<Expr>,
+    pub function_name: String,
     pub args: Vec<Expr>,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct IndexExpr {
-    pub container: Box<Expr>,
-    pub index: (),
-}
+// #[derive(Debug, PartialEq, Eq, Clone)]
+// pub struct IndexExpr {
+//     pub container: Box<Expr>,
+//     pub index: (),
+// }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum BinaryOperator {
@@ -83,10 +84,6 @@ pub enum BinaryOperator {
     LessOrEqualTo,
     GreaterOrEqualTo,
 
-    PlusEq,
-    TimesEq,
-    MinusEq,
-    DivideEq,
     Assign,
     // LogicalAnd,
     // LogicalOr,
@@ -104,14 +101,12 @@ impl From<OperatorSymbol> for BinaryOperator {
             EqualTo => Self::EqualTo,
             LessThan => Self::LessThan,
             GreaterThan => Self::GreaterThan,
-            LessOrEqualTo => Self::LessOrEqualTo,
-            GreaterOrEqualTo => Self::GreaterOrEqualTo,
+            LessThanOrEqualTo => Self::LessOrEqualTo,
+            GreaterThanOrEqualTo => Self::GreaterOrEqualTo,
 
-            PlusEq => Self::PlusEq,
-            TimesEq => Self::TimesEq,
-            MinusEq => Self::MinusEq,
-            DivideEq => Self::DivideEq,
             Assign => Self::Assign,
+
+            _ => panic!(),
         }
     }
 }

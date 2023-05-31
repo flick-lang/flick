@@ -1,7 +1,6 @@
-mod ast;
+mod compiler;
 mod lexer;
 mod parser;
-mod token;
 
 use std::fs::File;
 use std::io::Read;
@@ -10,6 +9,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use clap::Parser as ClapParser;
 
+use crate::compiler::Compiler;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 
@@ -33,9 +33,11 @@ fn main() -> Result<()> {
     let mut parser = Parser::new(&tokens);
     let program = parser.parse_program();
 
-    // let mut compiler = Compiler::new(&statements);
-    // compiler.codegen();
-    // compiler.print();
+    // todo what is an llvm mod
+    let mut compiler = Compiler::new();
+
+    compiler.compile(&program);
+    compiler.print_ir();
 
     // todo parse 🇸🇪 into a return or smth lol idk
     // todo write syntax highlighting extension

@@ -1,7 +1,6 @@
-use crate::ast::*;
-use crate::token::OperatorSymbol::*;
-use crate::token::Token;
-use crate::token::{OperatorSymbol, Type};
+use crate::lexer::token::OperatorSymbol::*;
+use crate::lexer::token::{OperatorSymbol, Token, Type};
+use crate::parser::ast::*;
 
 // TODO(tbreydo): get rid of Parser object (just use functions)
 pub struct Parser<'a> {
@@ -127,7 +126,7 @@ impl<'a> Parser<'a> {
         };
 
         match self.next_token() {
-            Some(Token::Newline) | None => Some(statement),
+            Some(Token::Newline | Token::Semicolon) | None => Some(statement),
             Some(token) => panic!("Expected newline or EOF but received {:?}", token),
         }
     }
@@ -158,13 +157,16 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_var_dec(&mut self) -> VarDeclaration {
+        // TODO:::::::::::::::::::::::::::
+        // we should parse into a CompoundStatement of
+        //
         let var_type = self.parse_type();
 
         let var_name = self.parse_identifier();
 
         self.assert_next_token(Token::OperatorSymbol(Assign));
 
-        let var_value = self.parse_expr();
+        let var_value = Some(self.parse_expr());
 
         VarDeclaration {
             var_name,
@@ -200,10 +202,13 @@ impl<'a> Parser<'a> {
         WhileLoop { condition, body }
     }
 
-    fn parse_return_statement(&mut self) -> Expr {
+    fn parse_return_statement(&mut self) -> Option<Expr> {
         self.assert_next_token(Token::Ret);
 
-        self.parse_expr()
+        match self.peek_token(1)? {
+            Token::Newline => None,
+            _ => Some(self.parse_expr()),
+        }
     }
 
     fn parse_expr(&mut self) -> Expr {
@@ -216,20 +221,41 @@ impl<'a> Parser<'a> {
         static ASSIGNMENT_SYMBOLS: [OperatorSymbol; 5] =
             [PlusEq, TimesEq, MinusEq, DivideEq, Assign];
 
-        let operator = match self.peek_token(1) {
-            Some(Token::OperatorSymbol(op_symbol)) if ASSIGNMENT_SYMBOLS.contains(op_symbol) => {
-                let operator = BinaryOperator::from(*op_symbol);
-                self.skip_token();
-                operator
-            }
+        let operator_symbol = match self.peek_token(1) {
+            Some(Token::OperatorSymbol(op)) if ASSIGNMENT_SYMBOLS.contains(op) => *op,
             _ => return left,
         };
 
-        let right = self.parse_assignment_expr();
+        self.skip_token();
+
+        let right = match operator_symbol {
+            PlusEq => Expr::BinExpr(BinExpr {
+                left: Box::new(left.clone()),
+                operator: BinaryOperator::Add,
+                right: Box::new(self.parse_expr()),
+            }),
+            TimesEq => Expr::BinExpr(BinExpr {
+                left: Box::new(left.clone()),
+                operator: BinaryOperator::Multiply,
+                right: Box::new(self.parse_expr()),
+            }),
+            MinusEq => Expr::BinExpr(BinExpr {
+                left: Box::new(left.clone()),
+                operator: BinaryOperator::Subtract,
+                right: Box::new(self.parse_expr()),
+            }),
+            DivideEq => Expr::BinExpr(BinExpr {
+                left: Box::new(left.clone()),
+                operator: BinaryOperator::Divide,
+                right: Box::new(self.parse_expr()),
+            }),
+            Assign => self.parse_expr(),
+            _ => unreachable!(),
+        };
 
         Expr::BinExpr(BinExpr {
             left: Box::new(left),
-            operator,
+            operator: BinaryOperator::Assign,
             right: Box::new(right),
         })
     }
@@ -247,9 +273,9 @@ impl<'a> Parser<'a> {
             EqualTo,
             NotEqualTo,
             LessThan,
-            LessOrEqualTo,
+            LessThanOrEqualTo,
             GreaterThan,
-            GreaterOrEqualTo,
+            GreaterThanOrEqualTo,
         ];
 
         let left = self.parse_add_sub_expr();
@@ -323,42 +349,55 @@ impl<'a> Parser<'a> {
                 self.assert_next_token(Token::RParen);
                 expr
             }
-            (Some(Token::Identifier(_)), Some(Token::LParen | Token::LSquare)) => {
-                self.parse_call_expr()
-            }
+            (Some(Token::Identifier(_)), Some(Token::LParen)) => self.parse_call_expr(),
+            // (Some(Token::Identifier(_)), Some(Token::LParen | Token::LSquare)) => self.parse_call_and_index_expr(),
             _ => self.parse_atom(),
         }
     }
 
-    // f[5 + 3*9](3)[3](5)
     fn parse_call_expr(&mut self) -> Expr {
-        let mut expr_so_far = self.parse_atom();
-
-        while let Some(Token::LParen | Token::LSquare) = self.peek_token(1) {
-            match self.peek_token(1).unwrap() {
-                Token::LParen => {
-                    expr_so_far = Expr::CallExpr(CallExpr {
-                        function_name: Box::new(expr_so_far),
-                        args: self.parse_args(),
-                    })
-                }
-                Token::LSquare => {
-                    expr_so_far = Expr::IndexExpr(IndexExpr {
-                        container: Box::new(expr_so_far),
-                        index: self.parse_index(),
-                    })
-                }
-                _ => unreachable!(),
-            }
+        let identifier = self.parse_identifier();
+        match self.peek_token(1) {
+            Some(Token::LParen) => Expr::CallExpr(CallExpr {
+                function_name: identifier,
+                args: self.parse_args(),
+            }),
+            _ => Expr::Identifier(identifier),
         }
-
-        expr_so_far
     }
 
-    fn parse_index(&mut self) {
-        // 0:3:0, 3:3:3, 0:3, 5:8, :8
-        todo!()
-    }
+    // Later, once we want to support stuff like this:
+    // f[5 + 3*9](3)[3](5)
+    // we can uncomment:
+    //
+    // fn parse_call_and_index_expr(&mut self) -> Expr {
+    //     let mut expr_so_far = self.parse_atom();
+    //
+    //     while let Some(Token::LParen | Token::LSquare) = self.peek_token(1) {
+    //         match self.peek_token(1).unwrap() {
+    //             Token::LParen => {
+    //                 expr_so_far = Expr::CallExpr(CallExpr {
+    //                     function_name: Box::new(expr_so_far),
+    //                     args: self.parse_args(),
+    //                 })
+    //             }
+    //             Token::LSquare => {
+    //                 expr_so_far = Expr::IndexExpr(IndexExpr {
+    //                     container: Box::new(expr_so_far),
+    //                     index: self.parse_index(),
+    //                 })
+    //             }
+    //             _ => unreachable!(),
+    //         }
+    //     }
+    //
+    //     expr_so_far
+    // }
+
+    // fn parse_index(&mut self) {
+    //     // 0:3:0, 3:3:3, 0:3, 5:8, :8
+    //     todo!()
+    // }
 
     fn parse_args(&mut self) -> Vec<Expr> {
         self.assert_next_token(Token::LParen);
@@ -401,17 +440,19 @@ mod tests {
     use crate::lexer::Lexer;
 
     #[test]
+    #[test]
     fn var_declaration() {
-        let source_code = "i64 N = 5";
+        let tokens = vec![
+            Token::Type(Type::I64),
+            Token::Identifier("N".to_string()),
+            Token::OperatorSymbol(Assign),
+            Token::I64Literal(5),
+        ];
         let expected = Some(Statement::VarDeclaration(VarDeclaration {
             var_name: "N".to_string(),
             var_type: Type::I64,
             var_value: Expr::I64Literal(5),
         }));
-
-        let source_code_chars: Vec<_> = source_code.chars().collect();
-        let lexer = Lexer::new(&source_code_chars);
-        let tokens: Vec<_> = lexer.collect();
 
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();
@@ -421,7 +462,13 @@ mod tests {
 
     #[test]
     fn var_modification() {
-        let source_code = "num = a = 10";
+        let tokens = vec![
+            Token::Identifier("num".to_string()),
+            Token::OperatorSymbol(Assign),
+            Token::Identifier("a".to_string()),
+            Token::OperatorSymbol(Assign),
+            Token::I64Literal(10),
+        ];
         let expected = Some(Statement::ExprStatement(Expr::BinExpr(BinExpr {
             left: Box::new(Expr::Identifier("num".to_string())),
             operator: BinaryOperator::Assign,
@@ -432,10 +479,6 @@ mod tests {
             })),
         })));
 
-        let source_code_chars: Vec<_> = source_code.chars().collect();
-        let lexer = Lexer::new(&source_code_chars);
-        let tokens: Vec<_> = lexer.collect();
-
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();
 
@@ -444,7 +487,14 @@ mod tests {
 
     #[test]
     fn empty_while_loop() {
-        let source_code = "while i <= N {}";
+        let tokens = vec![
+            Token::While,
+            Token::Identifier("i".to_string()),
+            Token::OperatorSymbol(LessThanOrEqualTo),
+            Token::Identifier("N".to_string()),
+            Token::LSquirly,
+            Token::RSquirly,
+        ];
         let expected = Some(Statement::WhileLoop(WhileLoop {
             condition: Expr::BinExpr(BinExpr {
                 left: Box::new(Expr::Identifier("i".to_string())),
@@ -454,10 +504,6 @@ mod tests {
             body: vec![],
         }));
 
-        let source_code_chars: Vec<_> = source_code.chars().collect();
-        let lexer = Lexer::new(&source_code_chars);
-        let tokens: Vec<_> = lexer.collect();
-
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();
 
@@ -466,7 +512,19 @@ mod tests {
 
     #[test]
     fn order_of_operations() {
-        let source_code = "10 + 3 * 8 / 4 - 13 + 5";
+        let tokens = vec![
+            Token::I64Literal(10),
+            Token::OperatorSymbol(Plus),
+            Token::I64Literal(3),
+            Token::OperatorSymbol(Asterisk),
+            Token::I64Literal(8),
+            Token::OperatorSymbol(Slash),
+            Token::I64Literal(4),
+            Token::OperatorSymbol(Minus),
+            Token::I64Literal(13),
+            Token::OperatorSymbol(Plus),
+            Token::I64Literal(5),
+        ];
         let expected = Some(Statement::ExprStatement(Expr::BinExpr(BinExpr {
             left: Box::new(Expr::BinExpr(BinExpr {
                 left: Box::new(Expr::BinExpr(BinExpr {
@@ -489,10 +547,6 @@ mod tests {
             right: Box::new(Expr::I64Literal(5)),
         })));
 
-        let source_code_chars: Vec<_> = source_code.chars().collect();
-        let lexer = Lexer::new(&source_code_chars);
-        let tokens: Vec<_> = lexer.collect();
-
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();
 
@@ -501,7 +555,15 @@ mod tests {
 
     #[test]
     fn parenthetical_expression() {
-        let source_code = "9*(2+3)";
+        let tokens = vec![
+            Token::I64Literal(9),
+            Token::OperatorSymbol(Asterisk),
+            Token::LParen,
+            Token::I64Literal(2),
+            Token::OperatorSymbol(Plus),
+            Token::I64Literal(3),
+            Token::RParen,
+        ];
         let expected = Some(Statement::ExprStatement(Expr::BinExpr(BinExpr {
             left: Box::new(Expr::I64Literal(9)),
             operator: BinaryOperator::Multiply,
@@ -512,10 +574,6 @@ mod tests {
             })),
         })));
 
-        let source_code_chars: Vec<_> = source_code.chars().collect();
-        let lexer = Lexer::new(&source_code_chars);
-        let tokens: Vec<_> = lexer.collect();
-
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();
 
@@ -524,12 +582,15 @@ mod tests {
 
     #[test]
     fn spacing() {
-        let source_code = "\n\n\n\t\t\ta\n\n";
+        let tokens = vec![
+            Token::Newline,
+            Token::Newline,
+            Token::Newline,
+            Token::Identifier("a".to_string()),
+            Token::Newline,
+            Token::Newline,
+        ];
         let expected = Some(Statement::ExprStatement(Expr::Identifier("a".to_string())));
-
-        let source_code_chars: Vec<_> = source_code.chars().collect();
-        let lexer = Lexer::new(&source_code_chars);
-        let tokens: Vec<_> = lexer.collect();
 
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();
@@ -539,25 +600,30 @@ mod tests {
 
     #[test]
     fn function_call() {
-        let source_code = "print(f(1)(2), 10, 20)";
+        let tokens = vec![
+            Token::Identifier("print".to_string()),
+            Token::LParen,
+            Token::Identifier("f".to_string()),
+            Token::LParen,
+            Token::I64Literal(1),
+            Token::RParen,
+            Token::Comma,
+            Token::I64Literal(10),
+            Token::Comma,
+            Token::I64Literal(20),
+            Token::RParen,
+        ];
         let expected = Some(Statement::ExprStatement(Expr::CallExpr(CallExpr {
-            function_name: Box::new(Expr::Identifier("print".to_string())),
+            function_name: "print".to_string(),
             args: vec![
                 Expr::CallExpr(CallExpr {
-                    function_name: Box::new(Expr::CallExpr(CallExpr {
-                        function_name: Box::new(Expr::Identifier("f".to_string())),
-                        args: vec![Expr::I64Literal(1)],
-                    })),
-                    args: vec![Expr::I64Literal(2)],
+                    function_name: "f".to_string(),
+                    args: vec![Expr::I64Literal(1)],
                 }),
                 Expr::I64Literal(10),
                 Expr::I64Literal(20),
             ],
         })));
-
-        let source_code_chars: Vec<_> = source_code.chars().collect();
-        let lexer = Lexer::new(&source_code_chars);
-        let tokens: Vec<_> = lexer.collect();
 
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();
@@ -567,7 +633,17 @@ mod tests {
 
     #[test]
     fn function_definition() {
-        let source_code = "fn test(i64 a) i64 {}";
+        let tokens = vec![
+            Token::Fn,
+            Token::Identifier("test".to_string()),
+            Token::LParen,
+            Token::Type(Type::I64),
+            Token::Identifier("a".to_string()),
+            Token::RParen,
+            Token::Type(Type::I64),
+            Token::LSquirly,
+            Token::RSquirly,
+        ];
         let expected = Program {
             func_defs: vec![FuncDef {
                 name: "test".to_string(),
@@ -580,10 +656,6 @@ mod tests {
             }],
         };
 
-        let source_code_chars: Vec<_> = source_code.chars().collect();
-        let lexer = Lexer::new(&source_code_chars);
-        let tokens: Vec<_> = lexer.collect();
-
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_program();
 
@@ -592,16 +664,40 @@ mod tests {
 
     #[test]
     fn return_statement() {
-        let source_code = "ret x + 5";
+        let tokens = vec![
+            Token::Ret,
+            Token::Identifier("x".to_string()),
+            Token::OperatorSymbol(Plus),
+            Token::I64Literal(5),
+        ];
         let expected = Some(Statement::ReturnStatement(Expr::BinExpr(BinExpr {
             left: Box::new(Expr::Identifier("x".to_string())),
             operator: BinaryOperator::Add,
             right: Box::new(Expr::I64Literal(5)),
         })));
 
-        let source_code_chars: Vec<_> = source_code.chars().collect();
-        let lexer = Lexer::new(&source_code_chars);
-        let tokens: Vec<_> = lexer.collect();
+        let mut parser = Parser::new(&tokens);
+        let ast = parser.parse_statement();
+
+        assert_eq!(expected, ast);
+    }
+
+    #[test]
+    fn plus_eq() {
+        let tokens = vec![
+            Token::Identifier("x".to_string()),
+            Token::OperatorSymbol(PlusEq),
+            Token::I64Literal(5),
+        ];
+        let expected = Some(Statement::ExprStatement(Expr::BinExpr(BinExpr {
+            left: Box::new(Expr::Identifier("x".to_string())),
+            operator: BinaryOperator::Assign,
+            right: Box::new(Expr::BinExpr(BinExpr {
+                left: Box::new(Expr::Identifier("x".to_string())),
+                operator: BinaryOperator::Add,
+                right: Box::new(Expr::I64Literal(5)),
+            })),
+        })));
 
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();

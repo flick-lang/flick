@@ -21,11 +21,12 @@ pub enum Token {
     RSquirly,
     LParen,
     RParen,
-    LSquare,
-    RSquare,
+    // LSquare,
+    // RSquare,
 
     // Punctuation
     Newline,
+    Semicolon,
     Colon,
     Comma,
 
@@ -57,10 +58,10 @@ impl fmt::Display for Token {
             Self::RSquirly => write!(f, "}}"),
             Self::LParen => write!(f, "("),
             Self::RParen => write!(f, ")"),
-            Self::LSquare => write!(f, "["),
-            Self::RSquare => write!(f, "]"),
-
+            // Self::LSquare => write!(f, "["),
+            // Self::RSquare => write!(f, "]"),
             Self::Newline => writeln!(f),
+            Self::Semicolon => write!(f, ";"),
             Self::Colon => write!(f, ":"),
             Self::Comma => write!(f, ","),
 
@@ -76,8 +77,8 @@ pub enum OperatorSymbol {
     EqualTo,
     LessThan,
     GreaterThan,
-    LessOrEqualTo,
-    GreaterOrEqualTo,
+    LessThanOrEqualTo,
+    GreaterThanOrEqualTo,
 
     // Operators
     Plus,
@@ -100,8 +101,8 @@ impl fmt::Display for OperatorSymbol {
             Self::EqualTo => write!(f, "=="),
             Self::LessThan => write!(f, "<"),
             Self::GreaterThan => write!(f, ">"),
-            Self::LessOrEqualTo => write!(f, "<="),
-            Self::GreaterOrEqualTo => write!(f, ">="),
+            Self::LessThanOrEqualTo => write!(f, "<="),
+            Self::GreaterThanOrEqualTo => write!(f, ">="),
 
             Self::Plus => write!(f, "+"),
             Self::Minus => write!(f, "-"),
