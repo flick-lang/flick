@@ -4,6 +4,10 @@ use std::ffi::{c_uint, c_ulonglong, CString};
 
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
+use llvm_sys::transforms::scalar::{
+    LLVMAddCFGSimplificationPass, LLVMAddGVNPass, LLVMAddInstructionCombiningPass,
+    LLVMAddReassociatePass,
+};
 use llvm_sys::LLVMIntPredicate::*;
 
 use crate::compiler::scope_manager::ScopeManager;
@@ -42,6 +46,24 @@ impl Compiler {
 
     pub fn print_ir(&self) {
         unsafe { LLVMDumpModule(self.module) }
+    }
+
+    pub fn optimize(&mut self) {
+        unsafe {
+            let pass_manager = LLVMCreatePassManager();
+
+            LLVMAddInstructionCombiningPass(pass_manager);
+            LLVMAddReassociatePass(pass_manager);
+            LLVMAddGVNPass(pass_manager);
+            LLVMAddCFGSimplificationPass(pass_manager);
+
+            match LLVMRunPassManager(pass_manager, self.module) {
+                1 => {}
+                _ => panic!("Error running optimizations"),
+            }
+
+            LLVMDisposePassManager(pass_manager);
+        }
     }
 
     pub fn compile(&mut self, program: &Program) {
@@ -172,7 +194,6 @@ impl Compiler {
             Expr::Binary(bin_expr) => self.compile_bin_expr(bin_expr),
             Expr::Call(call_expr) => self.compile_call_expr(call_expr),
             Expr::Assign(assign) => self.compile_assignment(assign),
-            // Expr::IndexExpr(index_expr) => self.compile_index_expr(index_expr),
         }
     }
 
@@ -270,10 +291,6 @@ impl Compiler {
             cstr!("call"),
         )
     }
-
-    // fn compile_index_expr(&self, index_expr: &IndexExpr) -> LLVMValueRef {
-    //     todo!()
-    // }
 
     // TODO: Have this function get_cur_function instead of taking it as an argument
     unsafe fn create_entry_block_alloca(

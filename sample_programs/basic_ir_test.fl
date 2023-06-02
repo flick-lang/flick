@@ -7,7 +7,7 @@ fn sum(i64 x, i64 y) i64 {
 }
 
 fn main() {
-    i64 a, b, c
+    i64 a, b, c = 3
     a = b = c = 3
     a += b
     b *= c

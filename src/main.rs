@@ -38,6 +38,9 @@ fn main() -> Result<()> {
 
     compiler.compile(&program);
     compiler.print_ir();
+    compiler.optimize();
+    print!("\n\n\n\n\n");
+    compiler.print_ir();
 
     // todo parse 🇸🇪 into a return or smth lol idk
     // todo write syntax highlighting extension
