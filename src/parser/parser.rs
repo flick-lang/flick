@@ -1,5 +1,4 @@
 use crate::lexer::token::AssignmentSymbol::*;
-use crate::lexer::token::ComparatorSymbol::*;
 use crate::lexer::token::OperatorSymbol::*;
 use crate::lexer::token::{Token, Type};
 use crate::parser::ast::*;
@@ -401,6 +400,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lexer::token::ComparatorSymbol::LessThanOrEqualTo;
 
     #[test]
     fn var_declaration() {

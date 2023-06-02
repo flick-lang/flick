@@ -1,21 +1,16 @@
 use llvm_sys::analysis::LLVMVerifierFailureAction::LLVMPrintMessageAction;
 use llvm_sys::analysis::LLVMVerifyFunction;
-use std::ffi::{c_uint, c_ulonglong, CStr, CString};
+use std::ffi::{c_uint, c_ulonglong, CString};
 use std::mem::MaybeUninit;
-use std::path::Path;
 
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::target::{
-    LLVMDisposeTargetData, LLVMSetModuleDataLayout, LLVM_InitializeAllAsmParsers,
-    LLVM_InitializeAllAsmPrinters, LLVM_InitializeAllTargetInfos, LLVM_InitializeAllTargetMCs,
-    LLVM_InitializeAllTargets, LLVM_InitializeNativeAsmParser, LLVM_InitializeNativeAsmPrinter,
+    LLVMSetModuleDataLayout, LLVM_InitializeNativeAsmParser, LLVM_InitializeNativeAsmPrinter,
     LLVM_InitializeNativeTarget,
 };
 use llvm_sys::target_machine::LLVMCodeGenFileType::LLVMObjectFile;
-use llvm_sys::target_machine::LLVMCodeGenOptLevel::{
-    LLVMCodeGenLevelAggressive, LLVMCodeGenLevelDefault,
-};
+use llvm_sys::target_machine::LLVMCodeGenOptLevel::LLVMCodeGenLevelDefault;
 use llvm_sys::target_machine::LLVMCodeModel::LLVMCodeModelDefault;
 use llvm_sys::target_machine::LLVMRelocMode::LLVMRelocDefault;
 use llvm_sys::target_machine::{
@@ -23,7 +18,7 @@ use llvm_sys::target_machine::{
     LLVMGetDefaultTargetTriple, LLVMGetTargetFromTriple, LLVMTargetMachineEmitToFile,
     LLVMTargetMachineRef,
 };
-use llvm_sys::transforms::ipo::{LLVMAddFunctionInliningPass, LLVMAddStripDeadPrototypesPass};
+use llvm_sys::transforms::ipo::LLVMAddFunctionInliningPass;
 use llvm_sys::transforms::scalar::{
     LLVMAddCFGSimplificationPass, LLVMAddGVNPass, LLVMAddInstructionCombiningPass,
     LLVMAddReassociatePass,
@@ -58,24 +53,31 @@ impl Compiler {
             let scope_manager = ScopeManager::new();
 
             // TODO: Is this the right place for all of this LLVM setup mumbo-jumbo?
-            LLVM_InitializeAllTargetInfos();
+            // LLVM_InitializeAllTargetInfos();
             // LLVM_InitializeAllTargets();
-            LLVM_InitializeNativeTarget();
-            LLVM_InitializeAllTargetMCs();
+            // TODO: make this an option for the compiler to choose which target to initialize
+            // TODO: Don't use a match statement
+            if LLVM_InitializeNativeTarget() == 1 {
+                panic!("Error initializing native target")
+            }
+            // LLVM_InitializeAllTargetMCs();
             // LLVM_InitializeAllAsmParsers();
-            LLVM_InitializeNativeAsmParser();
+            if LLVM_InitializeNativeAsmParser() == 1 {
+                panic!("Error initializing native ASM Parser")
+            }
             // LLVM_InitializeAllAsmPrinters();
-            LLVM_InitializeNativeAsmPrinter();
+            if LLVM_InitializeNativeAsmPrinter() == 1 {
+                panic!("Error initializing native ASM printer")
+            }
 
             let triple = LLVMGetDefaultTargetTriple();
             let mut target = std::ptr::null_mut();
             let mut err_str = MaybeUninit::uninit();
-            match LLVMGetTargetFromTriple(triple, &mut target, err_str.as_mut_ptr()) {
-                0 => {}
-                _ => panic!(
+            if LLVMGetTargetFromTriple(triple, &mut target, err_str.as_mut_ptr()) != 0 {
+                panic!(
                     "Error getting target from triple ({:?})",
                     err_str.assume_init()
-                ),
+                );
             }
 
             let cpu = cstr!("generic");
@@ -109,6 +111,7 @@ impl Compiler {
 
     pub fn optimize(&mut self) {
         unsafe {
+            // TODO: Make the pass manager stored in the struct
             let pass_manager = LLVMCreatePassManager();
 
             LLVMAddInstructionCombiningPass(pass_manager);
@@ -117,9 +120,8 @@ impl Compiler {
             LLVMAddCFGSimplificationPass(pass_manager);
             LLVMAddFunctionInliningPass(pass_manager);
 
-            match LLVMRunPassManager(pass_manager, self.module) {
-                1 => {}
-                _ => panic!("Error running optimizations"),
+            if LLVMRunPassManager(pass_manager, self.module) != 1 {
+                panic!("Error running optimizations");
             }
 
             LLVMDisposePassManager(pass_manager);
@@ -173,6 +175,7 @@ impl Compiler {
         let func_type = LLVMFunctionType(return_type, param_types.as_mut_ptr(), num_params, 0);
 
         let func = LLVMAddFunction(self.module, func_name.as_ptr(), func_type);
+        // TODO: Set Linkage depending on what the function is marked
         LLVMSetLinkage(func, LLVMInternalLinkage);
 
         if func.is_null() {
