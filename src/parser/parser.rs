@@ -232,12 +232,9 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_assignment_expr(&mut self) -> Expr {
-        let first_token_is_ident = matches!(self.peek_token(1), Some(Token::Identifier(_)));
-        let second_token_is_assignment_symbol =
-            matches!(self.peek_token(2), Some(Token::AssignmentSymbol(_)));
-
-        if !first_token_is_ident || !second_token_is_assignment_symbol {
-            return self.parse_logical_or_expr();
+        match (self.peek_token(1), self.peek_token(2)) {
+            (Some(Token::Identifier(_)), Some(Token::AssignmentSymbol(_))) => {}
+            _ => return self.parse_logical_or_expr(),
         }
 
         let name = self.parse_identifier();
