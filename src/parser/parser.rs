@@ -161,7 +161,6 @@ impl<'a> Parser<'a> {
 
         let mut var_decs = Vec::new();
 
-        // i64 a
         loop {
             let var_name = self.parse_identifier();
 
@@ -186,7 +185,6 @@ impl<'a> Parser<'a> {
                 _ => break,
             }
         }
-        // i64 a =
 
         var_decs
     }
@@ -284,19 +282,16 @@ impl<'a> Parser<'a> {
     fn parse_comparison_expression(&mut self) -> Expr {
         let left = self.parse_add_sub_expr();
 
-        // TODO: Rewrite this to match the above function that we just rewrote
         let operator = match self.peek_token(1) {
-            Some(Token::ComparatorSymbol(comparator_symbol)) => {
-                let operator = BinaryOperator::from(*comparator_symbol);
-                self.skip_token();
-                operator
-            }
+            Some(Token::ComparatorSymbol(s)) => BinaryOperator::from(*s),
             _ => return left,
         };
 
+        self.skip_token(); // skip the compare symbol
+
         let right = self.parse_add_sub_expr();
 
-        if let Some(Token::ComparatorSymbol(op_symbol)) = self.peek_token(1) {
+        if let Some(Token::ComparatorSymbol(_)) = self.peek_token(1) {
             // TODO: print a useful error message for the user
             panic!("Comparison operators cannot be chained")
         }
@@ -311,8 +306,8 @@ impl<'a> Parser<'a> {
     fn parse_add_sub_expr(&mut self) -> Expr {
         let mut left_expr_so_far = self.parse_mul_div_expr();
 
-        while let Some(Token::OperatorSymbol(op_symbol @ (Plus | Minus))) = self.peek_token(1) {
-            let operator = BinaryOperator::from(*op_symbol);
+        while let Some(Token::OperatorSymbol(s @ (Plus | Minus))) = self.peek_token(1) {
+            let operator = BinaryOperator::from(*s);
             self.skip_token();
             let right = self.parse_mul_div_expr();
 
@@ -329,8 +324,8 @@ impl<'a> Parser<'a> {
     fn parse_mul_div_expr(&mut self) -> Expr {
         let mut left_expr_so_far = self.parse_primary_expr();
 
-        while let Some(Token::OperatorSymbol(op_symbol @ (Asterisk | Slash))) = self.peek_token(1) {
-            let operator = BinaryOperator::from(*op_symbol);
+        while let Some(Token::OperatorSymbol(s @ (Asterisk | Slash))) = self.peek_token(1) {
+            let operator = BinaryOperator::from(*s);
             self.skip_token();
             let right = self.parse_primary_expr();
 
@@ -353,7 +348,6 @@ impl<'a> Parser<'a> {
                 expr
             }
             (Some(Token::Identifier(_)), Some(Token::LParen)) => self.parse_call_expr(),
-            // (Some(Token::Identifier(_)), Some(Token::LParen | Token::LSquare)) => self.parse_call_and_index_expr(),
             _ => self.parse_atom(),
         }
     }
@@ -368,39 +362,6 @@ impl<'a> Parser<'a> {
             _ => Expr::Identifier(identifier),
         }
     }
-
-    // Later, once we want to support stuff like this:
-    // f[5 + 3*9](3)[3](5)
-    // we can uncomment:
-    //
-    // fn parse_call_and_index_expr(&mut self) -> Expr {
-    //     let mut expr_so_far = self.parse_atom();
-    //
-    //     while let Some(Token::LParen | Token::LSquare) = self.peek_token(1) {
-    //         match self.peek_token(1).unwrap() {
-    //             Token::LParen => {
-    //                 expr_so_far = Expr::CallExpr(CallExpr {
-    //                     function_name: Box::new(expr_so_far),
-    //                     args: self.parse_args(),
-    //                 })
-    //             }
-    //             Token::LSquare => {
-    //                 expr_so_far = Expr::IndexExpr(IndexExpr {
-    //                     container: Box::new(expr_so_far),
-    //                     index: self.parse_index(),
-    //                 })
-    //             }
-    //             _ => unreachable!(),
-    //         }
-    //     }
-    //
-    //     expr_so_far
-    // }
-
-    // fn parse_index(&mut self) {
-    //     // 0:3:0, 3:3:3, 0:3, 5:8, :8
-    //     todo!()
-    // }
 
     fn parse_args(&mut self) -> Vec<Expr> {
         self.assert_next_token(Token::LParen);
