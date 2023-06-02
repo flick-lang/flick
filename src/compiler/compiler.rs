@@ -1,14 +1,35 @@
 use llvm_sys::analysis::LLVMVerifierFailureAction::LLVMPrintMessageAction;
 use llvm_sys::analysis::LLVMVerifyFunction;
-use std::ffi::{c_uint, c_ulonglong, CString};
+use std::ffi::{c_uint, c_ulonglong, CStr, CString};
+use std::mem::MaybeUninit;
+use std::path::Path;
 
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
+use llvm_sys::target::{
+    LLVMDisposeTargetData, LLVMSetModuleDataLayout, LLVM_InitializeAllAsmParsers,
+    LLVM_InitializeAllAsmPrinters, LLVM_InitializeAllTargetInfos, LLVM_InitializeAllTargetMCs,
+    LLVM_InitializeAllTargets, LLVM_InitializeNativeAsmParser, LLVM_InitializeNativeAsmPrinter,
+    LLVM_InitializeNativeTarget,
+};
+use llvm_sys::target_machine::LLVMCodeGenFileType::LLVMObjectFile;
+use llvm_sys::target_machine::LLVMCodeGenOptLevel::{
+    LLVMCodeGenLevelAggressive, LLVMCodeGenLevelDefault,
+};
+use llvm_sys::target_machine::LLVMCodeModel::LLVMCodeModelDefault;
+use llvm_sys::target_machine::LLVMRelocMode::LLVMRelocDefault;
+use llvm_sys::target_machine::{
+    LLVMCreateTargetDataLayout, LLVMCreateTargetMachine, LLVMDisposeTargetMachine,
+    LLVMGetDefaultTargetTriple, LLVMGetTargetFromTriple, LLVMTargetMachineEmitToFile,
+    LLVMTargetMachineRef,
+};
+use llvm_sys::transforms::ipo::{LLVMAddFunctionInliningPass, LLVMAddStripDeadPrototypesPass};
 use llvm_sys::transforms::scalar::{
     LLVMAddCFGSimplificationPass, LLVMAddGVNPass, LLVMAddInstructionCombiningPass,
     LLVMAddReassociatePass,
 };
 use llvm_sys::LLVMIntPredicate::*;
+use llvm_sys::LLVMLinkage::LLVMInternalLinkage;
 
 use crate::compiler::scope_manager::ScopeManager;
 use crate::lexer::token::Type;
@@ -24,6 +45,7 @@ pub struct Compiler {
     context: LLVMContextRef,
     module: LLVMModuleRef,
     builder: LLVMBuilderRef,
+    target_machine: LLVMTargetMachineRef,
     scope_manager: ScopeManager,
 }
 
@@ -33,13 +55,50 @@ impl Compiler {
             let context = LLVMContextCreate();
             let module = LLVMModuleCreateWithNameInContext(cstr!("module"), context);
             let builder = LLVMCreateBuilderInContext(context);
-            let named_value_manager = ScopeManager::new();
+            let scope_manager = ScopeManager::new();
+
+            // TODO: Is this the right place for all of this LLVM setup mumbo-jumbo?
+            LLVM_InitializeAllTargetInfos();
+            // LLVM_InitializeAllTargets();
+            LLVM_InitializeNativeTarget();
+            LLVM_InitializeAllTargetMCs();
+            // LLVM_InitializeAllAsmParsers();
+            LLVM_InitializeNativeAsmParser();
+            // LLVM_InitializeAllAsmPrinters();
+            LLVM_InitializeNativeAsmPrinter();
+
+            let triple = LLVMGetDefaultTargetTriple();
+            let mut target = std::ptr::null_mut();
+            let mut err_str = MaybeUninit::uninit();
+            match LLVMGetTargetFromTriple(triple, &mut target, err_str.as_mut_ptr()) {
+                0 => {}
+                _ => panic!(
+                    "Error getting target from triple ({:?})",
+                    err_str.assume_init()
+                ),
+            }
+
+            let cpu = cstr!("generic");
+            let features = cstr!("");
+            let target_machine = LLVMCreateTargetMachine(
+                target,
+                triple,
+                cpu,
+                features,
+                LLVMCodeGenLevelDefault,
+                LLVMRelocDefault,
+                LLVMCodeModelDefault,
+            );
+            LLVMSetTarget(module, triple);
+            let target_data_layout = LLVMCreateTargetDataLayout(target_machine);
+            LLVMSetModuleDataLayout(module, target_data_layout);
 
             Self {
                 context,
                 module,
                 builder,
-                scope_manager: named_value_manager,
+                target_machine,
+                scope_manager,
             }
         }
     }
@@ -56,6 +115,7 @@ impl Compiler {
             LLVMAddReassociatePass(pass_manager);
             LLVMAddGVNPass(pass_manager);
             LLVMAddCFGSimplificationPass(pass_manager);
+            LLVMAddFunctionInliningPass(pass_manager);
 
             match LLVMRunPassManager(pass_manager, self.module) {
                 1 => {}
@@ -63,6 +123,25 @@ impl Compiler {
             }
 
             LLVMDisposePassManager(pass_manager);
+        }
+    }
+
+    // TODO: Better way of passing in path - maybe using AsRef?
+    pub fn to_file(&self, path: &str) {
+        unsafe {
+            let filename = CString::new(path).unwrap();
+            // TODO: Don't use into_raw
+            let filename_ptr = filename.into_raw();
+            let mut err_str = MaybeUninit::uninit();
+            LLVMTargetMachineEmitToFile(
+                self.target_machine,
+                self.module,
+                filename_ptr,
+                LLVMObjectFile,
+                err_str.as_mut_ptr(),
+            );
+            // retake pointer to free memory
+            let _ = CString::from_raw(filename_ptr);
         }
     }
 
@@ -94,6 +173,7 @@ impl Compiler {
         let func_type = LLVMFunctionType(return_type, param_types.as_mut_ptr(), num_params, 0);
 
         let func = LLVMAddFunction(self.module, func_name.as_ptr(), func_type);
+        LLVMSetLinkage(func, LLVMInternalLinkage);
 
         if func.is_null() {
             panic!("Error defining function '{}'", func_def.name);
@@ -313,6 +393,7 @@ impl Compiler {
 impl Drop for Compiler {
     fn drop(&mut self) {
         unsafe {
+            LLVMDisposeTargetMachine(self.target_machine);
             LLVMDisposeBuilder(self.builder);
             LLVMDisposeModule(self.module);
             LLVMContextDispose(self.context);

@@ -41,6 +41,7 @@ fn main() -> Result<()> {
     compiler.optimize();
     print!("\n\n\n\n\n");
     compiler.print_ir();
+    compiler.to_file("test.out");
 
     // todo parse 🇸🇪 into a return or smth lol idk
     // todo write syntax highlighting extension
