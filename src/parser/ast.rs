@@ -13,6 +13,7 @@ pub struct FuncDef {
     pub params: Vec<FuncParam>,
     pub return_type: Type,
     pub body: Vec<Statement>,
+    pub is_public: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

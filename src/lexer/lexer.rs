@@ -105,6 +105,7 @@ impl<'a> Lexer<'a> {
             "i64" => Token::Type(Type::I64),
             "void" => Token::Type(Type::Void),
             "while" => Token::While,
+            "pub" => Token::Pub,
             "fn" => Token::Fn,
             "ret" => Token::Ret,
             _ => Token::Identifier(s),

@@ -3,7 +3,7 @@ program     := {func_def}
 statement   := var_dec | while_loop | expr | return_stmt
                     NOTE: statement must be FOLLOWED BY '\n' or EOF or ';'
 
-func_def    := 'fn' IDENTIFIER '(' [parameters] ')' [VARTYPE] '{' {statement} '}'
+func_def    := ['pub'] 'fn' IDENTIFIER '(' [parameters] ')' [VARTYPE] '{' {statement} '}'
 parameters  := {VARTYPE IDENTIFIER ','} VARTYPE IDENTIFIER
 
 var_decl    := VARTYPE IDENTIFIER '=' expr

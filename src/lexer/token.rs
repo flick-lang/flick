@@ -9,6 +9,7 @@ pub enum Token {
     Identifier(String),
 
     // Keywords
+    Pub,
     Fn,
     While,
     Ret,
@@ -50,6 +51,7 @@ impl fmt::Display for Token {
             Self::I64Literal(int) => write!(f, "{}", int),
             Self::Identifier(id) => write!(f, "{}", id),
 
+            Self::Pub => write!(f, "pub"),
             Self::Fn => write!(f, "fn"),
             Self::While => write!(f, "while"),
             Self::Ret => write!(f, "ret"),

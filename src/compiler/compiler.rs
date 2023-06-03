@@ -2,13 +2,12 @@ use llvm_sys::analysis::LLVMVerifierFailureAction::LLVMPrintMessageAction;
 use llvm_sys::analysis::LLVMVerifyFunction;
 use std::ffi::{c_char, c_uint, c_ulonglong, CString};
 use std::mem::MaybeUninit;
-use std::path::PathBuf;
 
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::target::{
-    LLVMSetModuleDataLayout, LLVM_InitializeAllTargets, LLVM_InitializeNativeAsmParser,
-    LLVM_InitializeNativeAsmPrinter, LLVM_InitializeNativeTarget,
+    LLVMSetModuleDataLayout, LLVM_InitializeNativeAsmParser, LLVM_InitializeNativeAsmPrinter,
+    LLVM_InitializeNativeTarget,
 };
 use llvm_sys::target_machine::LLVMCodeGenFileType::{LLVMAssemblyFile, LLVMObjectFile};
 use llvm_sys::target_machine::LLVMCodeGenOptLevel::LLVMCodeGenLevelDefault;
@@ -25,7 +24,7 @@ use llvm_sys::transforms::scalar::{
     LLVMAddReassociatePass,
 };
 use llvm_sys::LLVMIntPredicate::*;
-use llvm_sys::LLVMLinkage::LLVMInternalLinkage;
+use llvm_sys::LLVMLinkage::{LLVMExternalLinkage, LLVMInternalLinkage};
 
 use crate::compiler::scope_manager::ScopeManager;
 use crate::lexer::token::Type;
@@ -179,8 +178,11 @@ impl Compiler {
         let func_type = LLVMFunctionType(return_type, param_types.as_mut_ptr(), num_params, 0);
 
         let func = LLVMAddFunction(self.module, func_name.as_ptr(), func_type);
-        // TODO: Set Linkage depending on what the function is marked
-        // LLVMSetLinkage(func, LLVMInternalLinkage);
+
+        match func_def.is_public {
+            true => LLVMSetLinkage(func, LLVMExternalLinkage),
+            false => LLVMSetLinkage(func, LLVMInternalLinkage),
+        }
 
         if func.is_null() {
             panic!("Error defining function '{}'", func_def.name);

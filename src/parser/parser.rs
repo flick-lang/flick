@@ -46,14 +46,22 @@ impl<'a> Parser<'a> {
             self.skip_token();
         }
     }
-
     fn parse_func_def(&mut self) -> Option<FuncDef> {
         self.skip_newlines_comments_and_docstrings();
 
-        match self.peek_token(1)? {
-            Token::Fn => self.skip_token(),
-            token => panic!("Expected Token::Fn but received {:?}", token),
+        let is_public = match (self.peek_token(1), self.peek_token(2)) {
+            (Some(Token::Pub), Some(Token::Fn)) => true,
+            (Some(Token::Pub), Some(t)) => panic!("Expected 'fn' but received {:?}", t),
+            (Some(Token::Pub), None) => panic!("Expected 'fn' but file ended"),
+            (Some(Token::Fn), _) => false,
+            (Some(t), _) => panic!("Expected 'fn' or 'pub' but received {:?}", t),
+            (None, _) => return None,
+        };
+
+        if is_public {
+            self.skip_token();
         }
+        self.skip_token();
 
         let name = self.parse_identifier();
         let params = self.parse_func_params();
@@ -78,6 +86,7 @@ impl<'a> Parser<'a> {
             params,
             return_type,
             body,
+            is_public,
         })
     }
 
@@ -612,6 +621,7 @@ mod tests {
     #[test]
     fn function_definition() {
         let tokens = vec![
+            Token::Pub,
             Token::Fn,
             Token::Identifier("test".to_string()),
             Token::LParen,
@@ -631,6 +641,7 @@ mod tests {
                 }],
                 return_type: Type::I64,
                 body: vec![],
+                is_public: true,
             }],
         };
 
