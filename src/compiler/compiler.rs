@@ -1,21 +1,22 @@
 use llvm_sys::analysis::LLVMVerifierFailureAction::LLVMPrintMessageAction;
 use llvm_sys::analysis::LLVMVerifyFunction;
-use std::ffi::{c_uint, c_ulonglong, CString};
+use std::ffi::{c_char, c_uint, c_ulonglong, CString};
 use std::mem::MaybeUninit;
+use std::path::PathBuf;
 
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
 use llvm_sys::target::{
-    LLVMSetModuleDataLayout, LLVM_InitializeNativeAsmParser, LLVM_InitializeNativeAsmPrinter,
-    LLVM_InitializeNativeTarget,
+    LLVMSetModuleDataLayout, LLVM_InitializeAllTargets, LLVM_InitializeNativeAsmParser,
+    LLVM_InitializeNativeAsmPrinter, LLVM_InitializeNativeTarget,
 };
-use llvm_sys::target_machine::LLVMCodeGenFileType::LLVMObjectFile;
+use llvm_sys::target_machine::LLVMCodeGenFileType::{LLVMAssemblyFile, LLVMObjectFile};
 use llvm_sys::target_machine::LLVMCodeGenOptLevel::LLVMCodeGenLevelDefault;
 use llvm_sys::target_machine::LLVMCodeModel::LLVMCodeModelDefault;
 use llvm_sys::target_machine::LLVMRelocMode::LLVMRelocDefault;
 use llvm_sys::target_machine::{
     LLVMCreateTargetDataLayout, LLVMCreateTargetMachine, LLVMDisposeTargetMachine,
-    LLVMGetDefaultTargetTriple, LLVMGetTargetFromTriple, LLVMTargetMachineEmitToFile,
+    LLVMGetDefaultTargetTriple, LLVMGetTargetFromTriple, LLVMTarget, LLVMTargetMachineEmitToFile,
     LLVMTargetMachineRef,
 };
 use llvm_sys::transforms::ipo::LLVMAddFunctionInliningPass;
@@ -42,9 +43,22 @@ pub struct Compiler {
     builder: LLVMBuilderRef,
     target_machine: LLVMTargetMachineRef,
     scope_manager: ScopeManager,
+    pass_manager: LLVMPassManagerRef,
 }
 
 impl Compiler {
+    unsafe fn get_target_from_triple(triple: *const c_char) -> *mut LLVMTarget {
+        let mut target = std::ptr::null_mut();
+        let mut err_str = MaybeUninit::uninit();
+        if LLVMGetTargetFromTriple(triple, &mut target, err_str.as_mut_ptr()) != 0 {
+            panic!(
+                "Error getting target from triple ({:?})",
+                err_str.assume_init()
+            );
+        }
+        target
+    }
+
     pub fn new() -> Self {
         unsafe {
             let context = LLVMContextCreate();
@@ -52,36 +66,24 @@ impl Compiler {
             let builder = LLVMCreateBuilderInContext(context);
             let scope_manager = ScopeManager::new();
 
-            // TODO: Is this the right place for all of this LLVM setup mumbo-jumbo?
-            // LLVM_InitializeAllTargetInfos();
-            // LLVM_InitializeAllTargets();
             // TODO: make this an option for the compiler to choose which target to initialize
-            // TODO: Don't use a match statement
             if LLVM_InitializeNativeTarget() == 1 {
                 panic!("Error initializing native target")
             }
-            // LLVM_InitializeAllTargetMCs();
-            // LLVM_InitializeAllAsmParsers();
             if LLVM_InitializeNativeAsmParser() == 1 {
                 panic!("Error initializing native ASM Parser")
             }
-            // LLVM_InitializeAllAsmPrinters();
             if LLVM_InitializeNativeAsmPrinter() == 1 {
                 panic!("Error initializing native ASM printer")
             }
 
-            let triple = LLVMGetDefaultTargetTriple();
-            let mut target = std::ptr::null_mut();
-            let mut err_str = MaybeUninit::uninit();
-            if LLVMGetTargetFromTriple(triple, &mut target, err_str.as_mut_ptr()) != 0 {
-                panic!(
-                    "Error getting target from triple ({:?})",
-                    err_str.assume_init()
-                );
-            }
+            // Configure module
+            let triple = LLVMGetDefaultTargetTriple(); // this computer's OS triple
+            LLVMSetTarget(module, triple);
 
             let cpu = cstr!("generic");
             let features = cstr!("");
+            let target = Self::get_target_from_triple(triple);
             let target_machine = LLVMCreateTargetMachine(
                 target,
                 triple,
@@ -91,9 +93,18 @@ impl Compiler {
                 LLVMRelocDefault,
                 LLVMCodeModelDefault,
             );
-            LLVMSetTarget(module, triple);
+
             let target_data_layout = LLVMCreateTargetDataLayout(target_machine);
             LLVMSetModuleDataLayout(module, target_data_layout);
+
+            // Configure pass manager
+            let pass_manager = LLVMCreatePassManager();
+
+            LLVMAddFunctionInliningPass(pass_manager);
+            LLVMAddInstructionCombiningPass(pass_manager);
+            LLVMAddReassociatePass(pass_manager);
+            LLVMAddGVNPass(pass_manager);
+            LLVMAddCFGSimplificationPass(pass_manager);
 
             Self {
                 context,
@@ -101,6 +112,7 @@ impl Compiler {
                 builder,
                 target_machine,
                 scope_manager,
+                pass_manager,
             }
         }
     }
@@ -111,39 +123,31 @@ impl Compiler {
 
     pub fn optimize(&mut self) {
         unsafe {
-            // TODO: Make the pass manager stored in the struct
-            let pass_manager = LLVMCreatePassManager();
-
-            LLVMAddInstructionCombiningPass(pass_manager);
-            LLVMAddReassociatePass(pass_manager);
-            LLVMAddGVNPass(pass_manager);
-            LLVMAddCFGSimplificationPass(pass_manager);
-            LLVMAddFunctionInliningPass(pass_manager);
-
-            if LLVMRunPassManager(pass_manager, self.module) != 1 {
+            if LLVMRunPassManager(self.pass_manager, self.module) != 1 {
                 panic!("Error running optimizations");
             }
-
-            LLVMDisposePassManager(pass_manager);
         }
     }
 
     // TODO: Better way of passing in path - maybe using AsRef?
-    pub fn to_file(&self, path: &str) {
+    pub fn to_file(&self, path: String) {
         unsafe {
-            let filename = CString::new(path).unwrap();
-            // TODO: Don't use into_raw
-            let filename_ptr = filename.into_raw();
+            let mut path_bytes = path.into_bytes();
+            path_bytes.push(b'\0');
+            let mut path_cchars: Vec<_> = path_bytes.iter().map(|b| *b as c_char).collect();
+
             let mut err_str = MaybeUninit::uninit();
-            LLVMTargetMachineEmitToFile(
+            let result = LLVMTargetMachineEmitToFile(
                 self.target_machine,
                 self.module,
-                filename_ptr,
+                path_cchars.as_mut_ptr(),
                 LLVMObjectFile,
                 err_str.as_mut_ptr(),
             );
-            // retake pointer to free memory
-            let _ = CString::from_raw(filename_ptr);
+
+            if result == 1 {
+                panic!("Error emitting object file ({:?})", err_str.assume_init());
+            }
         }
     }
 
@@ -176,7 +180,7 @@ impl Compiler {
 
         let func = LLVMAddFunction(self.module, func_name.as_ptr(), func_type);
         // TODO: Set Linkage depending on what the function is marked
-        LLVMSetLinkage(func, LLVMInternalLinkage);
+        // LLVMSetLinkage(func, LLVMInternalLinkage);
 
         if func.is_null() {
             panic!("Error defining function '{}'", func_def.name);
@@ -396,6 +400,7 @@ impl Compiler {
 impl Drop for Compiler {
     fn drop(&mut self) {
         unsafe {
+            LLVMDisposePassManager(self.pass_manager);
             LLVMDisposeTargetMachine(self.target_machine);
             LLVMDisposeBuilder(self.builder);
             LLVMDisposeModule(self.module);
