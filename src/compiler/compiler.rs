@@ -2,6 +2,7 @@ use llvm_sys::analysis::LLVMVerifierFailureAction::LLVMPrintMessageAction;
 use llvm_sys::analysis::LLVMVerifyFunction;
 use std::ffi::{c_char, c_uint, c_ulonglong, CString};
 use std::mem::MaybeUninit;
+use std::process::Command;
 
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
@@ -16,7 +17,7 @@ use llvm_sys::target_machine::LLVMRelocMode::LLVMRelocDefault;
 use llvm_sys::target_machine::{
     LLVMCreateTargetDataLayout, LLVMCreateTargetMachine, LLVMDisposeTargetMachine,
     LLVMGetDefaultTargetTriple, LLVMGetTargetFromTriple, LLVMTarget, LLVMTargetMachineEmitToFile,
-    LLVMTargetMachineRef,
+    LLVMTargetMachineEmitToMemoryBuffer, LLVMTargetMachineRef,
 };
 use llvm_sys::transforms::ipo::LLVMAddFunctionInliningPass;
 use llvm_sys::transforms::scalar::{
@@ -339,22 +340,15 @@ impl Compiler {
             panic!("Unknown function '{}' referenced", call_expr.function_name);
         }
 
-        let num_args = LLVMCountParams(func) as usize;
-        if num_args != call_expr.args.len() {
+        let num_params = LLVMCountParams(func) as usize;
+        if num_params != call_expr.args.len() {
             panic!(
                 "Incorrect # arguments passed to function '{}'",
                 call_expr.function_name
             );
         }
 
-        // todo compare arg and param types!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        // todo compare arg and param types!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        // todo compare arg and param types!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        // todo compare arg and param types!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        // todo compare arg and param types!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        // todo compare arg and param types!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        // todo compare arg and param types!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        // todo compare arg and param types!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        // todo once type checking: compare arg and param types
 
         let mut arg_values: Vec<_> = call_expr
             .args
