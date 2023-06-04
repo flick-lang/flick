@@ -275,8 +275,8 @@ impl Compiler {
 
     unsafe fn compile_assignment(&mut self, assign: &Assign) -> LLVMValueRef {
         let value = self.compile_expr(assign.value.as_ref());
-        let alloca = match self.scope_manager.get_var(assign.name.as_str()) {
-            Some(var) => var.value,
+        let alloca = match self.scope_manager.get_var_value(assign.name.as_str()) {
+            Some(alloca) => alloca,
             None => panic!("Setting a variable that has not been declared"),
         };
         LLVMBuildStore(self.builder, value, alloca);
@@ -323,8 +323,8 @@ impl Compiler {
     }
 
     unsafe fn compile_identifier(&mut self, id: &str) -> LLVMValueRef {
-        let alloca_ref = match self.scope_manager.get_var(id) {
-            Some(var) => var.value,
+        let alloca_ref = match self.scope_manager.get_var_value(id) {
+            Some(alloca_ref) => alloca_ref,
             None => panic!("Compiler error: undefined identifier '{}'", id),
         };
         let alloca_type = LLVMGetAllocatedType(alloca_ref);
@@ -346,14 +346,14 @@ impl Compiler {
             Add => LLVMBuildAdd(self.builder, lhs, rhs, cstr!("add")),
             Subtract => LLVMBuildSub(self.builder, lhs, rhs, cstr!("sub")),
             Multiply => LLVMBuildMul(self.builder, lhs, rhs, cstr!("mul")),
-            Divide => LLVMBuildSDiv(self.builder, lhs, rhs, cstr!("div")),
+            Divide => LLVMBuildSDiv(self.builder, lhs, rhs, cstr!("sdiv")),
 
             NotEqualTo => LLVMBuildICmp(self.builder, LLVMIntNE, lhs, rhs, cstr!("neq")),
             EqualTo => LLVMBuildICmp(self.builder, LLVMIntEQ, lhs, rhs, cstr!("eq")),
-            LessThan => LLVMBuildICmp(self.builder, LLVMIntSLT, lhs, rhs, cstr!("lt")),
-            GreaterThan => LLVMBuildICmp(self.builder, LLVMIntSGT, lhs, rhs, cstr!("gt")),
-            LessOrEqualTo => LLVMBuildICmp(self.builder, LLVMIntSLE, lhs, rhs, cstr!("lte")),
-            GreaterOrEqualTo => LLVMBuildICmp(self.builder, LLVMIntSGE, lhs, rhs, cstr!("gte")),
+            LessThan => LLVMBuildICmp(self.builder, LLVMIntSLT, lhs, rhs, cstr!("slt")),
+            GreaterThan => LLVMBuildICmp(self.builder, LLVMIntSGT, lhs, rhs, cstr!("sgt")),
+            LessOrEqualTo => LLVMBuildICmp(self.builder, LLVMIntSLE, lhs, rhs, cstr!("sle")),
+            GreaterOrEqualTo => LLVMBuildICmp(self.builder, LLVMIntSGE, lhs, rhs, cstr!("sge")),
         }
     }
 
