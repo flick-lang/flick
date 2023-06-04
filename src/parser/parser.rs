@@ -46,6 +46,8 @@ impl<'a> Parser<'a> {
             self.skip_token();
         }
     }
+
+    // TODO: Split the first part into a parse_func_proto function?
     fn parse_func_def(&mut self) -> Option<FuncDef> {
         self.skip_newlines_comments_and_docstrings();
 
@@ -81,13 +83,19 @@ impl<'a> Parser<'a> {
 
         let body = self.parse_body();
 
-        Some(FuncDef {
+        let func_proto = FuncProto {
             name,
             params,
             return_type,
-            body,
+        };
+
+        let func_def = FuncDef {
             is_public,
-        })
+            proto: func_proto,
+            body,
+        };
+
+        Some(func_def)
     }
 
     fn parse_func_params(&mut self) -> Vec<FuncParam> {
@@ -636,14 +644,16 @@ mod tests {
         ];
         let expected = Program {
             func_defs: vec![FuncDef {
-                name: "test".to_string(),
-                params: vec![FuncParam {
-                    param_type: Type::I64,
-                    param_name: "a".to_string(),
-                }],
-                return_type: Type::I64,
-                body: vec![],
                 is_public: true,
+                proto: FuncProto {
+                    name: "test".to_string(),
+                    params: vec![FuncParam {
+                        param_type: Type::I64,
+                        param_name: "a".to_string(),
+                    }],
+                    return_type: Type::I64,
+                },
+                body: vec![],
             }],
         };
 

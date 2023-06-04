@@ -1,5 +1,6 @@
 use llvm_sys::analysis::LLVMVerifierFailureAction::LLVMPrintMessageAction;
 use llvm_sys::analysis::LLVMVerifyFunction;
+use std::collections::HashMap;
 use std::ffi::{c_char, c_uint, c_ulonglong, CString};
 use std::mem::MaybeUninit;
 use std::process::Command;
@@ -146,6 +147,7 @@ impl Compiler {
             );
 
             if result == 1 {
+                // TODO: Actually print error
                 panic!("Error emitting object file ({:?})", err_str.assume_init());
             }
         }
@@ -154,23 +156,24 @@ impl Compiler {
     pub fn compile(&mut self, program: &Program) {
         unsafe {
             for func_def in program.func_defs.iter() {
+                self.compile_func_proto(&func_def.proto);
+            }
+            for func_def in program.func_defs.iter() {
                 self.compile_func_def(func_def);
             }
         }
     }
 
-    unsafe fn compile_func_def(&mut self, func_def: &FuncDef) {
-        let func_name = CString::new(func_def.name.as_str()).unwrap();
+    unsafe fn compile_func_proto(&mut self, func_proto: &FuncProto) {
+        let func_name = CString::new(func_proto.name.as_str()).unwrap();
         let func = LLVMGetNamedFunction(self.module, func_name.as_ptr());
         if !func.is_null() {
-            panic!("Cannot redefine function '{}'", func_def.name);
+            panic!("Cannot redefine function '{}'", func_proto.name);
         }
 
-        // function does not yet exist, let's generate it:
-
-        let return_type = self.to_llvm_type(func_def.return_type);
-        let num_params = func_def.params.len() as c_uint;
-        let mut param_types: Vec<_> = func_def
+        let return_type = self.to_llvm_type(func_proto.return_type);
+        let num_params = func_proto.params.len() as c_uint;
+        let mut param_types: Vec<_> = func_proto
             .params
             .iter()
             .map(|p| self.to_llvm_type(p.param_type))
@@ -180,20 +183,32 @@ impl Compiler {
 
         let func = LLVMAddFunction(self.module, func_name.as_ptr(), func_type);
 
-        match func_def.is_public {
-            true => LLVMSetLinkage(func, LLVMExternalLinkage),
-            false => LLVMSetLinkage(func, LLVMInternalLinkage),
-        }
-
         if func.is_null() {
-            panic!("Error defining function '{}'", func_def.name);
+            panic!("Error defining function '{}'", func_proto.name);
         }
 
-        for (i, param) in func_def.params.iter().enumerate() {
+        for (i, param) in func_proto.params.iter().enumerate() {
             let param_value_ref = LLVMGetParam(func, i as c_uint);
             let param_name = CString::new(param.param_name.as_str()).unwrap();
             let param_name_len = param.param_name.len();
             LLVMSetValueName2(param_value_ref, param_name.as_ptr(), param_name_len);
+        }
+    }
+
+    unsafe fn compile_func_def(&mut self, func_def: &FuncDef) {
+        let func_name = CString::new(func_def.proto.name.as_str()).unwrap();
+        let func = LLVMGetNamedFunction(self.module, func_name.as_ptr());
+        if func.is_null() {
+            panic!(
+                "The prototype for function '{}' has not been defined",
+                func_def.proto.name
+            );
+        }
+
+        // TODO: Should linkage be set in the compile_func_proto function?
+        match func_def.is_public {
+            true => LLVMSetLinkage(func, LLVMExternalLinkage),
+            false => LLVMSetLinkage(func, LLVMInternalLinkage),
         }
 
         let entry_block = LLVMAppendBasicBlockInContext(self.context, func, cstr!("entry"));
@@ -201,7 +216,7 @@ impl Compiler {
 
         self.scope_manager.enter_scope();
 
-        for (i, param) in func_def.params.iter().enumerate() {
+        for (i, param) in func_def.proto.params.iter().enumerate() {
             let param_name = param.param_name.as_str();
             let param_value_ref = LLVMGetParam(func, i as c_uint);
             let alloca = self.create_entry_block_alloca(func, param_name, param.param_type);
@@ -214,6 +229,7 @@ impl Compiler {
             self.compile_statement(statement)
         }
 
+        // TODO: Is this the best way of implicitly returning void?
         match func_def.body.last() {
             Some(Statement::Return(_)) => {}
             _ => self.compile_ret_statement(&None),
@@ -221,7 +237,9 @@ impl Compiler {
 
         self.scope_manager.exit_scope();
 
-        LLVMVerifyFunction(func, LLVMPrintMessageAction);
+        if LLVMVerifyFunction(func, LLVMPrintMessageAction) == 1 {
+            panic!("Function '{}' is not valid", func_def.proto.name);
+        }
     }
 
     unsafe fn compile_statement(&mut self, statement: &Statement) {

@@ -9,11 +9,16 @@ pub struct Program {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct FuncDef {
+    pub is_public: bool,
+    pub proto: FuncProto,
+    pub body: Vec<Statement>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct FuncProto {
     pub name: String,
     pub params: Vec<FuncParam>,
     pub return_type: Type,
-    pub body: Vec<Statement>,
-    pub is_public: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -50,7 +55,6 @@ pub enum Expr {
     Assign(Assign),
     Binary(Binary),
     Call(Call),
-    // IndexExpr(IndexExpr),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -71,12 +75,6 @@ pub struct Call {
     pub function_name: String,
     pub args: Vec<Expr>,
 }
-
-// #[derive(Debug, PartialEq, Eq, Clone)]
-// pub struct IndexExpr {
-//     pub container: Box<Expr>,
-//     pub index: (),
-// }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum BinaryOperator {
