@@ -1,7 +1,7 @@
 use llvm_sys::analysis::LLVMVerifierFailureAction::LLVMPrintMessageAction;
 use llvm_sys::analysis::LLVMVerifyFunction;
 use std::collections::HashMap;
-use std::ffi::{c_char, c_uint, c_ulonglong, CString};
+use std::ffi::{c_char, c_uint, c_ulonglong, CStr, CString};
 use std::mem::MaybeUninit;
 use std::process::Command;
 
@@ -164,10 +164,9 @@ impl Compiler {
         }
     }
 
+    // TODO: Remove all as_str in favor of &
     unsafe fn compile_func_proto(&mut self, func_proto: &FuncProto) {
-        let func_name = CString::new(func_proto.name.as_str()).unwrap();
-        let func = LLVMGetNamedFunction(self.module, func_name.as_ptr());
-        if !func.is_null() {
+        if self.scope_manager.get_func(&func_proto.name).is_some() {
             panic!("Cannot redefine function '{}'", func_proto.name);
         }
 
@@ -181,6 +180,7 @@ impl Compiler {
 
         let func_type = LLVMFunctionType(return_type, param_types.as_mut_ptr(), num_params, 0);
 
+        let func_name = CString::new(func_proto.name.as_str()).unwrap();
         let func = LLVMAddFunction(self.module, func_name.as_ptr(), func_type);
 
         if func.is_null() {
@@ -194,9 +194,9 @@ impl Compiler {
             LLVMSetValueName2(param_value_ref, param_name.as_ptr(), param_name_len);
         }
 
-        // TODO: remove variable shadowing
-        let func_name = func_proto.name.as_str();
-        // TODO: Remove clone?
+        // TODO: Remove variable shadowing
+        let func_name = &func_proto.name;
+        // TODO: Remove clone (like accept owned through function?)
         let func_proto = func_proto.clone();
         self.scope_manager.set_func(func_name, func_proto, func);
     }
@@ -273,12 +273,21 @@ impl Compiler {
         LLVMGetBasicBlockParent(LLVMGetInsertBlock(self.builder))
     }
 
-    unsafe fn compile_assignment(&mut self, assign: &Assign) -> LLVMValueRef {
-        let value = self.compile_expr(assign.value.as_ref());
-        let alloca = match self.scope_manager.get_var_value(assign.name.as_str()) {
-            Some(alloca) => alloca,
+    unsafe fn compile_assignment(&mut self, assign: &Assign, expected_type: Type) -> LLVMValueRef {
+        let value = self.compile_expr(assign.value.as_ref(), expected_type);
+        let var = match self.scope_manager.get_var(&assign.name) {
+            Some(var) => var,
             None => panic!("Setting a variable that has not been declared"),
         };
+
+        if var.var_type != expected_type {
+            panic!(
+                "Assigning to variable '{}' with type '{}' but expected to have type '{}'",
+                assign.name, var.var_type, expected_type
+            );
+        }
+
+        let alloca = var.value;
         LLVMBuildStore(self.builder, value, alloca);
         value
     }
@@ -292,56 +301,79 @@ impl Compiler {
             self.scope_manager.set_var(var_name, var_type, alloca);
 
             if let Some(value_expr) = &var_declaration.var_value {
-                let value = self.compile_expr(value_expr);
+                let value = self.compile_expr(value_expr, var_type);
                 LLVMBuildStore(self.builder, value, alloca);
             }
         }
     }
 
     unsafe fn compile_expr_statement(&mut self, expr: &Expr) {
-        let _ = self.compile_expr(expr);
+        let _ = self.compile_expr(expr, Type::Void);
     }
 
-    unsafe fn compile_expr(&mut self, expr: &Expr) -> LLVMValueRef {
+    unsafe fn compile_expr(&mut self, expr: &Expr, expected_type: Type) -> LLVMValueRef {
         match expr {
-            Expr::Identifier(id) => self.compile_identifier(id),
-            Expr::I64Literal(x) => self.compile_i64_literal(*x),
-            Expr::Binary(bin_expr) => self.compile_bin_expr(bin_expr),
-            Expr::Call(call_expr) => self.compile_call_expr(call_expr),
-            Expr::Assign(assign) => self.compile_assignment(assign),
+            Expr::Identifier(id) => self.compile_identifier(id, expected_type),
+            Expr::I64Literal(x) => self.compile_i64_literal(*x, expected_type),
+            Expr::Binary(bin_expr) => self.compile_bin_expr(bin_expr, expected_type),
+            Expr::Call(call_expr) => self.compile_call_expr(call_expr, expected_type),
+            Expr::Assign(assign) => self.compile_assignment(assign, expected_type),
         }
     }
 
     unsafe fn compile_ret_statement(&mut self, ret_value: &Option<Expr>) {
+        let cur_func = self.get_cur_function();
+        let mut len = MaybeUninit::uninit();
+        let func_name_buf = LLVMGetValueName2(cur_func, len.as_mut_ptr());
+        let func_name_cstr = CStr::from_ptr(func_name_buf);
+        let func_name = func_name_cstr.to_str().unwrap();
+        let func = match self.scope_manager.get_func(func_name) {
+            Some(func) => func,
+            None => panic!("Can't return when not in a function"),
+        };
+        let return_type = func.proto.return_type;
+
         // TODO once we set up type checking and once we can do
         // Expr::get_type(), we should make sure that ret_value matches
         // LLVMGETReturnType(self.cur_function())
+
         match ret_value {
-            Some(expr) => LLVMBuildRet(self.builder, self.compile_expr(expr)),
+            Some(expr) => LLVMBuildRet(self.builder, self.compile_expr(expr, return_type)),
             None => LLVMBuildRetVoid(self.builder),
         };
     }
 
-    unsafe fn compile_identifier(&mut self, id: &str) -> LLVMValueRef {
-        let alloca_ref = match self.scope_manager.get_var_value(id) {
-            Some(alloca_ref) => alloca_ref,
+    unsafe fn compile_identifier(&mut self, id: &str, expected_type: Type) -> LLVMValueRef {
+        let var = match self.scope_manager.get_var(id) {
+            Some(var) => var,
             None => panic!("Compiler error: undefined identifier '{}'", id),
         };
+
+        if var.var_type != expected_type {
+            panic!(
+                "Identifier has type '{}' but expected '{}'",
+                var.var_type, expected_type
+            );
+        }
+
+        let alloca_ref = var.value;
         let alloca_type = LLVMGetAllocatedType(alloca_ref);
         let name = CString::new(id).unwrap();
         LLVMBuildLoad2(self.builder, alloca_type, alloca_ref, name.as_ptr())
     }
 
-    unsafe fn compile_i64_literal(&self, x: i64) -> LLVMValueRef {
-        LLVMConstInt(self.to_llvm_type(Type::I64), x as c_ulonglong, 1)
+    unsafe fn compile_i64_literal(&self, x: i64, expected_type: Type) -> LLVMValueRef {
+        // TODO: Only sign extend if its signed int
+        LLVMConstInt(self.to_llvm_type(expected_type), x as c_ulonglong, 1)
     }
 
-    unsafe fn compile_bin_expr(&mut self, bin_expr: &Binary) -> LLVMValueRef {
+    unsafe fn compile_bin_expr(&mut self, bin_expr: &Binary, expected_type: Type) -> LLVMValueRef {
         use BinaryOperator::*;
 
-        let lhs = self.compile_expr(&bin_expr.left);
-        let rhs = self.compile_expr(&bin_expr.right);
+        let lhs = self.compile_expr(&bin_expr.left, expected_type);
+        let rhs = self.compile_expr(&bin_expr.right, expected_type);
 
+        // TODO: Signed vs unsigned operations depending on expected_type
         match bin_expr.operator {
             Add => LLVMBuildAdd(self.builder, lhs, rhs, cstr!("add")),
             Subtract => LLVMBuildSub(self.builder, lhs, rhs, cstr!("sub")),
@@ -357,15 +389,22 @@ impl Compiler {
         }
     }
 
-    unsafe fn compile_call_expr(&mut self, call_expr: &Call) -> LLVMValueRef {
-        let func_name = CString::new(call_expr.function_name.as_str()).unwrap();
-        let func = LLVMGetNamedFunction(self.module, func_name.as_ptr());
+    unsafe fn compile_call_expr(&mut self, call_expr: &Call, expected_type: Type) -> LLVMValueRef {
+        let func = match self.scope_manager.get_func(&call_expr.function_name) {
+            Some(func) => func.clone(), // TODO: Remove the clone
+            None => panic!("Unknown function '{}' referenced", call_expr.function_name),
+        };
 
-        if func.is_null() {
-            panic!("Unknown function '{}' referenced", call_expr.function_name);
+        if func.proto.return_type != expected_type {
+            panic!(
+                "Function '{}' has return type '{}' but expected '{}'",
+                func.proto.name, func.proto.return_type, expected_type
+            );
         }
 
-        let num_params = LLVMCountParams(func) as usize;
+        let func_ref = func.value;
+
+        let num_params = LLVMCountParams(func_ref) as usize;
         if num_params != call_expr.args.len() {
             panic!(
                 "Incorrect # arguments passed to function '{}'",
@@ -373,27 +412,28 @@ impl Compiler {
             );
         }
 
-        // todo once type checking: compare arg and param types
+        let mut arg_values = Vec::new();
+        for i in 0..num_params {
+            let param = func.proto.params.get(i).unwrap();
+            let arg = call_expr.args.get(i).unwrap();
 
-        let mut arg_values: Vec<_> = call_expr
-            .args
-            .iter()
-            .map(|expr| self.compile_expr(expr))
-            .collect();
+            let value = self.compile_expr(arg, param.param_type);
 
-        // TODO: Add more useful error message on info abt WHAT argument is null
-        if arg_values.iter().any(|value_ref| value_ref.is_null()) {
-            panic!(
-                "One of the arguments to function '{}' was null",
-                call_expr.function_name
-            )
+            if value.is_null() {
+                panic!(
+                    "Arg num '{}' when calling function '{}' was null",
+                    i, call_expr.function_name
+                );
+            }
+
+            arg_values.push(value);
         }
 
-        let func_type = LLVMGlobalGetValueType(func);
+        let func_type = LLVMGlobalGetValueType(func_ref);
         LLVMBuildCall2(
             self.builder,
             func_type,
-            func,
+            func_ref,
             arg_values.as_mut_ptr(),
             arg_values.len() as c_uint,
             cstr!("call"),
