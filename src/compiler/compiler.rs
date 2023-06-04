@@ -1,9 +1,7 @@
 use llvm_sys::analysis::LLVMVerifierFailureAction::LLVMPrintMessageAction;
 use llvm_sys::analysis::LLVMVerifyFunction;
-use std::collections::HashMap;
 use std::ffi::{c_char, c_uint, c_ulonglong, CStr, CString};
 use std::mem::MaybeUninit;
-use std::process::Command;
 
 use llvm_sys::core::*;
 use llvm_sys::prelude::*;
@@ -11,14 +9,14 @@ use llvm_sys::target::{
     LLVMSetModuleDataLayout, LLVM_InitializeNativeAsmParser, LLVM_InitializeNativeAsmPrinter,
     LLVM_InitializeNativeTarget,
 };
-use llvm_sys::target_machine::LLVMCodeGenFileType::{LLVMAssemblyFile, LLVMObjectFile};
+use llvm_sys::target_machine::LLVMCodeGenFileType::LLVMObjectFile;
 use llvm_sys::target_machine::LLVMCodeGenOptLevel::LLVMCodeGenLevelDefault;
 use llvm_sys::target_machine::LLVMCodeModel::LLVMCodeModelDefault;
 use llvm_sys::target_machine::LLVMRelocMode::LLVMRelocDefault;
 use llvm_sys::target_machine::{
     LLVMCreateTargetDataLayout, LLVMCreateTargetMachine, LLVMDisposeTargetMachine,
     LLVMGetDefaultTargetTriple, LLVMGetTargetFromTriple, LLVMTarget, LLVMTargetMachineEmitToFile,
-    LLVMTargetMachineEmitToMemoryBuffer, LLVMTargetMachineRef,
+    LLVMTargetMachineRef,
 };
 use llvm_sys::transforms::ipo::LLVMAddFunctionInliningPass;
 use llvm_sys::transforms::scalar::{
@@ -440,7 +438,6 @@ impl Compiler {
         )
     }
 
-    // TODO: Have this function get_cur_function instead of taking it as an argument
     unsafe fn create_entry_block_alloca(
         &self,
         func: LLVMValueRef,
