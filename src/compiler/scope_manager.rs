@@ -1,34 +1,66 @@
+use crate::lexer::token::Type;
+use crate::parser::ast::FuncProto;
 use llvm_sys::prelude::LLVMValueRef;
 use std::collections::HashMap;
 
+#[derive(Copy, Clone, Debug)]
+pub struct Var {
+    pub var_type: Type,
+    pub value: LLVMValueRef,
+}
+
+#[derive(Clone, Debug)]
+pub struct Func {
+    pub proto: FuncProto,
+    pub value: LLVMValueRef,
+}
+
 pub struct ScopeManager {
-    scopes: Vec<HashMap<String, LLVMValueRef>>,
+    vars: Vec<HashMap<String, Var>>,
+    funcs: Vec<HashMap<String, Func>>,
 }
 
 impl ScopeManager {
     pub fn new() -> Self {
         Self {
-            scopes: vec![HashMap::new()],
+            vars: vec![HashMap::new()],
+            funcs: vec![HashMap::new()],
         }
     }
 
     pub fn enter_scope(&mut self) {
-        self.scopes.push(HashMap::new());
+        self.vars.push(HashMap::new());
+        self.funcs.push(HashMap::new());
     }
 
     pub fn exit_scope(&mut self) {
-        if self.scopes.len() == 1 {
+        if self.vars.len() != self.funcs.len() {
+            panic!("Vars and funcs scopes don't have the depth")
+        }
+
+        if self.vars.len() == 1 && self.funcs.len() == 1 {
             panic!("cannot exit the global scope")
         }
-        self.scopes.pop().unwrap();
+
+        self.vars.pop();
+        self.funcs.pop();
     }
 
-    pub fn get_var(&self, name: &str) -> Option<LLVMValueRef> {
-        self.scopes.iter().rev().find_map(|s| s.get(name)).copied()
+    pub fn get_var(&self, name: &str) -> Option<&Var> {
+        self.vars.iter().rev().find_map(|s| s.get(name))
     }
 
-    pub fn set_var(&mut self, name: &str, value: LLVMValueRef) {
-        let cur_scope = self.scopes.last_mut().unwrap();
-        cur_scope.insert(name.to_string(), value);
+    pub fn set_var(&mut self, name: &str, var_type: Type, value: LLVMValueRef) {
+        let cur_scope = self.vars.last_mut().unwrap();
+        cur_scope.insert(name.to_string(), Var { var_type, value });
+    }
+
+    pub fn get_func(&self, name: &str) -> Option<&Func> {
+        self.funcs.iter().rev().find_map(|s| s.get(name))
+    }
+
+    pub fn set_func(&mut self, name: &str, proto: FuncProto, value: LLVMValueRef) {
+        let cur_scope = self.funcs.last_mut().unwrap();
+        cur_scope.insert(name.to_string(), Func { proto, value });
     }
 }

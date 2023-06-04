@@ -193,6 +193,12 @@ impl Compiler {
             let param_name_len = param.param_name.len();
             LLVMSetValueName2(param_value_ref, param_name.as_ptr(), param_name_len);
         }
+
+        // TODO: remove variable shadowing
+        let func_name = func_proto.name.as_str();
+        // TODO: Remove clone?
+        let func_proto = func_proto.clone();
+        self.scope_manager.set_func(func_name, func_proto, func);
     }
 
     unsafe fn compile_func_def(&mut self, func_def: &FuncDef) {
@@ -218,10 +224,11 @@ impl Compiler {
 
         for (i, param) in func_def.proto.params.iter().enumerate() {
             let param_name = param.param_name.as_str();
+            let param_type = param.param_type;
             let param_value_ref = LLVMGetParam(func, i as c_uint);
             let alloca = self.create_entry_block_alloca(func, param_name, param.param_type);
             LLVMBuildStore(self.builder, param_value_ref, alloca);
-            self.scope_manager.set_var(param_name, alloca);
+            self.scope_manager.set_var(param_name, param_type, alloca);
         }
 
         for statement in func_def.body.iter() {
@@ -269,7 +276,7 @@ impl Compiler {
     unsafe fn compile_assignment(&mut self, assign: &Assign) -> LLVMValueRef {
         let value = self.compile_expr(assign.value.as_ref());
         let alloca = match self.scope_manager.get_var(assign.name.as_str()) {
-            Some(alloca) => alloca,
+            Some(var) => var.value,
             None => panic!("Setting a variable that has not been declared"),
         };
         LLVMBuildStore(self.builder, value, alloca);
@@ -282,7 +289,7 @@ impl Compiler {
             let var_name = var_declaration.var_name.as_str();
             let var_type = var_declaration.var_type;
             let alloca = self.create_entry_block_alloca(func, var_name, var_type);
-            self.scope_manager.set_var(var_name, alloca);
+            self.scope_manager.set_var(var_name, var_type, alloca);
 
             if let Some(value_expr) = &var_declaration.var_value {
                 let value = self.compile_expr(value_expr);
@@ -317,7 +324,7 @@ impl Compiler {
 
     unsafe fn compile_identifier(&mut self, id: &str) -> LLVMValueRef {
         let alloca_ref = match self.scope_manager.get_var(id) {
-            Some(alloca_ref) => alloca_ref,
+            Some(var) => var.value,
             None => panic!("Compiler error: undefined identifier '{}'", id),
         };
         let alloca_type = LLVMGetAllocatedType(alloca_ref);
