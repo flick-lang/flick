@@ -36,7 +36,6 @@ struct Cli {
 impl Cli {
     fn get_executable_output_path(&self) -> String {
         let path = match &self.output_path {
-            // TODO: Don't clone PathBufs
             Some(path) => path.clone(),
             None => {
                 let mut path = self.source_path.clone();
@@ -51,7 +50,6 @@ impl Cli {
 
     fn get_object_output_path(&self) -> String {
         let path = match &self.object_output_path {
-            // TODO: Don't clone PathBufs
             Some(path) => path.clone(),
             None => {
                 let mut path = self.source_path.clone();

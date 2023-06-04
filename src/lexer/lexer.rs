@@ -114,6 +114,7 @@ impl<'a> Lexer<'a> {
 
     /// Assuming lexer peeked a digit.
     fn read_i64_literal(&mut self) -> Token {
+        // TODO: Allow negative numbers
         let number = self.take_chars_while(|&c| c.is_ascii_digit());
         Token::I64Literal(number.parse().unwrap())
         // TODO: Handle error parsing int! it could be too big for i64

@@ -156,6 +156,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // TODO: For better error messages this function should probably be removed...
     fn parse_identifier(&mut self) -> String {
         match self.next_token() {
             Some(Token::Identifier(id)) => id.clone(), // TODO: Can we somehow get rid of this clone
@@ -170,6 +171,7 @@ impl<'a> Parser<'a> {
         let mut var_decs = Vec::new();
 
         loop {
+            // TODO: Add custom error message to tell user that variables can't be named the same as types (e.g. "void" or "i64")
             let var_name = self.parse_identifier();
 
             let var_value = match self.peek_token(1) {
