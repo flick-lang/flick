@@ -4,6 +4,7 @@ use std::ffi::{c_char, c_uint, c_ulonglong, CStr, CString};
 use std::mem::MaybeUninit;
 
 use llvm_sys::core::*;
+use llvm_sys::error::LLVMGetErrorMessage;
 use llvm_sys::prelude::*;
 use llvm_sys::target::{
     LLVMSetModuleDataLayout, LLVM_InitializeNativeAsmParser, LLVM_InitializeNativeAsmPrinter,
@@ -18,11 +19,7 @@ use llvm_sys::target_machine::{
     LLVMGetDefaultTargetTriple, LLVMGetTargetFromTriple, LLVMTarget, LLVMTargetMachineEmitToFile,
     LLVMTargetMachineRef,
 };
-use llvm_sys::transforms::ipo::LLVMAddFunctionInliningPass;
-use llvm_sys::transforms::scalar::{
-    LLVMAddCFGSimplificationPass, LLVMAddGVNPass, LLVMAddInstructionCombiningPass,
-    LLVMAddReassociatePass,
-};
+use llvm_sys::transforms::pass_builder::*;
 use llvm_sys::LLVMIntPredicate::*;
 use llvm_sys::LLVMLinkage::{LLVMExternalLinkage, LLVMInternalLinkage};
 
@@ -42,7 +39,7 @@ pub struct Compiler {
     builder: LLVMBuilderRef,
     target_machine: LLVMTargetMachineRef,
     scope_manager: ScopeManager,
-    pass_manager: LLVMPassManagerRef,
+    pass_builder: LLVMPassBuilderOptionsRef,
 }
 
 impl Compiler {
@@ -97,13 +94,20 @@ impl Compiler {
             LLVMSetModuleDataLayout(module, target_data_layout);
 
             // Configure pass manager
-            let pass_manager = LLVMCreatePassManager();
+            let pass_builder = LLVMCreatePassBuilderOptions();
 
-            LLVMAddFunctionInliningPass(pass_manager);
-            LLVMAddInstructionCombiningPass(pass_manager);
-            LLVMAddReassociatePass(pass_manager);
-            LLVMAddGVNPass(pass_manager);
-            LLVMAddCFGSimplificationPass(pass_manager);
+            // LLVMPassBuilderOptionsSetCallGraphProfile(pass_builder, 1);
+            // LLVMPassBuilderOptionsSetDebugLogging(pass_builder, 1);
+            // LLVMPassBuilderOptionsSetForgetAllSCEVInLoopUnroll(pass_builder, 1);
+            // LLVMPassBuilderOptionsSetInlinerThreshold(pass_builder, 75);
+            // LLVMPassBuilderOptionsSetLicmMssaNoAccForPromotionCap(pass_builder, 1);
+            // LLVMPassBuilderOptionsSetLicmMssaOptCap(pass_builder, 1);
+            // LLVMPassBuilderOptionsSetLoopInterleaving(pass_builder, 1);
+            // LLVMPassBuilderOptionsSetLoopUnrolling(pass_builder, 1);
+            // LLVMPassBuilderOptionsSetLoopVectorization(pass_builder, 1);
+            // LLVMPassBuilderOptionsSetMergeFunctions(pass_builder, 1);
+            // LLVMPassBuilderOptionsSetSLPVectorization(pass_builder, 1);
+            // LLVMPassBuilderOptionsSetVerifyEach(pass_builder, 1);
 
             Self {
                 context,
@@ -111,7 +115,7 @@ impl Compiler {
                 builder,
                 target_machine,
                 scope_manager,
-                pass_manager,
+                pass_builder,
             }
         }
     }
@@ -122,8 +126,11 @@ impl Compiler {
 
     pub fn optimize(&mut self) {
         unsafe {
-            if LLVMRunPassManager(self.pass_manager, self.module) != 1 {
-                panic!("Error running optimizations");
+            let passes = cstr!("default<O2>");
+            let res = LLVMRunPasses(self.module, passes, self.target_machine, self.pass_builder);
+            if !res.is_null() {
+                let error_string = CStr::from_ptr(LLVMGetErrorMessage(res));
+                panic!("Error running optimizations: {:?}", error_string);
             }
         }
     }
@@ -458,7 +465,7 @@ impl Compiler {
 impl Drop for Compiler {
     fn drop(&mut self) {
         unsafe {
-            LLVMDisposePassManager(self.pass_manager);
+            LLVMDisposePassBuilderOptions(self.pass_builder);
             LLVMDisposeTargetMachine(self.target_machine);
             LLVMDisposeBuilder(self.builder);
             LLVMDisposeModule(self.module);
