@@ -78,7 +78,6 @@ fn main() -> Result<()> {
     let mut parser = Parser::new(&tokens);
     let program = parser.parse_program();
 
-    // todo what is an llvm mod
     let mut compiler = Compiler::new();
 
     compiler.compile(&program);
