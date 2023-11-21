@@ -136,7 +136,6 @@ impl Compiler {
         }
     }
 
-    // TODO: Better way of passing in path - maybe using AsRef?
     pub fn to_file(&self, path: &impl AsRef<Path>) {
         unsafe {
             let mut path_cchars: Vec<_> = path
