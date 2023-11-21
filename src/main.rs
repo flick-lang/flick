@@ -96,8 +96,7 @@ fn main() -> Result<()> {
     }
 
     let object_output_path = cli.get_object_output_path();
-    // TODO: remove clone
-    compiler.to_file(object_output_path.clone());
+    compiler.to_file(&object_output_path);
 
     let executable_output_path = cli.get_executable_output_path();
     Command::new("clang")

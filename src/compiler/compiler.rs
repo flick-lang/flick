@@ -2,6 +2,7 @@ use llvm_sys::analysis::LLVMVerifierFailureAction::LLVMPrintMessageAction;
 use llvm_sys::analysis::LLVMVerifyFunction;
 use std::ffi::{c_char, c_uint, c_ulonglong, CStr, CString};
 use std::mem::MaybeUninit;
+use std::path::Path;
 
 use llvm_sys::core::*;
 use llvm_sys::error::LLVMGetErrorMessage;
@@ -136,11 +137,11 @@ impl Compiler {
     }
 
     // TODO: Better way of passing in path - maybe using AsRef?
-    pub fn to_file(&self, path: String) {
+    pub fn to_file(&self, path: &impl AsRef<Path>) {
         unsafe {
-            let mut path_bytes = path.into_bytes();
-            path_bytes.push(b'\0');
-            let mut path_cchars: Vec<_> = path_bytes.iter().map(|b| *b as c_char).collect();
+            let path_bytes = path.as_ref().to_string_lossy();
+            let mut path_cchars: Vec<_> = path_bytes.chars().map(|b| b as c_char).collect();
+            path_cchars.push(0); // Null character
 
             let mut err_str = MaybeUninit::uninit();
             let result = LLVMTargetMachineEmitToFile(
