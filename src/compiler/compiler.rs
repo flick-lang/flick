@@ -139,8 +139,12 @@ impl Compiler {
     // TODO: Better way of passing in path - maybe using AsRef?
     pub fn to_file(&self, path: &impl AsRef<Path>) {
         unsafe {
-            let path_bytes = path.as_ref().to_string_lossy();
-            let mut path_cchars: Vec<_> = path_bytes.chars().map(|b| b as c_char).collect();
+            let mut path_cchars: Vec<_> = path
+                .as_ref()
+                .to_string_lossy()
+                .chars()
+                .map(|b| b as c_char)
+                .collect();
             path_cchars.push(0); // Null character
 
             let mut err_str = MaybeUninit::uninit();
