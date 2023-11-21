@@ -99,8 +99,7 @@ fn main() -> Result<()> {
 
     let executable_output_path = cli.get_executable_output_path();
     Command::new("clang")
-        .arg(&object_output_path)
-        .args(["-o", &executable_output_path])
+        .args([&object_output_path, "-o", &executable_output_path])
         .output()?;
 
     if cli.object_output_path.is_none() {
