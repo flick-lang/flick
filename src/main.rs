@@ -34,32 +34,26 @@ struct Cli {
 }
 
 impl Cli {
-    fn get_executable_output_path(&self) -> String {
-        let path = match &self.output_path {
+    fn get_executable_output_path(&self) -> PathBuf {
+        match &self.output_path {
             Some(path) => path.clone(),
             None => {
                 let mut path = self.source_path.clone();
                 path.set_extension("");
                 path
             }
-        };
-
-        // TODO: Don't just unwrap (maybe there's a better way of converting from PathBuf to String)
-        path.to_str().unwrap().to_string()
+        }
     }
 
-    fn get_object_output_path(&self) -> String {
-        let path = match &self.object_output_path {
+    fn get_object_output_path(&self) -> PathBuf {
+        match &self.object_output_path {
             Some(path) => path.clone(),
             None => {
                 let mut path = self.source_path.clone();
                 path.set_extension("o");
                 path
             }
-        };
-
-        // TODO: Don't just unwrap (maybe there's a better way of converting from PathBuf to String)
-        path.to_str().unwrap().to_string()
+        }
     }
 }
 
@@ -99,7 +93,9 @@ fn main() -> Result<()> {
 
     let executable_output_path = cli.get_executable_output_path();
     Command::new("clang")
-        .args([&object_output_path, "-o", &executable_output_path])
+        .arg(&object_output_path)
+        .arg("-o")
+        .arg(&executable_output_path)
         .output()?;
 
     if cli.object_output_path.is_none() {
