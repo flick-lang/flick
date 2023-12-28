@@ -21,6 +21,7 @@ pub enum Token {
     While,
     Ret,
 
+    /// The built-in Flick types, like `void`
     Type(Type),
 
     // Brackets
@@ -35,8 +36,11 @@ pub enum Token {
     Colon,
     Comma,
 
+    /// One of `+`, `-`, `*`, and `/`
     OperatorSymbol(OperatorSymbol),
+    /// One of `>`, `<`, `<=`, `>=`, `==`, and `!=`
     ComparatorSymbol(ComparatorSymbol),
+    /// One of `+=`, `-=`, `*=`, `/=`, and `=`
     AssignmentSymbol(AssignmentSymbol),
 }
 
