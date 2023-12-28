@@ -1,5 +1,12 @@
 use std::fmt;
 
+/// An enum to represent any given non-whitespace token in a source code
+///
+/// For example, `foo(42)` consists of four tokens:
+/// 1. `Token::Identifier("print")`
+/// 1. `Token::LParen`
+/// 1. `Token::I64Literal(42)`
+/// 1. `Token::RParen`
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token {
     Docstring(String),
@@ -14,7 +21,6 @@ pub enum Token {
     While,
     Ret,
 
-    // Types
     Type(Type),
 
     // Brackets
@@ -22,8 +28,6 @@ pub enum Token {
     RSquirly,
     LParen,
     RParen,
-    // LSquare,
-    // RSquare,
 
     // Punctuation
     Newline,
@@ -62,8 +66,6 @@ impl fmt::Display for Token {
             Self::RSquirly => write!(f, "}}"),
             Self::LParen => write!(f, "("),
             Self::RParen => write!(f, ")"),
-            // Self::LSquare => write!(f, "["),
-            // Self::RSquare => write!(f, "]"),
             Self::Newline => writeln!(f),
             Self::Semicolon => write!(f, ";"),
             Self::Colon => write!(f, ":"),
@@ -76,6 +78,7 @@ impl fmt::Display for Token {
     }
 }
 
+/// An enum to store the built-in Flick types, like `void`
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Type {
     I64,
@@ -91,6 +94,7 @@ impl fmt::Display for Type {
     }
 }
 
+/// An enum to store one of `+`, `-`, `*`, and `/`
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum OperatorSymbol {
     Plus,
@@ -110,6 +114,7 @@ impl fmt::Display for OperatorSymbol {
     }
 }
 
+/// An enum to store one of `>`, `<`, `<=`, `>=`, `==`, and `!=`
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum ComparatorSymbol {
     NotEqualTo,
@@ -133,6 +138,7 @@ impl fmt::Display for ComparatorSymbol {
     }
 }
 
+/// An enum to store one of `+=`, `-=`, `*=`, `/=`, and `=`
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum AssignmentSymbol {
     PlusEq,
