@@ -1,14 +1,26 @@
-## The Flick Programming Language
+# The Flick Programming Language
 
-### Setup
+## Compiling
 
-To ensure `llvm-sys` works properly, install LLVM 16 using
-homebrew. Then, define:
+### Installing LLVM 17
 
-```fish
-set -gx LLVM_SYS_160_PREFIX /opt/homebrew/Cellar/llvm/16.0.4/
+Flick compilation depends on LLVM 17, which must be installed separately.
+For example, on macOS:
+
+1. Use brew to install LLVM 17.
+
+```zsh
+brew install llvm@17
 ```
 
-### License
+2. Then, set the `LLVM_SYS_170_PREFIX` variable so our dependency (llvm-sys)
+works properly.
+
+```zsh
+# add the following line to ~/.zshrc
+export LLVM_SYS_170_PREFIX=$(brew --prefix llvm)
+```
+
+## License
 
 Flick uses the [MIT](LICENSE) license.
