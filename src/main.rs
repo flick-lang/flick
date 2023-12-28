@@ -1,5 +1,10 @@
+#![doc = include_str!("../README.md")]
+
+/// Converts abstract syntax trees into LLVM using llvm-sys
 mod compiler;
+/// Converts source files into token streams
 mod lexer;
+/// Converts token streams into abstract syntax trees
 mod parser;
 
 use std::fs::File;
@@ -20,7 +25,7 @@ struct Cli {
     /// Input path for source code
     source_path: PathBuf,
 
-    /// Whether to emit LLVM ir
+    /// Whether to print LLVM intermediate representation during compilation
     #[arg(short, long)]
     emit_ir: bool,
 
@@ -34,6 +39,9 @@ struct Cli {
 }
 
 impl Cli {
+    /// Retrieves the provided executable output path (returns a default if none provided)
+    ///
+    /// Note that the default executable output path for a file like `test.fl` is `test`.
     fn get_executable_output_path(&self) -> PathBuf {
         match &self.output_path {
             Some(path) => path.clone(),
@@ -45,6 +53,9 @@ impl Cli {
         }
     }
 
+    /// Retrieves the provided object output path (returns a default if none provided)
+    ///
+    /// Note that the default object output path for a file like `test.fl` is `test.o`.
     fn get_object_output_path(&self) -> PathBuf {
         match &self.object_output_path {
             Some(path) => path.clone(),
