@@ -71,7 +71,6 @@ impl Cli {
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    // TODO: Find a way to not clone it here
     let mut file = File::open(&cli.source_path)?;
     let mut file_contents = String::new();
     file.read_to_string(&mut file_contents)?;
