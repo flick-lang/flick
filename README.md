@@ -1,26 +1,37 @@
 # The Flick Programming Language
 
-## Compiling
+We wrote Flick to explore compiler design. Keep reading to see how the compiler works.
 
-### Installing LLVM 17
+Table of contents:
+<!-- TOC -->
+* [The Flick Programming Language](#the-flick-programming-language)
+  * [Installing the compiler](#installing-the-compiler)
+  * [Using the compiler](#using-the-compiler)
+<!-- TOC -->
 
-Flick compilation depends on LLVM 17, which must be installed separately.
-For example, on macOS:
+## Installing the compiler
 
-1. Use brew to install LLVM 17.
+Assuming Rust is installed, you can install the Flick compiler with
 
-```zsh
+```shell
+cargo install --git "https://github.com/flick-lang/flick.git"
+```
+
+You will also need to install LLVM 17. For example, you could use brew:
+
+```shell
 brew install llvm@17
 ```
 
-2. Then, set the `LLVM_SYS_170_PREFIX` variable so our dependency (llvm-sys)
-works properly.
-
-```zsh
-# add the following line to ~/.zshrc
+Finally, you need to tell llvm-sys where LLVM 17 is located by adding the following line to `~/.zshrc` (or an equivalent):
+```shell
 export LLVM_SYS_170_PREFIX=$(brew --prefix llvm)
 ```
 
-## License
+## Using the compiler
 
-Flick uses the [MIT](LICENSE) license.
+You can compile Flick programs with `flick <SOURCE_PATH>`. For example, 
+
+```shell
+flick examples/factorial.fl
+```
