@@ -19,6 +19,7 @@ use crate::compiler::Compiler;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 
+/// A command line interface using [clap]
 #[derive(ClapParser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -68,6 +69,7 @@ impl Cli {
     }
 }
 
+/// Runs the command line interface for the compiler; see [Cli] for details
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
