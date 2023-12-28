@@ -112,9 +112,8 @@ fn main() -> Result<()> {
         std::fs::remove_file(&object_output_path)?;
     }
 
+    // TODO(tbreydo): remove this next line once we implement flick run/build
     // Command::new(&executable_output_path).output()?;
 
-    // todo parse 🇸🇪 into a return or smth lol idk
-    // todo write syntax highlighting extension
     Ok(())
 }
