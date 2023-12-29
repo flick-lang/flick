@@ -3,31 +3,81 @@ use crate::lexer::token::ComparatorSymbol::*;
 use crate::lexer::token::OperatorSymbol::*;
 use crate::lexer::token::{Token, Type};
 
+/// A struct that takes source code and converts it tokens (see [Token])
+///
+/// Note that Lexer implements [Iterator][a], so using Lexer is simple.
+///
+/// First, create the lexer (`source_code` should be a `Vec<char>`)
+///
+/// ```
+/// # let source_code = String::from("foo(42)").chars().collect();
+/// let mut lexer = Lexer::new(&source_code);
+/// # let tokens: Vec<_> = lexer.collect();
+/// ```
+///
+/// Then, either collect the tokens:
+///
+/// ```
+/// # let source_code = String::from("foo(42)").chars().collect();
+/// # let mut lexer = Lexer::new(&source_code);
+/// let tokens: Vec<_> = lexer.collect();
+/// ```
+///
+/// or iterate through them:
+///
+/// ```
+/// # let source_code = String::from("foo(42)").chars().collect();
+/// # let mut lexer = Lexer::new(&source_code);
+/// for token in lexer {
+///     // ...
+/// }
+/// ```
+///
+/// [a]: #impl-Iterator-for-Lexer%3C'a%3E
 pub struct Lexer<'a> {
-    chars: &'a [char],
+    /// Source code slice
+    source_code: &'a [char],
+
+    /// Current location in source code
+    ///
+    /// In other words, the character at index `self.cursor` of `self.chars` hasn't
+    /// been processed yet.
     cursor: usize,
 }
 
 impl<'a> Lexer<'a> {
-    pub fn new(chars: &'a [char]) -> Self {
-        Self { chars, cursor: 0 }
+    /// Returns a lexer instance ready to lex the provided `source_code`.
+    pub fn new(source_code: &'a [char]) -> Self {
+        Self {
+            source_code,
+            cursor: 0,
+        }
     }
 
+    /// Returns (and consumes) a reference to the next character in the source code.
     fn next_char(&mut self) -> Option<&char> {
-        let char = self.chars.get(self.cursor);
+        let char = self.source_code.get(self.cursor);
         self.cursor += 1;
         char
     }
 
-    /// Returns a reference to the next() value without advancing the cursor.
+    /// Returns a reference to the `n`-th character in the remaining source code.
+    ///
+    /// This function doesn't affect the internal state of the lexer (i.e., it doesn't consume
+    /// any characters / it doesn't advance the internal cursor)
     fn peek_char(&self, n: usize) -> Option<&char> {
-        self.chars.get(self.cursor + (n - 1)) // n-1 to fix indexing
+        self.source_code.get(self.cursor + (n - 1)) // n-1 to fix indexing
     }
 
+    /// Consumes the next `n` characters without returning anything.
     fn skip_chars(&mut self, n: usize) {
         self.cursor += n;
     }
 
+    /// Consumes source code characters until a token is formed; returns the token.
+    ///
+    /// Note: this function skips any initial whitespace (except for a newline, which is a
+    /// token, namely [Token::Newline]).
     fn next_token(&mut self) -> Option<Token> {
         self.skip_non_newline_whitespace();
 
@@ -59,8 +109,6 @@ impl<'a> Lexer<'a> {
             (':', _) => Token::Colon,
             ('(', _) => Token::LParen,
             (')', _) => Token::RParen,
-            // ('[', _) => Token::LSquare,
-            // (']', _) => Token::RSquare,
             ('{', _) => Token::LSquirly,
             ('}', _) => Token::RSquirly,
             ('\n', _) => Token::Newline,
@@ -72,6 +120,17 @@ impl<'a> Lexer<'a> {
         Some(peeked_token)
     }
 
+    /// Returns (and consumes) source code characters while `predicate` evaluates to `true`
+    /// when applied to each character.
+    ///
+    /// For example, if you wanted to implement a method to consume digit strings, you could do:
+    /// ```
+    /// impl Lexer<'a> Lexer <'a> {
+    ///     fn take_digit_string(&mut self) -> String {
+    ///         let digit_string = self.take_chars_while(|&c| c.is_digit());
+    ///     }
+    /// }
+    /// ```
     fn take_chars_while(&mut self, predicate: impl Fn(&char) -> bool) -> String {
         let mut string = String::new();
         while let Some(c) = self.peek_char(1) {
@@ -84,6 +143,11 @@ impl<'a> Lexer<'a> {
         string
     }
 
+    /// Consumes source code characters while `predicate` evaluates to `true` when applied
+    /// to each character.
+    ///
+    /// This function is equivalent to [Lexer::take_chars_while], except it doesn't return
+    /// anything.
     fn skip_chars_while(&mut self, predicate: impl Fn(&char) -> bool) {
         while let Some(c) = self.peek_char(1) {
             if predicate(c) {
@@ -94,11 +158,18 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    /// This functions skips non-newline whitespace using [Lexer::skip_chars_while] and an
+    /// appropriate predicate.
     fn skip_non_newline_whitespace(&mut self) {
         self.skip_chars_while(|&c| c.is_whitespace() && c != '\n');
     }
 
-    /// Assuming lexer peeked 'a'-'z', 'A'-'Z', or '_'.
+    /// Consumes source code characters and returns the corresponding [Token], either a keyword
+    /// (e.g., `while`) or an identifier (e.g., `foo`).
+    ///
+    /// # Assumptions:
+    ///
+    /// - The next source code character is one of `a-z`, `A-Z`, or `_`.
     fn read_word(&mut self) -> Token {
         let s = self.take_chars_while(|&c| c.is_ascii_alphanumeric() || c == '_');
         match s.as_str() {
@@ -112,7 +183,11 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Assuming lexer peeked a digit.
+    /// Consumes source code characters and returns the corresponding [Token::I64Literal].
+    ///
+    /// # Assumptions:
+    ///
+    /// - The next source code character is a digit.
     fn read_i64_literal(&mut self) -> Token {
         // TODO: Allow negative numbers
         let number = self.take_chars_while(|&c| c.is_ascii_digit());
@@ -120,7 +195,12 @@ impl<'a> Lexer<'a> {
         // TODO: Handle error parsing int! it could be too big for i64
     }
 
-    /// Assuming lexer peeked a '#'.
+    /// Consumes source code characters and returns the corresponding [Token::Comment] or
+    /// [Token::Docstring].
+    ///
+    /// # Assumptions:
+    ///
+    /// - The next two/three source code characters are `//` or `///`.
     fn read_comment(&mut self) -> Token {
         match self.peek_char(3) {
             Some('/') => Token::Docstring(self.take_chars_while(|&c| c != '\n')),
@@ -132,7 +212,7 @@ impl<'a> Lexer<'a> {
 impl<'a> Iterator for Lexer<'a> {
     type Item = Token;
 
-    /// Lexes the next `Token` and returns it.
+    /// This function is an alias for [Lexer::next_token()].
     fn next(&mut self) -> Option<Self::Item> {
         self.next_token()
     }
