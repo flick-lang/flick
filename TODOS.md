@@ -1,5 +1,6 @@
 ### Important To-dos
 
+- Give an overview of how the compiler works in README
 - Document how to use Flick itself
 - Move compiler/, lexer/, and parser/ into a lib
 - Maybe define flick build and flick run subcommands (mimicking cargo)

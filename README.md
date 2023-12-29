@@ -17,13 +17,13 @@ Assuming Rust is installed, you can install the Flick compiler with
 cargo install --git "https://github.com/flick-lang/flick.git"
 ```
 
-You will also need to install LLVM 17. For example, you could use brew:
+**Before** that, though, you will also need to install LLVM 17. For example, you could use brew:
 
 ```shell
 brew install llvm@17
 ```
 
-Finally, you need to tell llvm-sys where LLVM 17 is located by adding the following line to `~/.zshrc` (or an equivalent):
+You will also need to tell llvm-sys where LLVM 17 is located by adding the following line to `~/.zshrc` (or an equivalent):
 ```shell
 export LLVM_SYS_170_PREFIX=$(brew --prefix llvm)
 ```
