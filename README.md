@@ -6,6 +6,10 @@ Table of contents:
 <!-- TOC -->
 * [The Flick Programming Language](#the-flick-programming-language)
   * [How the compiler works](#how-the-compiler-works)
+    * [An overview of Flick](#an-overview-of-flick)
+    * [Step 1: Lexing/tokenization](#step-1-lexingtokenization)
+    * [Step 2: Parsing](#step-2-parsing)
+    * [Step 3: Compilation](#step-3-compilation)
   * [Installing the compiler](#installing-the-compiler)
   * [Using the compiler](#using-the-compiler)
 <!-- TOC -->
@@ -19,17 +23,11 @@ a simple program:
 
 ```text
 fn main() {
-    i64 N = 5
-
-    i64 answer = 1
-    i64 i = 1
-
-    while i <= N {
-        answer = answer * i
+    i64 i = 0
+    while i < 10 {
+        print(i)
         i += 1
     }
-
-    print(answer)
 }
 ```
 
