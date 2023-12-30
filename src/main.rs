@@ -1,10 +1,10 @@
 #![doc = include_str!("../README.md")]
 
-/// Converts abstract syntax trees into LLVM using llvm-sys
+/// Converts [abstract syntax trees](parser::ast) into LLVM using llvm-sys
 mod compiler;
 /// Converts source files into token streams
 mod lexer;
-/// Converts token streams into abstract syntax trees
+/// Converts token streams into [abstract syntax trees](parser::ast)
 mod parser;
 
 use std::fs::File;

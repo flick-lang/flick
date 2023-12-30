@@ -34,9 +34,18 @@ pub struct FuncParam {
 /// A statement (the equivalent of 'a line of code').
 ///
 /// Statements do not evaluate to any particular value, but they have side effects. For
-/// example, `i += 1;` is a statement. Note, `i += 1` is technically an expression, which
-/// evaluates to `i + 1`. However, since we are not using the value of `i += 1` when we write
-/// `i += 1;`, our code becomes a statement.
+/// example, consider the following code:
+///
+/// ```text
+/// i64 i = 0  // this is a statement
+/// if should_change_i() (
+///     i = 1  // this is a statement
+/// }
+/// ```
+///
+/// Each line is a statement. Note, `i = 1` is also technically an expression that
+/// evaluates to `1`. However, since we are not using the value of `i = 1` when we write
+/// `i = 1`, our code becomes a statement.
 ///
 /// See also: [Expr].
 #[derive(Debug, PartialEq, Eq, Clone)]
