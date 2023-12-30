@@ -61,7 +61,9 @@ impl<'a> Lexer<'a> {
         char
     }
 
-    /// Returns a reference to the `n`-th character in the remaining source code.
+    /// Returns a reference to the `n`-th character out of the remaining source code.
+    ///
+    /// Note: this function returns `None` if fewer than `n` characters remain.
     ///
     /// This function doesn't affect the internal state of the lexer (i.e., it doesn't consume
     /// any characters / it doesn't advance the internal cursor)
@@ -69,7 +71,7 @@ impl<'a> Lexer<'a> {
         self.source_code.get(self.cursor + (n - 1)) // n-1 to fix indexing
     }
 
-    /// Consumes the next `n` characters without returning anything.
+    /// Advances the cursor past the next `n` characters without returning anything.
     fn skip_chars(&mut self, n: usize) {
         self.cursor += n;
     }
