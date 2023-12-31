@@ -274,7 +274,7 @@ impl Compiler {
         }
     }
 
-    fn compile_while_loop(&self, while_loop: &WhileLoop) {
+    fn compile_while_loop(&self, _while_loop: &WhileLoop) {
         todo!()
     }
 
