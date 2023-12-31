@@ -200,7 +200,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Parses a built-in type, like [Type::void], and panics if the next token isn't one.
+    /// Parses a built-in type, like [Type::Void], and panics if the next token isn't one.
     fn parse_type(&mut self) -> Type {
         match self.next_token() {
             Some(Token::Type(var_type)) => *var_type,
