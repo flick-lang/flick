@@ -100,7 +100,6 @@ pub struct Assign {
 /// - left: `a`
 /// - operator: `+`
 /// - right: `foo(1)`
-/// ```
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Binary {
     pub left: Box<Expr>,
