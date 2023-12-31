@@ -1,18 +1,3 @@
-#![doc = include_str!("../README.md")]
-
-/// Module to convert [abstract syntax trees](parser::ast) into LLVM using llvm-sys
-///
-/// The general idea is to take code objects (e.g. variables or functions) and form
-/// instances of [LLVMValueRef][a]. Then, after we're done, we ask llvm-sys to
-/// generate LLVM code.
-///
-/// [a]: llvm_sys::prelude::LLVMValueRef
-mod compiler;
-/// Module to convert source files into token streams
-mod lexer;
-/// Module to convert token streams into [abstract syntax trees](parser::ast)
-mod parser;
-
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
@@ -21,9 +6,9 @@ use std::process::Command;
 use anyhow::Result;
 use clap::Parser as ClapParser;
 
-use crate::compiler::Compiler;
-use crate::lexer::Lexer;
-use crate::parser::Parser;
+use flick::Compiler;
+use flick::Lexer;
+use flick::Parser;
 
 /// A command line interface using [clap]
 #[derive(ClapParser)]

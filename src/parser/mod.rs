@@ -8,7 +8,7 @@
 /// For example, `9 * (2 + 3);` corresponds to the following expression:
 ///
 /// ```
-/// # use ast::*;
+/// # use flick::ast::*;
 /// # let _ =
 /// Statement::Expr(Expr::Binary(
 ///     Binary {

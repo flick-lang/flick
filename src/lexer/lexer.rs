@@ -10,15 +10,16 @@ use crate::lexer::token::{Token, Type};
 /// First, create the lexer (`source_code` should be a `Vec<char>`)
 ///
 /// ```
-/// # let source_code = String::from("foo(42)").chars().collect();
+/// # use flick::Lexer;
+/// # let source_code: Vec<_> = String::from("foo(42)").chars().collect();
 /// let mut lexer = Lexer::new(&source_code);
-/// # let tokens: Vec<_> = lexer.collect();
 /// ```
 ///
 /// Then, either collect the tokens:
 ///
 /// ```
-/// # let source_code = String::from("foo(42)").chars().collect();
+/// # use flick::Lexer;
+/// # let source_code: Vec<_> = String::from("foo(42)").chars().collect();
 /// # let mut lexer = Lexer::new(&source_code);
 /// let tokens: Vec<_> = lexer.collect();
 /// ```
@@ -26,7 +27,8 @@ use crate::lexer::token::{Token, Type};
 /// or iterate through them:
 ///
 /// ```
-/// # let source_code = String::from("foo(42)").chars().collect();
+/// # use flick::Lexer;
+/// # let source_code: Vec<_> = String::from("foo(42)").chars().collect();
 /// # let mut lexer = Lexer::new(&source_code);
 /// for token in lexer {
 ///     // ...
@@ -124,15 +126,6 @@ impl<'a> Lexer<'a> {
 
     /// Returns (and consumes) source code characters while `predicate` evaluates to `true`
     /// when applied to each character.
-    ///
-    /// For example, if you wanted to implement a method to consume digit strings, you could do:
-    /// ```
-    /// impl Lexer<'a> Lexer <'a> {
-    ///     fn take_digit_string(&mut self) -> String {
-    ///         let digit_string = self.take_chars_while(|&c| c.is_digit());
-    ///     }
-    /// }
-    /// ```
     fn take_chars_while(&mut self, predicate: impl Fn(&char) -> bool) -> String {
         let mut string = String::new();
         while let Some(c) = self.peek_char(1) {
