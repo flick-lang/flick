@@ -1,7 +1,7 @@
-use crate::lexer::token::AssignmentSymbol::*;
-use crate::lexer::token::ComparatorSymbol::*;
-use crate::lexer::token::OperatorSymbol::*;
-use crate::lexer::token::{Token, Type};
+use crate::lexing::token::AssignmentSymbol::*;
+use crate::lexing::token::ComparatorSymbol::*;
+use crate::lexing::token::OperatorSymbol::*;
+use crate::lexing::token::{Token, Type};
 
 /// A struct that takes source code and converts it tokens (see [Token])
 ///
@@ -82,7 +82,7 @@ impl<'a> Lexer<'a> {
     ///
     /// Note: this function skips any initial whitespace (except for a newline, which is a
     /// token, namely [Token::Newline]).
-    fn next_token(&mut self) -> Option<Token> {
+    pub fn next_token(&mut self) -> Option<Token> {
         self.skip_non_newline_whitespace();
 
         // Figure out what type the next token is and call handling function

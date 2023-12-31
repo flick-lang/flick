@@ -1,9 +1,5 @@
-#[allow(clippy::module_inception)]
-
 /// Module that defines the [Lexer] struct for converting code to tokens.
-mod lexer;
+pub(crate) mod lexer;
 
 /// Module that defines the [Token](token::Token) enum.
 pub mod token;
-
-pub use lexer::Lexer;

@@ -24,9 +24,9 @@ use llvm_sys::transforms::pass_builder::*;
 use llvm_sys::LLVMIntPredicate::*;
 use llvm_sys::LLVMLinkage::{LLVMExternalLinkage, LLVMInternalLinkage};
 
-use crate::compiler::scope_manager::ScopeManager;
-use crate::lexer::token::Type;
-use crate::parser::ast::*;
+use crate::compilation::scope_manager::ScopeManager;
+use crate::lexing::token::Type;
+use crate::parsing::ast::*;
 
 macro_rules! cstr {
     ($str_literal:expr) => {

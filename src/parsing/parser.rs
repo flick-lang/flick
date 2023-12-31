@@ -1,9 +1,9 @@
-use crate::lexer::token::AssignmentSymbol::*;
-use crate::lexer::token::OperatorSymbol::*;
-use crate::lexer::token::{Token, Type};
-use crate::parser::ast::*;
+use crate::lexing::token::AssignmentSymbol::*;
+use crate::lexing::token::OperatorSymbol::*;
+use crate::lexing::token::{Token, Type};
+use crate::parsing::ast::*;
 
-/// A struct that takes tokens and parses them into a [abstract syntax tree](crate::parser::ast)
+/// A struct that takes tokens and parses them into a [abstract syntax tree](crate::parsing::ast)
 pub struct Parser<'a> {
     /// The slice of tokens to parse
     tokens: &'a [Token],
@@ -12,7 +12,7 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    /// Returns an parser instance ready to convert `tokens` into an [abstract syntax tree](crate::parser::ast)
+    /// Returns an parsing instance ready to convert `tokens` into an [abstract syntax tree](crate::parsing::ast)
     pub fn new(tokens: &'a [Token]) -> Self {
         Self { tokens, cursor: 0 }
     }
@@ -538,7 +538,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lexer::token::ComparatorSymbol::LessThanOrEqualTo;
+    use crate::lexing::token::ComparatorSymbol::LessThanOrEqualTo;
 
     #[test]
     fn var_declaration() {

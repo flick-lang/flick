@@ -25,8 +25,5 @@
 /// ));
 /// ```
 pub mod ast;
-#[allow(clippy::module_inception)]
 /// Module that defines the [Parser] struct for converting tokens to an abstract syntax tree.
-mod parser;
-
-pub use parser::Parser;
+pub(crate) mod parser;

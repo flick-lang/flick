@@ -1,6 +1,6 @@
-use crate::lexer::token::ComparatorSymbol::*;
-use crate::lexer::token::OperatorSymbol::*;
-use crate::lexer::token::{ComparatorSymbol, OperatorSymbol, Type};
+use crate::lexing::token::ComparatorSymbol::*;
+use crate::lexing::token::OperatorSymbol::*;
+use crate::lexing::token::{ComparatorSymbol, OperatorSymbol, Type};
 
 /// A program; a collection of function definitions. See also: [FuncDef].
 #[derive(Debug, PartialEq, Eq, Clone)]

@@ -1,5 +1,5 @@
-use crate::lexer::token::Type;
-use crate::parser::ast::FuncProto;
+use crate::lexing::token::Type;
+use crate::parsing::ast::FuncProto;
 use llvm_sys::prelude::LLVMValueRef;
 use std::collections::HashMap;
 
