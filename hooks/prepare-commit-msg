@@ -1,0 +1,6 @@
+#!/bin/sh
+
+if ! cargo test; then
+    echo "Some tests failed; aborting commit"
+    exit 1
+fi
