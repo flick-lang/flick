@@ -31,6 +31,8 @@ fn main() {
 }
 ```
 
+You can find other sample programs in the [sample_programs/](sample_programs) folder.
+
 ### Step 1: Lexing/tokenization
 
 _Key question: how do we go from source code to tokens?_
