@@ -31,7 +31,9 @@ fn main() {
 }
 ```
 
-You can find other sample programs in the [sample_programs/](sample_programs) folder.
+You can find other sample programs in the [sample_programs/][sprog] folder.
+
+[sprog]: https://github.com/flick-lang/flick/tree/main/sample_programs
 
 ### Step 1: Lexing/tokenization
 
