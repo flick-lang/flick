@@ -3,7 +3,6 @@ use crate::lexer::token::OperatorSymbol::*;
 use crate::lexer::token::{Token, Type};
 use crate::parser::ast::*;
 
-// TODO(tbreydo): get rid of Parser object (just use functions)
 /// A struct that takes tokens and parses them into a [abstract syntax tree](crate::parser::ast)
 pub struct Parser<'a> {
     /// The slice of tokens to parse
