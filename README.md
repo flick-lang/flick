@@ -2,16 +2,16 @@
 
 We wrote Flick to explore compiler design. Keep reading to see how the compiler works.
 
-Table of contents:
+## Table of Contents
+
 <!-- TOC -->
-* [The Flick Programming Language](#the-flick-programming-language)
-  * [How the compiler works](#how-the-compiler-works)
-    * [An overview of Flick](#an-overview-of-flick)
-    * [Step 1: Lexing/tokenization](#step-1-lexingtokenization)
-    * [Step 2: Parsing](#step-2-parsing)
-    * [Step 3: Compilation](#step-3-compilation)
-  * [Installing the compiler](#installing-the-compiler)
-  * [Using the compiler](#using-the-compiler)
+* [How the compiler works](#how-the-compiler-works)
+  * [An overview of Flick](#an-overview-of-flick)
+  * [Step 1: Lexing/tokenization](#step-1-lexingtokenization)
+  * [Step 2: Parsing](#step-2-parsing)
+  * [Step 3: Compilation](#step-3-compilation)
+* [Installing the compiler](#installing-the-compiler)
+* [Using the compiler](#using-the-compiler)
 <!-- TOC -->
 
 ## How the compiler works
