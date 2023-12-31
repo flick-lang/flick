@@ -1,4 +1,4 @@
-### Important To-dos
+### Important Todos
 
 - [ ] Give an overview of how the compiler works in README
 - [ ] Document how to use Flick itself
@@ -9,6 +9,8 @@
 - [ ] I think parse_return_statement() processes a semicolon but do we allow semicolons everywhere? Just try making a test that has semicolons mixed in with newlines
 - [ ] Add cargo doc to the list of things that GitHub checks before commit
 - [ ] Don't allow pull requests to merge without passing tests, getting approval, and being warning free
+- [ ] Deploy the docs and attach link to README.md
+- [ ] Make a playground for the programming language
 
 ### Maybe one day...
 - [ ] Allow 🇸🇪 as a synonym for something (e.g. return)
