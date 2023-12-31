@@ -1,5 +1,16 @@
+#![doc = include_str!("../README.md")]
+
+/// Module to convert [abstract syntax trees](parser::ast) into LLVM using llvm-sys
+///
+/// The general idea is to take code objects (e.g. variables or functions) and form
+/// instances of [LLVMValueRef][a]. Then, after we're done, we ask llvm-sys to
+/// generate LLVM code.
+///
+/// [a]: llvm_sys::prelude::LLVMValueRef
 mod compiler;
+/// Module to convert source files into token streams
 mod lexer;
+/// Module to convert token streams into [abstract syntax trees](parser::ast)
 mod parser;
 
 use std::fs::File;
@@ -14,13 +25,14 @@ use crate::compiler::Compiler;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 
+/// A command line interface using [clap]
 #[derive(ClapParser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
     /// Input path for source code
     source_path: PathBuf,
 
-    /// Whether to emit LLVM ir
+    /// Whether to print LLVM intermediate representation during compilation
     #[arg(short, long)]
     emit_ir: bool,
 
@@ -34,6 +46,9 @@ struct Cli {
 }
 
 impl Cli {
+    /// Retrieves the provided executable output path (returns a default if none provided)
+    ///
+    /// Note that the default executable output path for a file like `test.fl` is `test`.
     fn get_executable_output_path(&self) -> PathBuf {
         match &self.output_path {
             Some(path) => path.clone(),
@@ -45,6 +60,9 @@ impl Cli {
         }
     }
 
+    /// Retrieves the provided object output path (returns a default if none provided)
+    ///
+    /// Note that the default object output path for a file like `test.fl` is `test.o`.
     fn get_object_output_path(&self) -> PathBuf {
         match &self.object_output_path {
             Some(path) => path.clone(),
@@ -57,10 +75,10 @@ impl Cli {
     }
 }
 
+/// Runs the command line interface for the compiler; see [Cli] for details
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    // TODO: Find a way to not clone it here
     let mut file = File::open(&cli.source_path)?;
     let mut file_contents = String::new();
     file.read_to_string(&mut file_contents)?;
@@ -102,9 +120,8 @@ fn main() -> Result<()> {
         std::fs::remove_file(&object_output_path)?;
     }
 
+    // TODO(tbreydo): remove this next line once we implement flick run/build
     // Command::new(&executable_output_path).output()?;
 
-    // todo parse 🇸🇪 into a return or smth lol idk
-    // todo write syntax highlighting extension
     Ok(())
 }
