@@ -64,3 +64,13 @@ impl ScopeManager {
         cur_scope.insert(name.to_string(), Func { proto, value });
     }
 }
+
+/// As suggested by Clippy's [new_without_default][a], since [ScopeManager::new()] doesn't
+/// take any arguments, ScopeManager should implement Default.
+///
+/// [a]: https://rust-lang.github.io/rust-clippy/master/index.html#/new_without_default
+impl Default for ScopeManager {
+    fn default() -> Self {
+        ScopeManager::new()
+    }
+}
