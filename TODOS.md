@@ -13,6 +13,7 @@
 - [ ] Make a playground for the programming language (with python backend first?)
    - https://ace.c9.io is what rust uses 
 - [ ] make a playground with wasm
+- [ ] pointers
 
 ### Maybe one day...
 - [ ] Allow 🇸🇪 as a synonym for something (e.g. return)

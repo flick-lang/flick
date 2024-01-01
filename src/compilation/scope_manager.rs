@@ -133,6 +133,8 @@ impl ScopeManager {
         cur_scope.insert(name.to_string(), Var { var_type, value });
     }
 
+    // TODO: Quick fix: if LLVMValueRef hashes then we should use that for lookup.
+    //  Take a look at get_func() usage and see how hard we work to convert ValueRef to name.
     /// Searches through all scopes (starting with the innermost scope) for a function named `name`.
     pub fn get_func(&self, name: &str) -> Option<&Func> {
         self.funcs.iter().rev().find_map(|s| s.get(name))
