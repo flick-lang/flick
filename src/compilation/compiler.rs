@@ -530,7 +530,7 @@ impl Compiler {
 }
 
 impl Drop for Compiler {
-    /// Disposes the llvm-sys underlying C objects so that we don't leak memeory.
+    /// Disposes the llvm-sys underlying C objects so that we don't leak memory.
     fn drop(&mut self) {
         unsafe {
             LLVMDisposePassBuilderOptions(self.pass_builder);
