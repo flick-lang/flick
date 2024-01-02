@@ -330,7 +330,11 @@ impl Compiler {
 
     /// Returns the function currently being built by the compiler.
     unsafe fn get_cur_function(&self) -> LLVMValueRef {
-        LLVMGetBasicBlockParent(LLVMGetInsertBlock(self.builder))
+        let cur_func = LLVMGetBasicBlockParent(LLVMGetInsertBlock(self.builder));
+        if cur_func.is_null() {
+            panic!("Builder is not inside a function; can't get current function.");
+        }
+        cur_func
     }
 
     /// Compiles an assignment expression like `foo = 28` (and panics if `foo`'s type can't store 28).
