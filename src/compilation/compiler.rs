@@ -143,14 +143,14 @@ impl Compiler {
         }
     }
 
-    /// Assuming [compile()][a] was called, this function prints the generated LLVM.
+    /// This function prints the LLVM IR generated so far (via methods like [compile][a]).
     ///
     /// [a]: Compiler::compile
     pub fn print_ir(&self) {
         unsafe { LLVMDumpModule(self.module) }
     }
 
-    /// Assuming [compile()][a] was called, this function optimizes the generated LLVM.
+    /// This function optimizes the LLVM IR generated so far (via methods like [compile][a]).
     ///
     /// [a]: Compiler::compile
     pub fn optimize(&mut self) {
@@ -164,7 +164,7 @@ impl Compiler {
         }
     }
 
-    /// Assuming [compile()][a] was called, this function dumps the generated LLVM to a file.
+    /// This function dumps to a file the LLVM IR generated so far (via methods like [compile][a]).
     ///
     /// [a]: Compiler::compile
     pub fn to_file(&self, path: &impl AsRef<Path>) {
@@ -193,10 +193,11 @@ impl Compiler {
         }
     }
 
-    /// This function compiles the provided program, so that its LLVM can be [optimized][a],
+    /// This function compiles the provided program; once compiled, its LLVM IR can be [optimized][a],
     /// [printed][b], or [written to a file][c].
     ///
-    /// by creating `LLVMValueRef`
+    /// The general idea is that `LLVMValueRef` instances are created recursively for various expressions,
+    /// function calls, and function definitions. See implementation for details.
     ///
     /// [a]: Compiler::optimize
     /// [b]: Compiler::print_ir
