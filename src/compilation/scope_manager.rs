@@ -23,6 +23,8 @@ pub struct Func {
     pub value: LLVMValueRef,
 }
 
+// TODO: Design: what kind of namespaces do we want? Should i64 foo be allowed inside fn foo() { ... }?
+//  What about inside fn bar () { ... }?
 /// This data structure manages namespaces/scopes for variables and functions.
 ///
 /// For example, in the following code, there are two scopes, and it would be nice to
