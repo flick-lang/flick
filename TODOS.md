@@ -10,7 +10,10 @@
 - [ ] Add cargo doc to the list of things that GitHub checks before commit
 - [ ] Don't allow pull requests to merge without passing tests, getting approval, and being warning free
 - [ ] Deploy the docs and attach link to README.md
-- [ ] Make a playground for the programming language
+- [ ] Make a playground for the programming language (with python backend first?)
+   - https://ace.c9.io is what rust uses 
+- [ ] make a playground with wasm
+- [ ] pointers
 
 ### Maybe one day...
 - [ ] Allow 🇸🇪 as a synonym for something (e.g. return)

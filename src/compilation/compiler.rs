@@ -28,12 +28,30 @@ use crate::compilation::scope_manager::ScopeManager;
 use crate::lexing::token::Type;
 use crate::parsing::ast::*;
 
+/// Converts a `&str`, like `"hi"`, into a pointer to a null-terminated C-style str.
 macro_rules! cstr {
     ($str_literal:expr) => {
         concat!($str_literal, "\0").as_ptr() as *const _
     };
 }
 
+/// A struct that takes an [abstract syntax tree][a] and converts it into LLVM code.
+///
+/// # Example usage
+///
+/// ```
+/// # use flick::{ast, Compiler};
+/// let mut compiler = Compiler::new();
+/// let syntax_tree = ast::Program {
+///     // generated during parsing
+///     # func_defs: vec![]
+/// } ;
+/// compiler.compile(&syntax_tree);
+/// compiler.optimize();
+/// compiler.print_ir();  // or compiler.to_file("out")
+/// ```
+///
+/// [a]: crate::parsing::ast
 pub struct Compiler {
     context: LLVMContextRef,
     module: LLVMModuleRef,
@@ -44,6 +62,7 @@ pub struct Compiler {
 }
 
 impl Compiler {
+    /// Converts a string like `x86_64-unknown-freebsd` into the corresponding [LLVMTarget].
     unsafe fn get_target_from_triple(triple: *const c_char) -> *mut LLVMTarget {
         let mut target = std::ptr::null_mut();
         let mut err_str = MaybeUninit::uninit();
@@ -56,6 +75,7 @@ impl Compiler {
         target
     }
 
+    /// Creates a new instance, setting up relevant llvm-sys boilerplate.
     pub fn new() -> Self {
         unsafe {
             let context = LLVMContextCreate();
@@ -97,6 +117,8 @@ impl Compiler {
             // Configure pass manager
             let pass_builder = LLVMCreatePassBuilderOptions();
 
+            // TODO(tbreydo): outdated: remove this stuff?
+
             // LLVMPassBuilderOptionsSetCallGraphProfile(pass_builder, 1);
             // LLVMPassBuilderOptionsSetDebugLogging(pass_builder, 1);
             // LLVMPassBuilderOptionsSetForgetAllSCEVInLoopUnroll(pass_builder, 1);
@@ -121,10 +143,16 @@ impl Compiler {
         }
     }
 
+    /// This function prints the LLVM IR generated so far (via methods like [compile][a]).
+    ///
+    /// [a]: Compiler::compile
     pub fn print_ir(&self) {
         unsafe { LLVMDumpModule(self.module) }
     }
 
+    /// This function optimizes the LLVM IR generated so far (via methods like [compile][a]).
+    ///
+    /// [a]: Compiler::compile
     pub fn optimize(&mut self) {
         unsafe {
             let passes = cstr!("default<O2>");
@@ -136,6 +164,9 @@ impl Compiler {
         }
     }
 
+    /// This function dumps to a file the LLVM IR generated so far (via methods like [compile][a]).
+    ///
+    /// [a]: Compiler::compile
     pub fn to_file(&self, path: &impl AsRef<Path>) {
         unsafe {
             let mut path_cchars: Vec<_> = path
@@ -162,6 +193,15 @@ impl Compiler {
         }
     }
 
+    /// This function compiles the provided program; once compiled, its LLVM IR can be [optimized][a],
+    /// [printed][b], or [written to a file][c].
+    ///
+    /// The general idea is that `LLVMValueRef` instances are created recursively for various expressions,
+    /// function calls, and function definitions. See implementation for details.
+    ///
+    /// [a]: Compiler::optimize
+    /// [b]: Compiler::print_ir
+    /// [c]: Compiler::to_file
     pub fn compile(&mut self, program: &Program) {
         unsafe {
             for func_def in program.func_defs.iter() {
@@ -173,7 +213,7 @@ impl Compiler {
         }
     }
 
-    // TODO: Remove all as_str in favor of &
+    /// Registers a function prototype, panicking if the function has already been defined.
     unsafe fn compile_func_proto(&mut self, func_proto: &FuncProto) {
         if self.scope_manager.get_func(&func_proto.name).is_some() {
             panic!("Cannot redefine function '{}'", func_proto.name);
@@ -203,13 +243,16 @@ impl Compiler {
             LLVMSetValueName2(param_value_ref, param_name.as_ptr(), param_name_len);
         }
 
-        // TODO: Remove variable shadowing
+        // TODO: Design: Remove variable shadowing
+        //  By that, do you think we meant allow variables to shadow functions inside a scope?
+        //  If so, I think we do that...? Not sure.
         let func_name = &func_proto.name;
-        // TODO: Remove clone (like accept owned through function?)
+        // TODO: Minor: Remove clone (like accept owned through function?)
         let func_proto = func_proto.clone();
         self.scope_manager.set_func(func_name, func_proto, func);
     }
 
+    /// Complies a function definition, assuming the function's prototype has been compiled.
     unsafe fn compile_func_def(&mut self, func_def: &FuncDef) {
         let func_name = CString::new(func_def.proto.name.as_str()).unwrap();
         let func = LLVMGetNamedFunction(self.module, func_name.as_ptr());
@@ -220,7 +263,8 @@ impl Compiler {
             );
         }
 
-        // TODO: Should linkage be set in the compile_func_proto function?
+        // TODO: QUICK: Should linkage be set in the compile_func_proto function?
+        //  YES! IT SHOULD! Let's move is_public to be a part of func_def.proto.
         match func_def.is_public {
             true => LLVMSetLinkage(func, LLVMExternalLinkage),
             false => LLVMSetLinkage(func, LLVMInternalLinkage),
@@ -245,7 +289,10 @@ impl Compiler {
             self.compile_statement(statement)
         }
 
-        // TODO: Is this the best way of implicitly returning void?
+        // TODO: minor: Is this the best way of implicitly returning void?
+        //  It's correct. It might be redundant if the second-to-last statement
+        //  was a return. But I think this is fine.
+        // Implicitly return void if no return statement
         match func_def.body.last() {
             Some(Statement::Return(_)) => {}
             _ => self.compile_ret_statement(&None),
@@ -258,6 +305,7 @@ impl Compiler {
         }
     }
 
+    /// Compiles a statement, assuming the LLVM builder is building inside a function body.
     unsafe fn compile_statement(&mut self, statement: &Statement) {
         match statement {
             Statement::VarDeclarations(v) => self.compile_var_declarations(v),
@@ -267,6 +315,7 @@ impl Compiler {
         }
     }
 
+    /// Converts Flick's [Type] enum to llvm-sys's [LLVMTypeRef].
     unsafe fn to_llvm_type(&self, t: Type) -> LLVMTypeRef {
         match t {
             Type::I64 => LLVMIntTypeInContext(self.context, 64),
@@ -274,14 +323,21 @@ impl Compiler {
         }
     }
 
+    /// Compiles a while loop, assuming the LLVM builder is building inside a function body.
     fn compile_while_loop(&self, _while_loop: &WhileLoop) {
         todo!()
     }
 
+    /// Returns the function currently being built by the compiler.
     unsafe fn get_cur_function(&self) -> LLVMValueRef {
-        LLVMGetBasicBlockParent(LLVMGetInsertBlock(self.builder))
+        let cur_func = LLVMGetBasicBlockParent(LLVMGetInsertBlock(self.builder));
+        if cur_func.is_null() {
+            panic!("Builder is not inside a function; can't get current function.");
+        }
+        cur_func
     }
 
+    /// Compiles an assignment expression like `foo = 28` (and panics if `foo`'s type can't store 28).
     unsafe fn compile_assignment(&mut self, assign: &Assign, expected_type: Type) -> LLVMValueRef {
         let value = self.compile_expr(assign.value.as_ref(), expected_type);
         let var = match self.scope_manager.get_var(&assign.name) {
@@ -301,6 +357,7 @@ impl Compiler {
         value
     }
 
+    /// Compiles 0 or more variable declarations.
     unsafe fn compile_var_declarations(&mut self, var_declarations: &[VarDeclaration]) {
         let func = self.get_cur_function();
         for var_declaration in var_declarations {
@@ -316,10 +373,15 @@ impl Compiler {
         }
     }
 
+    /// Compiles an expression being used as a statement (by ignoring its value).
     unsafe fn compile_expr_statement(&mut self, expr: &Expr) {
+        // TODO: Bug: the expected type shouldn't be Void; rather, it should be Any?
+        //  Well, unless we want people to write _ = foo() instead of just foo(). But
+        //  then we should implement _.
         let _ = self.compile_expr(expr, Type::Void);
     }
 
+    /// Compiles an expression, panicking if its value's type doesn't match the expected type.
     unsafe fn compile_expr(&mut self, expr: &Expr, expected_type: Type) -> LLVMValueRef {
         match expr {
             Expr::Identifier(id) => self.compile_identifier(id, expected_type),
@@ -330,6 +392,7 @@ impl Compiler {
         }
     }
 
+    /// Compiles a return statement, panicking if the builder isn't inside a function.
     unsafe fn compile_ret_statement(&mut self, ret_value: &Option<Expr>) {
         let cur_func = self.get_cur_function();
         let mut len = MaybeUninit::uninit();
@@ -343,8 +406,8 @@ impl Compiler {
         let return_type = func.proto.return_type;
 
         // TODO once we set up type checking and once we can do
-        // Expr::get_type(), we should make sure that ret_value matches
-        // LLVMGETReturnType(self.cur_function())
+        //  Expr::get_type(), we should make sure that ret_value matches
+        //  LLVMGETReturnType(self.cur_function())
 
         match ret_value {
             Some(expr) => LLVMBuildRet(self.builder, self.compile_expr(expr, return_type)),
@@ -352,6 +415,7 @@ impl Compiler {
         };
     }
 
+    /// Compiles an identifier expression (variable value) with an expected type.
     unsafe fn compile_identifier(&mut self, id: &str, expected_type: Type) -> LLVMValueRef {
         let var = match self.scope_manager.get_var(id) {
             Some(var) => var,
@@ -371,18 +435,20 @@ impl Compiler {
         LLVMBuildLoad2(self.builder, alloca_type, alloca_ref, name.as_ptr())
     }
 
+    /// Compiles an integer literal expression.
     unsafe fn compile_i64_literal(&self, x: i64, expected_type: Type) -> LLVMValueRef {
-        // TODO: Only sign extend if its signed int
+        // TODO: signed-ints: Only sign extend if its signed int
         LLVMConstInt(self.to_llvm_type(expected_type), x as c_ulonglong, 1)
     }
 
+    /// Compiles a binary expression (recursively compiling left- and right-hand sides).
     unsafe fn compile_bin_expr(&mut self, bin_expr: &Binary, expected_type: Type) -> LLVMValueRef {
         use BinaryOperator::*;
 
         let lhs = self.compile_expr(&bin_expr.left, expected_type);
         let rhs = self.compile_expr(&bin_expr.right, expected_type);
 
-        // TODO: Signed vs unsigned operations depending on expected_type
+        // TODO: signed-ints: Signed vs unsigned operations depending on expected_type
         match bin_expr.operator {
             Add => LLVMBuildAdd(self.builder, lhs, rhs, cstr!("add")),
             Subtract => LLVMBuildSub(self.builder, lhs, rhs, cstr!("sub")),
@@ -398,6 +464,7 @@ impl Compiler {
         }
     }
 
+    /// Compiles a function call, ensuring its signature has the expected return type.
     unsafe fn compile_call_expr(&mut self, call_expr: &Call, expected_type: Type) -> LLVMValueRef {
         let func = match self.scope_manager.get_func(&call_expr.function_name) {
             Some(func) => func.clone(), // TODO: Remove the clone
@@ -449,13 +516,14 @@ impl Compiler {
         )
     }
 
+    /// Creates an LLVM 'alloca', which can then be used to set up a local variable.
     unsafe fn create_entry_block_alloca(
         &self,
         func: LLVMValueRef,
         var_name: &str,
         var_type: Type,
     ) -> LLVMValueRef {
-        // todo  reposition self.builder instead of creating temp builder
+        // todo reposition self.builder instead of creating temp builder
         let temp_builder = LLVMCreateBuilderInContext(self.context);
         let entry_block = LLVMGetEntryBasicBlock(func);
         LLVMPositionBuilderAtEnd(temp_builder, entry_block);
@@ -467,6 +535,7 @@ impl Compiler {
 }
 
 impl Drop for Compiler {
+    /// Disposes the llvm-sys underlying C objects so that we don't leak memory.
     fn drop(&mut self) {
         unsafe {
             LLVMDisposePassBuilderOptions(self.pass_builder);

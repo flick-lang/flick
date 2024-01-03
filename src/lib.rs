@@ -14,6 +14,7 @@ mod lexing;
 mod parsing;
 
 pub use compilation::compiler::Compiler;
+pub use compilation::scope_manager;
 pub use lexing::lexer::Lexer;
 pub use lexing::token;
 pub use parsing::ast;

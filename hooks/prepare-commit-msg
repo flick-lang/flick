@@ -1,0 +1,15 @@
+#!/bin/sh
+
+if ! cargo test; then
+    printf "\n"
+    echo "Some tests failed; aborting commit"
+    exit 1
+fi
+
+# -D warnings means deny warnings; docs must build with no warnings
+
+if ! RUSTDOCFLAGS="-D warnings" cargo doc --no-deps; then
+  printf "\n"
+  echo "Docs don't build correctly; aborting commit"
+  exit 1
+fi
