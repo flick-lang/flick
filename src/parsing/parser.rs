@@ -282,6 +282,7 @@ impl<'a> Parser<'a> {
                 break;
             }
 
+            // TODO: allow empty body to have newlines
             match self.parse_statement() {
                 Some(statement) => body.push(statement),
                 None => panic!("Expected body to be closed ('}}') but file ended"),

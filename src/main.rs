@@ -95,7 +95,7 @@ fn main() -> Result<()> {
     compiler.to_file(&object_output_path);
 
     let executable_output_path = cli.get_executable_output_path();
-    Command::new("ld")
+    Command::new("clang")
         .arg(&object_output_path)
         .arg("-o")
         .arg(&executable_output_path)
@@ -106,7 +106,7 @@ fn main() -> Result<()> {
     }
 
     // TODO(tbreydo): remove this next line once we implement flick run/build
-    // Command::new(&executable_output_path).output()?;
+    Command::new(&executable_output_path).output()?;
 
     Ok(())
 }
