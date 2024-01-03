@@ -91,8 +91,8 @@ impl<'a> Lexer<'a> {
             ('0'..='9', _) => return Some(self.read_i64_literal()),
             ('/', Some('/')) => return Some(self.read_comment()),
 
-            ('>', Some('=')) => Token::ComparatorSymbol(GreaterThanOrEqualTo),
-            ('<', Some('=')) => Token::ComparatorSymbol(LessThanOrEqualTo),
+            ('>', Some('=')) => Token::ComparatorSymbol(GreaterOrEqualTo),
+            ('<', Some('=')) => Token::ComparatorSymbol(LessOrEqualTo),
             ('=', Some('=')) => Token::ComparatorSymbol(EqualTo),
             ('!', Some('=')) => Token::ComparatorSymbol(NotEqualTo),
 
@@ -168,7 +168,7 @@ impl<'a> Lexer<'a> {
     fn read_word(&mut self) -> Token {
         let s = self.take_chars_while(|&c| c.is_ascii_alphanumeric() || c == '_');
         match s.as_str() {
-            "i64" => Token::Type(Type::I64),
+            "i64" => Token::Type(Type::Int { bit_width: 64 }),
             "void" => Token::Type(Type::Void),
             "while" => Token::While,
             "pub" => Token::Pub,
@@ -238,12 +238,12 @@ mod tests {
     fn variables() {
         let source_code = "i64 this_is_a_LONG_VARIABLE_NAME = 5\ni64 shortInt = 5";
         let expected_tokens = vec![
-            Token::Type(Type::I64),
+            Token::Type(Type::Int { bit_width: 64 }),
             Token::Identifier("this_is_a_LONG_VARIABLE_NAME".to_string()),
             Token::AssignmentSymbol(Eq),
             Token::I64Literal(5),
             Token::Newline,
-            Token::Type(Type::I64),
+            Token::Type(Type::Int { bit_width: 64 }),
             Token::Identifier("shortInt".to_string()),
             Token::AssignmentSymbol(Eq),
             Token::I64Literal(5),
@@ -262,7 +262,7 @@ mod tests {
         let expected_tokens = vec![
             Token::While,
             Token::Identifier("x".to_string()),
-            Token::ComparatorSymbol(LessThanOrEqualTo),
+            Token::ComparatorSymbol(LessOrEqualTo),
             Token::I64Literal(5),
             Token::LSquirly,
             Token::RSquirly,

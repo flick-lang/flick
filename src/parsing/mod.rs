@@ -10,7 +10,7 @@
 /// ```
 /// # use flick::ast::*;
 /// # let _ =
-/// Statement::Expr(Expr::Binary(
+/// Expr::Binary(
 ///     Binary {
 ///         left: Box::new(Expr::I64Literal(9)),
 ///         operator: BinaryOperator::Multiply,
@@ -22,7 +22,7 @@
 ///             }
 ///         )),
 ///     }
-/// ));
+/// );
 /// ```
 pub mod ast;
 /// Module that defines the [Parser] struct for converting tokens to an abstract syntax tree.

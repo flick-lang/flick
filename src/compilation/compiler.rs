@@ -310,7 +310,7 @@ impl Compiler {
         match statement {
             Statement::VarDeclarations(v) => self.compile_var_declarations(v),
             Statement::WhileLoop(w) => self.compile_while_loop(w),
-            Statement::Expr(e) => self.compile_expr_statement(e),
+            Statement::Assignment(a) => self.compile_assignment_statement(a),
             Statement::Return(r) => self.compile_ret_statement(r),
         }
     }
@@ -318,7 +318,7 @@ impl Compiler {
     /// Converts Flick's [Type] enum to llvm-sys's [LLVMTypeRef].
     unsafe fn to_llvm_type(&self, t: Type) -> LLVMTypeRef {
         match t {
-            Type::I64 => LLVMIntTypeInContext(self.context, 64),
+            Type::Int { bit_width } => LLVMIntTypeInContext(self.context, bit_width),
             Type::Void => LLVMVoidTypeInContext(self.context),
         }
     }
@@ -338,10 +338,8 @@ impl Compiler {
 
         // TODO: types: Should have type bool
         // Build a boolean LLVMValueRef with value 'condition != 0', which represents whether we should continue looping
-        let condition = self.compile_expr(&while_loop.condition, Some(Type::I64));
-        let zero = self.compile_i64_literal(0, Some(Type::I64));
-        let cont_cond = LLVMBuildICmp(self.builder, LLVMIntNE, condition, zero, cstr!("contcond"));
-        LLVMBuildCondBr(self.builder, cont_cond, loop_block, after_block);
+        let condition = self.compile_expr(&while_loop.condition, Type::Int { bit_width: 1 });
+        LLVMBuildCondBr(self.builder, condition, loop_block, after_block);
 
         // Start insertion in loop_block.
         LLVMPositionBuilderAtEnd(self.builder, loop_block);
@@ -366,37 +364,6 @@ impl Compiler {
         cur_func
     }
 
-    /// Compiles an assignment expression like `foo = 28` (and panics if `foo`'s type can't store 28).
-    unsafe fn compile_assignment(
-        &mut self,
-        assign: &Assign,
-        expected_type: Option<Type>,
-    ) -> LLVMValueRef {
-        let var = match self.scope_manager.get_var(&assign.name) {
-            Some(var) => *var,
-            None => panic!("Setting a variable that has not been declared"),
-        };
-
-        if let Some(expected_type) = expected_type {
-            if var.var_type != expected_type {
-                // panic!(
-                //     "Assigning a value of type '{}' to variable '{}' with type '{}'",
-                //     expected_type, assign.name, var.var_type
-                // );
-                panic!(
-                    "Expected an expression of type '{}'; got an assignment to variable '{}' of type '{}'",
-                    expected_type, assign.name, var.var_type
-                );
-            }
-        }
-
-        let value = self.compile_expr(assign.value.as_ref(), Some(var.var_type));
-
-        let alloca = var.value;
-        LLVMBuildStore(self.builder, value, alloca);
-        value
-    }
-
     /// Compiles 0 or more variable declarations.
     unsafe fn compile_var_declarations(&mut self, var_declarations: &[VarDeclaration]) {
         let func = self.get_cur_function();
@@ -407,31 +374,35 @@ impl Compiler {
             self.scope_manager.set_var(var_name, var_type, alloca);
 
             if let Some(value_expr) = &var_declaration.var_value {
-                let value = self.compile_expr(value_expr, Some(var_type));
+                let value = self.compile_expr(value_expr, var_type);
                 LLVMBuildStore(self.builder, value, alloca);
             }
         }
     }
 
-    /// Compiles an expression being used as a statement (by ignoring its value).
-    unsafe fn compile_expr_statement(&mut self, expr: &Expr) {
-        // TODO: Bug: the expected type shouldn't be Void; rather, it should be Any?
-        //  Well, unless we want people to write _ = foo() instead of just foo(). But
-        //  then we should implement _.
-        let _ = self.compile_expr(expr, None);
+    /// Compiles an assignment expression like `foo = 28` (and panics if `foo`'s type can't store 28).
+    unsafe fn compile_assignment_statement(&mut self, assign: &Assignment) {
+        let var = match self.scope_manager.get_var(&assign.name) {
+            Some(var) => *var,
+            None => panic!("Setting a variable that has not been declared"),
+        };
+
+        let value = self.compile_expr(assign.value.as_ref(), var.var_type);
+        let alloca = var.value;
+        LLVMBuildStore(self.builder, value, alloca);
     }
 
     /// Compiles an expression, panicking if its value's type doesn't match the expected type.
     ///
     /// Note: if `expected_type` is `None`, then no type-checking is performed (because the caller
     /// doesn't actually know what the type must be).
-    unsafe fn compile_expr(&mut self, expr: &Expr, expected_type: Option<Type>) -> LLVMValueRef {
+    unsafe fn compile_expr(&mut self, expr: &Expr, expected_type: Type) -> LLVMValueRef {
         match expr {
             Expr::Identifier(id) => self.compile_identifier(id, expected_type),
-            Expr::I64Literal(x) => self.compile_i64_literal(*x, expected_type),
+            Expr::I64Literal(x) => self.compile_int_literal(*x, expected_type),
             Expr::Binary(bin_expr) => self.compile_bin_expr(bin_expr, expected_type),
+            Expr::Comparison(comparison) => self.compile_comparison_expr(comparison, expected_type),
             Expr::Call(call_expr) => self.compile_call_expr(call_expr, expected_type),
-            Expr::Assign(assign) => self.compile_assignment(assign, expected_type),
         }
     }
 
@@ -453,7 +424,7 @@ impl Compiler {
         //  LLVMGETReturnType(self.cur_function())
 
         match ret_value {
-            Some(expr) => LLVMBuildRet(self.builder, self.compile_expr(expr, Some(return_type))),
+            Some(expr) => LLVMBuildRet(self.builder, self.compile_expr(expr, return_type)),
             None => LLVMBuildRetVoid(self.builder),
         };
     }
@@ -462,19 +433,17 @@ impl Compiler {
     ///
     /// Note: if `expected_type` is `None`, then no type-checking is performed (because the caller
     /// doesn't actually know what the type must be).
-    unsafe fn compile_identifier(&mut self, id: &str, expected_type: Option<Type>) -> LLVMValueRef {
+    unsafe fn compile_identifier(&mut self, id: &str, expected_type: Type) -> LLVMValueRef {
         let var = match self.scope_manager.get_var(id) {
             Some(var) => var,
             None => panic!("Compiler error: undefined identifier '{}'", id),
         };
 
-        if let Some(expected_type) = expected_type {
-            if var.var_type != expected_type {
-                panic!(
-                    "Identifier '{}' has type '{}' but expected '{}'",
-                    id, var.var_type, expected_type
-                );
-            }
+        if var.var_type != expected_type {
+            panic!(
+                "Identifier '{}' has type '{}' but expected '{}'",
+                id, var.var_type, expected_type
+            );
         }
 
         let alloca_ref = var.value;
@@ -484,12 +453,12 @@ impl Compiler {
     }
 
     /// Compiles an integer literal expression.
-    unsafe fn compile_i64_literal(&self, x: i64, expected_type: Option<Type>) -> LLVMValueRef {
-        // TODO: signed-ints: Only sign extend if its signed int
+    unsafe fn compile_int_literal(&self, x: i64, expected_type: Type) -> LLVMValueRef {
+        // TODO: signed-ints: Only sign extend if its signed in
+
         match expected_type {
-            Some(Type::I64) => LLVMConstInt(self.to_llvm_type(Type::I64), x as c_ulonglong, 1),
-            Some(t) => unreachable!("Unsupported int literal type '{}'", t),
-            None => unreachable!("Must specify int width"),
+            t @ Type::Int { .. } => LLVMConstInt(self.to_llvm_type(t), x as c_ulonglong, 1),
+            t => unreachable!("Unsupported int literal type '{}'", t),
         }
     }
 
@@ -497,11 +466,7 @@ impl Compiler {
     ///
     /// Note: if `expected_type` is `None`, then no type-checking is performed (because the caller
     /// doesn't actually know what the type must be).
-    unsafe fn compile_bin_expr(
-        &mut self,
-        bin_expr: &Binary,
-        expected_type: Option<Type>,
-    ) -> LLVMValueRef {
+    unsafe fn compile_bin_expr(&mut self, bin_expr: &Binary, expected_type: Type) -> LLVMValueRef {
         use BinaryOperator::*;
 
         // TODO: typing: binary expression should dictate types here
@@ -514,7 +479,30 @@ impl Compiler {
             Subtract => LLVMBuildSub(self.builder, lhs, rhs, cstr!("sub")),
             Multiply => LLVMBuildMul(self.builder, lhs, rhs, cstr!("mul")),
             Divide => LLVMBuildSDiv(self.builder, lhs, rhs, cstr!("sdiv")),
+        }
+    }
 
+    /// Compiles a comparison expression.
+    ///
+    /// Note that this function accept an `expected_type`, only to confirm that it is `i1` (boolean),
+    /// since comparison expressions.
+    unsafe fn compile_comparison_expr(
+        &mut self,
+        comparison: &Comparison,
+        expected_type: Type,
+    ) -> LLVMValueRef {
+        use ComparisonOperator::*;
+
+        match expected_type {
+            Type::Int { bit_width: 1 } => {}
+            t => panic!("Expected type '{}' but got comparison expression", t),
+        }
+
+        let expr_type = Type::Int { bit_width: 64 };
+        let lhs = self.compile_expr(&comparison.left, expr_type);
+        let rhs = self.compile_expr(&comparison.right, expr_type);
+
+        match comparison.operator {
             NotEqualTo => LLVMBuildICmp(self.builder, LLVMIntNE, lhs, rhs, cstr!("neq")),
             EqualTo => LLVMBuildICmp(self.builder, LLVMIntEQ, lhs, rhs, cstr!("eq")),
             LessThan => LLVMBuildICmp(self.builder, LLVMIntSLT, lhs, rhs, cstr!("slt")),
@@ -528,23 +516,17 @@ impl Compiler {
     ///
     /// Note: if `expected_type` is `None`, then no type-checking is performed (because the caller
     /// doesn't actually know what the type must be).
-    unsafe fn compile_call_expr(
-        &mut self,
-        call_expr: &Call,
-        expected_type: Option<Type>,
-    ) -> LLVMValueRef {
+    unsafe fn compile_call_expr(&mut self, call_expr: &Call, expected_type: Type) -> LLVMValueRef {
         let func = match self.scope_manager.get_func(&call_expr.function_name) {
             Some(func) => func.clone(), // TODO: Remove the clone
             None => panic!("Unknown function '{}' referenced", call_expr.function_name),
         };
 
-        if let Some(expected_type) = expected_type {
-            if func.proto.return_type != expected_type {
-                panic!(
-                    "Function '{}' has return type '{}' but returned a value of type '{}'",
-                    func.proto.name, func.proto.return_type, expected_type
-                );
-            }
+        if func.proto.return_type != expected_type {
+            panic!(
+                "Function '{}' has return type '{}' but returned a value of type '{}'",
+                func.proto.name, func.proto.return_type, expected_type
+            );
         }
 
         let func_ref = func.value;
@@ -562,7 +544,7 @@ impl Compiler {
             let param = func.proto.params.get(i).unwrap();
             let arg = call_expr.args.get(i).unwrap();
 
-            let value = self.compile_expr(arg, Some(param.param_type));
+            let value = self.compile_expr(arg, param.param_type);
             if value.is_null() {
                 panic!(
                     "Arg num '{}' when calling function '{}' was null",
