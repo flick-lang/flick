@@ -1,6 +1,8 @@
 use crate::lexing::token::ComparatorSymbol::*;
 use crate::lexing::token::OperatorSymbol::*;
 use crate::lexing::token::{ComparatorSymbol, OperatorSymbol, Type};
+use core::fmt;
+use std::fmt::Formatter;
 
 /// A program; a collection of function definitions. See also: [FuncDef].
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -116,6 +118,17 @@ pub enum BinaryOperator {
     Divide,
 }
 
+impl fmt::Display for BinaryOperator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Add => write!(f, "+"),
+            Self::Subtract => write!(f, "-"),
+            Self::Multiply => write!(f, "*"),
+            Self::Divide => write!(f, "/"),
+        }
+    }
+}
+
 impl From<OperatorSymbol> for BinaryOperator {
     fn from(operator: OperatorSymbol) -> Self {
         match operator {
@@ -151,6 +164,18 @@ pub enum ComparisonOperator {
     GreaterOrEqualTo,
 }
 
+impl fmt::Display for ComparisonOperator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NotEqualTo => write!(f, "!="),
+            Self::EqualTo => write!(f, "=="),
+            Self::LessThan => write!(f, "<"),
+            Self::GreaterThan => write!(f, ">"),
+            Self::LessOrEqualTo => write!(f, "<="),
+            Self::GreaterOrEqualTo => write!(f, ">="),
+        }
+    }
+}
 impl From<ComparatorSymbol> for ComparisonOperator {
     fn from(comparator: ComparatorSymbol) -> Self {
         match comparator {

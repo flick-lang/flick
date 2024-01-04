@@ -540,7 +540,7 @@ mod tests {
     #[test]
     fn var_declaration() {
         let tokens = vec![
-            Token::Type(Type::Int { bit_width: 64 }),
+            Token::Type(Type::Int { width: 64 }),
             Token::Identifier("x".to_string()),
             Token::AssignmentSymbol(Eq),
             Token::I64Literal(5),
@@ -554,17 +554,17 @@ mod tests {
         let expected = Some(Statement::VarDeclarations(vec![
             VarDeclaration {
                 var_name: "x".to_string(),
-                var_type: Type::Int { bit_width: 64 },
+                var_type: Type::Int { width: 64 },
                 var_value: Some(Expr::I64Literal(5)),
             },
             VarDeclaration {
                 var_name: "a".to_string(),
-                var_type: Type::Int { bit_width: 64 },
+                var_type: Type::Int { width: 64 },
                 var_value: None,
             },
             VarDeclaration {
                 var_name: "m".to_string(),
-                var_type: Type::Int { bit_width: 64 },
+                var_type: Type::Int { width: 64 },
                 var_value: Some(Expr::I64Literal(3)),
             },
         ]));
@@ -751,10 +751,10 @@ mod tests {
             Token::Fn,
             Token::Identifier("test".to_string()),
             Token::LParen,
-            Token::Type(Type::Int { bit_width: 64 }),
+            Token::Type(Type::Int { width: 64 }),
             Token::Identifier("a".to_string()),
             Token::RParen,
-            Token::Type(Type::Int { bit_width: 64 }),
+            Token::Type(Type::Int { width: 64 }),
             Token::LSquirly,
             Token::RSquirly,
         ];
@@ -764,10 +764,10 @@ mod tests {
                 proto: FuncProto {
                     name: "test".to_string(),
                     params: vec![FuncParam {
-                        param_type: Type::Int { bit_width: 64 },
+                        param_type: Type::Int { width: 64 },
                         param_name: "a".to_string(),
                     }],
-                    return_type: Type::Int { bit_width: 64 },
+                    return_type: Type::Int { width: 64 },
                 },
                 body: vec![],
             }],

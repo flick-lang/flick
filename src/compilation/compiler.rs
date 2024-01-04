@@ -318,7 +318,7 @@ impl Compiler {
     /// Converts Flick's [Type] enum to llvm-sys's [LLVMTypeRef].
     unsafe fn to_llvm_type(&self, t: Type) -> LLVMTypeRef {
         match t {
-            Type::Int { bit_width } => LLVMIntTypeInContext(self.context, bit_width),
+            Type::Int { width } => LLVMIntTypeInContext(self.context, width),
             Type::Void => LLVMVoidTypeInContext(self.context),
         }
     }
@@ -338,7 +338,7 @@ impl Compiler {
 
         // TODO: types: Should have type bool
         // Build a boolean LLVMValueRef with value 'condition != 0', which represents whether we should continue looping
-        let condition = self.compile_expr(&while_loop.condition, Type::Int { bit_width: 1 });
+        let condition = self.compile_expr(&while_loop.condition, Type::Int { width: 1 });
         LLVMBuildCondBr(self.builder, condition, loop_block, after_block);
 
         // Start insertion in loop_block.
@@ -494,11 +494,17 @@ impl Compiler {
         use ComparisonOperator::*;
 
         match expected_type {
-            Type::Int { bit_width: 1 } => {}
+            Type::Int { width: 1 } => {}
             t => panic!("Expected type '{}' but got comparison expression", t),
         }
 
-        let expr_type = Type::Int { bit_width: 64 };
+        let lhs_type = self.get_expr_type(&comparison.left);
+        let rhs_type = self.get_expr_type(&comparison.right);
+        let expr_type = match (lhs_type, rhs_type) {
+            (Type::Int { width: w1 }, Type::Int { width: w2 }) => Type::Int { width: w1.max(w2) },
+            (t1, t2) => panic!("'{}' {} '{}' is not supported", t1, comparison.operator, t2),
+        };
+
         let lhs = self.compile_expr(&comparison.left, expr_type);
         let rhs = self.compile_expr(&comparison.right, expr_type);
 
@@ -582,10 +588,40 @@ impl Compiler {
         LLVMDisposeBuilder(temp_builder);
         alloca
     }
+
+    /// Returns the smallest type that can store expression.
+    unsafe fn get_expr_type(&self, expr: &Expr) -> Type {
+        // TODO: style: figure out where our compiler stores/uses prototypes of operators
+        //  Like, how do we use <(2, 3) -> bool is allowed and <("hello", hi") -> bool is too.
+        match expr {
+            Expr::Identifier(x) => match self.scope_manager.get_var(x) {
+                Some(v) => v.var_type,
+                None => panic!("Variable has to already have been declared"),
+            },
+            Expr::I64Literal(_) => Type::Int { width: 64 },
+            Expr::Binary(b) => self.get_binary_expr_type(b),
+            Expr::Comparison(_) => Type::Int { width: 1 },
+            Expr::Call(f) => match self.scope_manager.get_func(&f.function_name) {
+                Some(f) => f.proto.return_type,
+                None => panic!("Function has to be declared before it can be called"),
+            },
+        }
+    }
+
+    /// Returns the smallest type that can store a binary expression.
+    unsafe fn get_binary_expr_type(&self, bin_expr: &Binary) -> Type {
+        let lhs_type = self.get_expr_type(&bin_expr.left);
+        let rhs_type = self.get_expr_type(&bin_expr.right);
+
+        match (lhs_type, rhs_type) {
+            (Type::Int { width: w1 }, Type::Int { width: w2 }) => Type::Int { width: w1.max(w2) },
+            (t1, t2) => panic!("'{}' {} '{}' is not supported", t1, bin_expr.operator, t2),
+        }
+    }
 }
 
 impl Drop for Compiler {
-    /// Disposes the llvm-sys underlying C objects so that we don't leak memory.
+    /// Disposes the underlying llvm-sys C objects so that we don't leak memory.
     fn drop(&mut self) {
         unsafe {
             LLVMDisposePassBuilderOptions(self.pass_builder);

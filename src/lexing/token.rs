@@ -85,9 +85,9 @@ impl fmt::Display for Token {
 /// An enum to store the built-in Flick types, like `void`
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Type {
-    /// Variable-size int type, with `bit_width` bits.
+    /// Variable-size int type, with `width` bits.
     Int {
-        bit_width: u32,
+        width: u32,
     },
     Void,
 }
@@ -95,7 +95,7 @@ pub enum Type {
 impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Int { bit_width } => write!(f, "i{bit_width}"),
+            Self::Int { width } => write!(f, "i{}", width),
             Self::Void => write!(f, "void"),
         }
     }

@@ -1,5 +1,7 @@
 #![doc = include_str!("../README.md")]
 
+extern crate core;
+
 /// Module to convert [abstract syntax trees](ast) into LLVM using llvm-sys
 ///
 /// The general idea is to take code objects (e.g. variables or functions) and form

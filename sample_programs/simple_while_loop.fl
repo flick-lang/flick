@@ -1,6 +1,7 @@
 pub fn main() i64 {
     i64 i = 1
-    while i < 10 {
+    i32 j = 10
+    while i < j {
         i += 1
     }
     ret i

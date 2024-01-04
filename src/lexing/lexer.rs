@@ -168,7 +168,9 @@ impl<'a> Lexer<'a> {
     fn read_word(&mut self) -> Token {
         let s = self.take_chars_while(|&c| c.is_ascii_alphanumeric() || c == '_');
         match s.as_str() {
-            "i64" => Token::Type(Type::Int { bit_width: 64 }),
+            "i1" => Token::Type(Type::Int { width: 1 }),
+            "i32" => Token::Type(Type::Int { width: 32 }),
+            "i64" => Token::Type(Type::Int { width: 64 }),
             "void" => Token::Type(Type::Void),
             "while" => Token::While,
             "pub" => Token::Pub,
@@ -238,12 +240,12 @@ mod tests {
     fn variables() {
         let source_code = "i64 this_is_a_LONG_VARIABLE_NAME = 5\ni64 shortInt = 5";
         let expected_tokens = vec![
-            Token::Type(Type::Int { bit_width: 64 }),
+            Token::Type(Type::Int { width: 64 }),
             Token::Identifier("this_is_a_LONG_VARIABLE_NAME".to_string()),
             Token::AssignmentSymbol(Eq),
             Token::I64Literal(5),
             Token::Newline,
-            Token::Type(Type::Int { bit_width: 64 }),
+            Token::Type(Type::Int { width: 64 }),
             Token::Identifier("shortInt".to_string()),
             Token::AssignmentSymbol(Eq),
             Token::I64Literal(5),
