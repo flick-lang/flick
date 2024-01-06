@@ -430,9 +430,6 @@ impl Compiler {
     }
 
     /// Compiles an identifier expression (variable value) with an expected type.
-    ///
-    /// Note: if `expected_type` is `None`, then no type-checking is performed (because the caller
-    /// doesn't actually know what the type must be).
     unsafe fn compile_identifier(&mut self, id: &str, expected_type: Type) -> LLVMValueRef {
         let var = match self.scope_manager.get_var(id) {
             Some(var) => var,
