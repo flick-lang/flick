@@ -513,9 +513,6 @@ impl Compiler {
     }
 
     /// Compiles a function call, ensuring its signature has the expected return type.
-    ///
-    /// Note: if `expected_type` is `None`, then no type-checking is performed (because the caller
-    /// doesn't actually know what the type must be).
     unsafe fn compile_call_expr(&mut self, call_expr: &Call, expected_type: Type) -> LLVMValueRef {
         let func = match self.scope_manager.get_func(&call_expr.function_name) {
             Some(func) => func.clone(), // TODO: Remove the clone
