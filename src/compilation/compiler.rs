@@ -460,9 +460,6 @@ impl Compiler {
     }
 
     /// Compiles a binary expression (recursively compiling left- and right-hand sides).
-    ///
-    /// Note: if `expected_type` is `None`, then no type-checking is performed (because the caller
-    /// doesn't actually know what the type must be).
     unsafe fn compile_bin_expr(&mut self, bin_expr: &Binary, expected_type: Type) -> LLVMValueRef {
         use BinaryOperator::*;
 
