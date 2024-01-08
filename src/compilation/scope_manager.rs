@@ -68,7 +68,7 @@ pub struct Func {
 /// // suppose outer_val and inner_val are different LLVMValueRefs:
 ///
 /// let mut scope_manager = ScopeManager::new();
-/// scope_manager.set_var("x", Type::I64, outer_val);
+/// scope_manager.set_var("x", Type::Int { width: 64}, outer_val);
 /// scope_manager.get_var("x");  // outer x
 ///
 /// // ...
@@ -78,7 +78,7 @@ pub struct Func {
 /// // ...
 ///
 /// scope_manager.get_var("x");  // outer x
-/// scope_manager.set_var("x", Type::I64, inner_val);
+/// scope_manager.set_var("x", Type::Int { width: 64}, inner_val);
 /// scope_manager.get_var("x");  // inner x
 ///
 /// // ...

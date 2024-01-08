@@ -1,6 +1,8 @@
 use crate::lexing::token::ComparatorSymbol::*;
 use crate::lexing::token::OperatorSymbol::*;
 use crate::lexing::token::{ComparatorSymbol, OperatorSymbol, Type};
+use core::fmt;
+use std::fmt::Formatter;
 
 /// A program; a collection of function definitions. See also: [FuncDef].
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -52,7 +54,7 @@ pub struct FuncParam {
 pub enum Statement {
     VarDeclarations(Vec<VarDeclaration>),
     WhileLoop(WhileLoop),
-    Expr(Expr),
+    Assignment(Assignment),
     Return(Option<Expr>),
 }
 
@@ -82,14 +84,14 @@ pub struct WhileLoop {
 pub enum Expr {
     Identifier(String),
     I64Literal(i64),
-    Assign(Assign),
     Binary(Binary),
+    Comparison(Comparison),
     Call(Call),
 }
 
 /// An assignment expression (the variable name and the new value).
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Assign {
+pub struct Assignment {
     pub name: String,
     pub value: Box<Expr>,
 }
@@ -107,30 +109,24 @@ pub struct Binary {
     pub right: Box<Expr>,
 }
 
-/// A call expression (the name of the function to call and the arguments to pass).
-///
-/// For example, `foo(a, 12 - b, "test")` is a call expression with 3 args.
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Call {
-    pub function_name: String,
-    pub args: Vec<Expr>,
-}
-
+/// An operator for the [Binary] expression.
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum BinaryOperator {
     Add,
     Subtract,
     Multiply,
     Divide,
+}
 
-    NotEqualTo,
-    EqualTo,
-    LessThan,
-    GreaterThan,
-    LessOrEqualTo,
-    GreaterOrEqualTo,
-    // LogicalAnd,
-    // LogicalOr,
+impl fmt::Display for BinaryOperator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Add => write!(f, "+"),
+            Self::Subtract => write!(f, "-"),
+            Self::Multiply => write!(f, "*"),
+            Self::Divide => write!(f, "/"),
+        }
+    }
 }
 
 impl From<OperatorSymbol> for BinaryOperator {
@@ -144,15 +140,60 @@ impl From<OperatorSymbol> for BinaryOperator {
     }
 }
 
-impl From<ComparatorSymbol> for BinaryOperator {
+/// A comparison expression (the operator and the left/right-hand sides).
+///
+/// For example, `a < foo(1)` breaks down into:
+/// - left: `a`
+/// - operator: `<`
+/// - right: `foo(1)`
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Comparison {
+    pub left: Box<Expr>,
+    pub operator: ComparisonOperator,
+    pub right: Box<Expr>,
+}
+
+/// An operator for the [Comparison] expression.
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum ComparisonOperator {
+    NotEqualTo,
+    EqualTo,
+    LessThan,
+    GreaterThan,
+    LessOrEqualTo,
+    GreaterOrEqualTo,
+}
+
+impl fmt::Display for ComparisonOperator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NotEqualTo => write!(f, "!="),
+            Self::EqualTo => write!(f, "=="),
+            Self::LessThan => write!(f, "<"),
+            Self::GreaterThan => write!(f, ">"),
+            Self::LessOrEqualTo => write!(f, "<="),
+            Self::GreaterOrEqualTo => write!(f, ">="),
+        }
+    }
+}
+impl From<ComparatorSymbol> for ComparisonOperator {
     fn from(comparator: ComparatorSymbol) -> Self {
         match comparator {
             NotEqualTo => Self::NotEqualTo,
             EqualTo => Self::EqualTo,
             LessThan => Self::LessThan,
             GreaterThan => Self::GreaterThan,
-            LessThanOrEqualTo => Self::LessOrEqualTo,
-            GreaterThanOrEqualTo => Self::GreaterOrEqualTo,
+            LessOrEqualTo => Self::LessOrEqualTo,
+            GreaterOrEqualTo => Self::GreaterOrEqualTo,
         }
     }
+}
+
+/// A call expression (the name of the function to call and the arguments to pass).
+///
+/// For example, `foo(a, 12 - b, "test")` is a call expression with 3 args.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Call {
+    pub function_name: String,
+    pub args: Vec<Expr>,
 }

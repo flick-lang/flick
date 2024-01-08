@@ -176,12 +176,13 @@ impl<'a> Parser<'a> {
     fn parse_statement(&mut self) -> Option<Statement> {
         self.skip_newlines_comments_and_docstrings();
 
-        let statement = match self.peek_token(1)? {
-            Token::Type(_) => Statement::VarDeclarations(self.parse_var_declarations()),
-            Token::While => Statement::WhileLoop(self.parse_while_loop()),
-            Token::Fn => panic!("Nested function definitions are not allowed"),
-            Token::Ret => Statement::Return(self.parse_return_statement()),
-            _ => Statement::Expr(self.parse_expr()),
+        let statement = match (self.peek_token(1)?, self.peek_token(2)) {
+            (Token::Type(_), _) => Statement::VarDeclarations(self.parse_var_declarations()),
+            (Token::While, _) => Statement::WhileLoop(self.parse_while_loop()),
+            (Token::Fn, _) => panic!("Nested function definitions are not allowed"),
+            (Token::Ret, _) => Statement::Return(self.parse_return_statement()),
+            (_, Some(Token::AssignmentSymbol(_))) => Statement::Assignment(self.parse_assignment()),
+            _ => panic!("Unexpected statement"), // TODO: skip this line and keep checking the file
         };
 
         match self.next_token() {
@@ -282,6 +283,7 @@ impl<'a> Parser<'a> {
                 break;
             }
 
+            // TODO: allow empty body to have newlines
             match self.parse_statement() {
                 Some(statement) => body.push(statement),
                 None => panic!("Expected body to be closed ('}}') but file ended"),
@@ -319,27 +321,9 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Parses an expression. Keep reading for order-of-operations details.
-    ///
-    /// # How does order of operations get handled?
-    ///
-    /// `parse_expr` calls `parse_assignment_expr`, which calls `parse_logical_or_expr`, etc. Eventually,
-    /// `parse_atom` will be called. Then, the next-tightest expression type will resume control, and so on.
-    ///
-    /// For example, when parsing `1 + 7 * 8`, `parse_add_sub_expr` (less deep) will call `parse_mul_div_expr`
-    /// (more deep) to parse `1` and `7 * 8`,
-    fn parse_expr(&mut self) -> Expr {
-        self.parse_assignment_expr()
-    }
-
-    /// Parses expressions like `L = R`;
+    /// Parses assignments like `a = b` or `_ = foo()`;
     /// see [Parser::parse_expr] for expression-parsing details.
-    fn parse_assignment_expr(&mut self) -> Expr {
-        match (self.peek_token(1), self.peek_token(2)) {
-            (Some(Token::Identifier(_)), Some(Token::AssignmentSymbol(_))) => {}
-            _ => return self.parse_logical_or_expr(),
-        }
-
+    fn parse_assignment(&mut self) -> Assignment {
         let name = self.parse_identifier();
         let operator_symbol = self.next_token().unwrap();
 
@@ -370,10 +354,23 @@ impl<'a> Parser<'a> {
             _ => unreachable!(),
         };
 
-        Expr::Assign(Assign {
+        Assignment {
             name,
             value: Box::new(value),
-        })
+        }
+    }
+
+    /// Parses an expression. Keep reading for order-of-operations details.
+    ///
+    /// # How does order of operations get handled?
+    ///
+    /// `parse_expr` calls `parse_logical_or_expr`, which calls `parse_logical_and_expr`, etc. Eventually,
+    /// `parse_atom` will be called. Then, the next-tightest expression type will resume control, and so on.
+    ///
+    /// For example, when parsing `1 + 7 * 8`, `parse_add_sub_expr` (less deep) will call `parse_mul_div_expr`
+    /// (more deep) to parse `1` and `7 * 8`,
+    fn parse_expr(&mut self) -> Expr {
+        self.parse_logical_or_expr()
     }
 
     // TODO: implement logical or (rn we don't parse it bc it's not even lexed)
@@ -396,7 +393,7 @@ impl<'a> Parser<'a> {
         let left = self.parse_add_sub_expr();
 
         let operator = match self.peek_token(1) {
-            Some(Token::ComparatorSymbol(s)) => BinaryOperator::from(*s),
+            Some(Token::ComparatorSymbol(s)) => ComparisonOperator::from(*s),
             _ => return left,
         };
 
@@ -409,7 +406,7 @@ impl<'a> Parser<'a> {
             panic!("Comparison operators cannot be chained")
         }
 
-        Expr::Binary(Binary {
+        Expr::Comparison(Comparison {
             left: Box::new(left),
             operator,
             right: Box::new(right),
@@ -538,12 +535,12 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lexing::token::ComparatorSymbol::LessThanOrEqualTo;
+    use crate::lexing::token::ComparatorSymbol::LessOrEqualTo;
 
     #[test]
     fn var_declaration() {
         let tokens = vec![
-            Token::Type(Type::I64),
+            Token::Type(Type::Int { width: 64 }),
             Token::Identifier("x".to_string()),
             Token::AssignmentSymbol(Eq),
             Token::I64Literal(5),
@@ -557,17 +554,17 @@ mod tests {
         let expected = Some(Statement::VarDeclarations(vec![
             VarDeclaration {
                 var_name: "x".to_string(),
-                var_type: Type::I64,
+                var_type: Type::Int { width: 64 },
                 var_value: Some(Expr::I64Literal(5)),
             },
             VarDeclaration {
                 var_name: "a".to_string(),
-                var_type: Type::I64,
+                var_type: Type::Int { width: 64 },
                 var_value: None,
             },
             VarDeclaration {
                 var_name: "m".to_string(),
-                var_type: Type::I64,
+                var_type: Type::Int { width: 64 },
                 var_value: Some(Expr::I64Literal(3)),
             },
         ]));
@@ -583,17 +580,12 @@ mod tests {
         let tokens = vec![
             Token::Identifier("num".to_string()),
             Token::AssignmentSymbol(Eq),
-            Token::Identifier("a".to_string()),
-            Token::AssignmentSymbol(Eq),
             Token::I64Literal(10),
         ];
-        let expected = Some(Statement::Expr(Expr::Assign(Assign {
+        let expected = Some(Statement::Assignment(Assignment {
             name: "num".to_string(),
-            value: Box::new(Expr::Assign(Assign {
-                name: "a".to_string(),
-                value: Box::new(Expr::I64Literal(10)),
-            })),
-        })));
+            value: Box::new(Expr::I64Literal(10)),
+        }));
 
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();
@@ -606,15 +598,15 @@ mod tests {
         let tokens = vec![
             Token::While,
             Token::Identifier("i".to_string()),
-            Token::ComparatorSymbol(LessThanOrEqualTo),
+            Token::ComparatorSymbol(LessOrEqualTo),
             Token::Identifier("N".to_string()),
             Token::LSquirly,
             Token::RSquirly,
         ];
         let expected = Some(Statement::WhileLoop(WhileLoop {
-            condition: Expr::Binary(Binary {
+            condition: Expr::Comparison(Comparison {
                 left: Box::new(Expr::Identifier("i".to_string())),
-                operator: BinaryOperator::LessOrEqualTo,
+                operator: ComparisonOperator::LessOrEqualTo,
                 right: Box::new(Expr::Identifier("N".to_string())),
             }),
             body: vec![],
@@ -641,7 +633,7 @@ mod tests {
             Token::OperatorSymbol(Plus),
             Token::I64Literal(5),
         ];
-        let expected = Some(Statement::Expr(Expr::Binary(Binary {
+        let expected = Expr::Binary(Binary {
             left: Box::new(Expr::Binary(Binary {
                 left: Box::new(Expr::Binary(Binary {
                     left: Box::new(Expr::I64Literal(10)),
@@ -661,10 +653,10 @@ mod tests {
             })),
             operator: BinaryOperator::Add,
             right: Box::new(Expr::I64Literal(5)),
-        })));
+        });
 
         let mut parser = Parser::new(&tokens);
-        let ast = parser.parse_statement();
+        let ast = parser.parse_expr();
 
         assert_eq!(expected, ast);
     }
@@ -680,7 +672,7 @@ mod tests {
             Token::I64Literal(3),
             Token::RParen,
         ];
-        let expected = Some(Statement::Expr(Expr::Binary(Binary {
+        let expected = Expr::Binary(Binary {
             left: Box::new(Expr::I64Literal(9)),
             operator: BinaryOperator::Multiply,
             right: Box::new(Expr::Binary(Binary {
@@ -688,10 +680,10 @@ mod tests {
                 operator: BinaryOperator::Add,
                 right: Box::new(Expr::I64Literal(3)),
             })),
-        })));
+        });
 
         let mut parser = Parser::new(&tokens);
-        let ast = parser.parse_statement();
+        let ast = parser.parse_expr();
 
         assert_eq!(expected, ast);
     }
@@ -703,10 +695,15 @@ mod tests {
             Token::Newline,
             Token::Newline,
             Token::Identifier("a".to_string()),
+            Token::AssignmentSymbol(Eq),
+            Token::I64Literal(2),
             Token::Newline,
             Token::Newline,
         ];
-        let expected = Some(Statement::Expr(Expr::Identifier("a".to_string())));
+        let expected = Some(Statement::Assignment(Assignment {
+            name: "a".to_string(),
+            value: Box::new(Expr::I64Literal(2)),
+        }));
 
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();
@@ -729,7 +726,7 @@ mod tests {
             Token::I64Literal(20),
             Token::RParen,
         ];
-        let expected = Some(Statement::Expr(Expr::Call(Call {
+        let expected = Expr::Call(Call {
             function_name: "print".to_string(),
             args: vec![
                 Expr::Call(Call {
@@ -739,10 +736,10 @@ mod tests {
                 Expr::I64Literal(10),
                 Expr::I64Literal(20),
             ],
-        })));
+        });
 
         let mut parser = Parser::new(&tokens);
-        let ast = parser.parse_statement();
+        let ast = parser.parse_expr();
 
         assert_eq!(expected, ast);
     }
@@ -754,10 +751,10 @@ mod tests {
             Token::Fn,
             Token::Identifier("test".to_string()),
             Token::LParen,
-            Token::Type(Type::I64),
+            Token::Type(Type::Int { width: 64 }),
             Token::Identifier("a".to_string()),
             Token::RParen,
-            Token::Type(Type::I64),
+            Token::Type(Type::Int { width: 64 }),
             Token::LSquirly,
             Token::RSquirly,
         ];
@@ -767,10 +764,10 @@ mod tests {
                 proto: FuncProto {
                     name: "test".to_string(),
                     params: vec![FuncParam {
-                        param_type: Type::I64,
+                        param_type: Type::Int { width: 64 },
                         param_name: "a".to_string(),
                     }],
-                    return_type: Type::I64,
+                    return_type: Type::Int { width: 64 },
                 },
                 body: vec![],
             }],
@@ -809,14 +806,14 @@ mod tests {
             Token::AssignmentSymbol(PlusEq),
             Token::I64Literal(5),
         ];
-        let expected = Some(Statement::Expr(Expr::Assign(Assign {
+        let expected = Some(Statement::Assignment(Assignment {
             name: "x".to_string(),
             value: Box::new(Expr::Binary(Binary {
                 left: Box::new(Expr::Identifier("x".to_string())),
                 operator: BinaryOperator::Add,
                 right: Box::new(Expr::I64Literal(5)),
             })),
-        })));
+        }));
 
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();

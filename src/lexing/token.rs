@@ -85,14 +85,17 @@ impl fmt::Display for Token {
 /// An enum to store the built-in Flick types, like `void`
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Type {
-    I64,
+    /// Variable-size int type, with `width` bits.
+    Int {
+        width: u32,
+    },
     Void,
 }
 
 impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::I64 => write!(f, "int"),
+            Self::Int { width } => write!(f, "i{}", width),
             Self::Void => write!(f, "void"),
         }
     }
@@ -125,8 +128,8 @@ pub enum ComparatorSymbol {
     EqualTo,
     LessThan,
     GreaterThan,
-    LessThanOrEqualTo,
-    GreaterThanOrEqualTo,
+    LessOrEqualTo,
+    GreaterOrEqualTo,
 }
 
 impl fmt::Display for ComparatorSymbol {
@@ -136,8 +139,8 @@ impl fmt::Display for ComparatorSymbol {
             Self::EqualTo => write!(f, "=="),
             Self::LessThan => write!(f, "<"),
             Self::GreaterThan => write!(f, ">"),
-            Self::LessThanOrEqualTo => write!(f, "<="),
-            Self::GreaterThanOrEqualTo => write!(f, ">="),
+            Self::LessOrEqualTo => write!(f, "<="),
+            Self::GreaterOrEqualTo => write!(f, ">="),
         }
     }
 }
