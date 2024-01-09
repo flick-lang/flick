@@ -1,3 +1,5 @@
+sample_programs/*
+!sample_programs/*.fl
 
 # Created by https://www.toptal.com/developers/gitignore/api/clion+all,macos,linux,vim,emacs,windows,rust
 # Edit at https://www.toptal.com/developers/gitignore?templates=clion+all,macos,linux,vim,emacs,windows,rust
@@ -252,4 +254,3 @@ $RECYCLE.BIN/
 
 # End of https://www.toptal.com/developers/gitignore/api/clion+all,macos,linux,vim,emacs,windows,rust
 
-temp
