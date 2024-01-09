@@ -22,7 +22,7 @@ Flick's syntax is based on Rust syntax. Here's
 a simple program:
 
 ```text
-fn main() {
+pub fn main() {
     i64 i = 0
     while i < 10 {
         print(i)
