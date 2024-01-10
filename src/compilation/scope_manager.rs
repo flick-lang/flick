@@ -55,21 +55,21 @@ pub struct Func {
 /// handle it:
 ///
 /// ```
-/// # use std::ptr;
-/// # use std::ptr::null;
-/// # use llvm_sys::LLVMValue;
-/// # use llvm_sys::prelude::LLVMValueRef;
+/// use llvm_sys::core::{LLVMConstInt, LLVMIntType};
+/// use llvm_sys::prelude::*;
 /// use flick::scope_manager::*;
 /// use flick::token::Type;
 ///
-/// # let inner_val: LLVMValueRef = ptr::null_mut();
-/// # let outer_val: LLVMValueRef = ptr::null_mut();
-///
-/// // suppose outer_val and inner_val are different LLVMValueRefs:
+/// let outer_val: LLVMValueRef = unsafe { LLVMConstInt(LLVMIntType(64), 20345, 1) };
+/// let inner_val: LLVMValueRef = unsafe { LLVMConstInt(LLVMIntType(64), 1999, 1) };
 ///
 /// let mut scope_manager = ScopeManager::new();
-/// scope_manager.set_var("x", Type::Int { width: 64}, outer_val);
-/// scope_manager.get_var("x");  // outer x
+///
+/// assert!(scope_manager.get_var("x").is_none());
+///
+/// scope_manager.set_var("x", Type::Int { width: 64 }, outer_val);
+/// assert!(scope_manager.get_var("x").is_some());
+/// assert_eq!(scope_manager.get_var("x").unwrap().value, outer_val);
 ///
 /// // ...
 ///
@@ -77,15 +77,15 @@ pub struct Func {
 ///
 /// // ...
 ///
-/// scope_manager.get_var("x");  // outer x
-/// scope_manager.set_var("x", Type::Int { width: 64}, inner_val);
-/// scope_manager.get_var("x");  // inner x
+/// assert_eq!(scope_manager.get_var("x").unwrap().value, outer_val);
+/// scope_manager.set_var("x", Type::Int { width: 64 }, inner_val);
+/// assert_eq!(scope_manager.get_var("x").unwrap().value, inner_val);
 ///
 /// // ...
 ///
 /// scope_manager.exit_scope();  // back to outer scope
 ///
-/// scope_manager.get_var("x");  // outer x
+/// assert_eq!(scope_manager.get_var("x").unwrap().value, outer_val);
 /// ```
 pub struct ScopeManager {
     vars: Vec<HashMap<String, Var>>,
