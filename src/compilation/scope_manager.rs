@@ -1,27 +1,4 @@
-use crate::lexing::token::Type;
-use crate::parsing::ast::FuncProto;
-use llvm_sys::prelude::LLVMValueRef;
 use std::collections::HashMap;
-
-/// Struct to store a variable's [Flick type](Type) as well as the corresponding [LLVM object][a].
-///
-/// [a]: LLVMValueRef
-#[derive(Copy, Clone, Debug)]
-pub struct Var {
-    // TODO(tbreydo): Minor: do we need to derive Copy? why is it inconsistent with Func below?
-    pub var_type: Type,
-    pub value: LLVMValueRef,
-}
-
-/// Struct to store a function's [Flick prototype](FuncProto) as well as the corresponding
-/// [LLVM object][a].
-///
-/// [a]: LLVMValueRef
-#[derive(Clone, Debug)]
-pub struct Func {
-    pub proto: FuncProto,
-    pub value: LLVMValueRef,
-}
 
 // TODO: Design: what kind of namespaces do we want? Should i64 foo be allowed inside fn foo() { ... }?
 //  What about inside fn bar () { ... }?
@@ -65,11 +42,10 @@ pub struct Func {
 ///
 /// let mut scope_manager = ScopeManager::new();
 ///
-/// assert!(scope_manager.get_var("x").is_none());
+/// assert!(scope_manager.get("x").is_none());
 ///
-/// scope_manager.set_var("x", Type::Int { width: 64 }, outer_val);
-/// assert!(scope_manager.get_var("x").is_some());
-/// assert_eq!(scope_manager.get_var("x").unwrap().value, outer_val);
+/// scope_manager.set("x", outer_val);
+/// assert_eq!(scope_manager.get("x"), Some(&outer_val));
 ///
 /// // ...
 ///
@@ -77,34 +53,31 @@ pub struct Func {
 ///
 /// // ...
 ///
-/// assert_eq!(scope_manager.get_var("x").unwrap().value, outer_val);
-/// scope_manager.set_var("x", Type::Int { width: 64 }, inner_val);
-/// assert_eq!(scope_manager.get_var("x").unwrap().value, inner_val);
+/// assert_eq!(scope_manager.get("x"), Some(&outer_val));
+/// scope_manager.set("x", inner_val);
+/// assert_eq!(scope_manager.get("x"), Some(&inner_val));
 ///
 /// // ...
 ///
 /// scope_manager.exit_scope();  // back to outer scope
 ///
-/// assert_eq!(scope_manager.get_var("x").unwrap().value, outer_val);
+/// assert_eq!(scope_manager.get("x"), Some(&outer_val));
 /// ```
-pub struct ScopeManager {
-    vars: Vec<HashMap<String, Var>>,
-    funcs: Vec<HashMap<String, Func>>,
+pub struct ScopeManager<T> {
+    values: Vec<HashMap<String, T>>,
 }
 
-impl ScopeManager {
+impl<T> ScopeManager<T> {
     pub fn new() -> Self {
         Self {
-            vars: vec![HashMap::new()],
-            funcs: vec![HashMap::new()],
+            values: vec![HashMap::new()],
         }
     }
 
     /// Pushes a new scope; old objects can be overwritten but will regain their
     /// value after [exit_scope()](ScopeManager::exit_scope()).
     pub fn enter_scope(&mut self) {
-        self.vars.push(HashMap::new());
-        self.funcs.push(HashMap::new());
+        self.values.push(HashMap::new());
     }
 
     /// Pops the current scope; re-enters the next-innermost scope.
@@ -112,40 +85,23 @@ impl ScopeManager {
     /// Note: if this function is called with just one scope on the stack, this function
     /// will panic.
     pub fn exit_scope(&mut self) {
-        if self.vars.len() != self.funcs.len() {
-            panic!("Vars and funcs scopes don't have the depth")
-        }
-
-        if self.vars.len() == 1 && self.funcs.len() == 1 {
+        if self.values.len() == 1 {
             panic!("cannot exit the global scope")
         }
 
-        self.vars.pop();
-        self.funcs.pop();
+        self.values.pop();
     }
 
-    /// Searches through all scopes (starting with the innermost scope) for a variable named `name`.
-    pub fn get_var(&self, name: &str) -> Option<&Var> {
-        self.vars.iter().rev().find_map(|s| s.get(name))
+    /// Searches through all scopes (starting with the innermost scope) for a value named `name`.
+    pub fn get(&self, name: &str) -> Option<&T> {
+        self.values.iter().rev().find_map(|s| s.get(name))
     }
 
-    /// Sets a variable named `name` in the current scope.
-    pub fn set_var(&mut self, name: &str, var_type: Type, value: LLVMValueRef) {
-        let cur_scope = self.vars.last_mut().unwrap();
-        cur_scope.insert(name.to_string(), Var { var_type, value });
-    }
-
-    // TODO: Quick fix: if LLVMValueRef hashes then we should use that for lookup.
-    //  Take a look at get_func() usage and see how hard we work to convert ValueRef to name.
-    /// Searches through all scopes (starting with the innermost scope) for a function named `name`.
-    pub fn get_func(&self, name: &str) -> Option<&Func> {
-        self.funcs.iter().rev().find_map(|s| s.get(name))
-    }
-
-    /// Sets a function named `name` in the current scope.
-    pub fn set_func(&mut self, name: &str, proto: FuncProto, value: LLVMValueRef) {
-        let cur_scope = self.funcs.last_mut().unwrap();
-        cur_scope.insert(name.to_string(), Func { proto, value });
+    /// Sets a value named `name` in the current scope.
+    pub fn set(&mut self, name: &str, value: T) {
+        let cur_scope = self.values.last_mut().unwrap();
+        // TODO: Remove to_string (by accepting references with lifetimes?)
+        cur_scope.insert(name.to_string(), value);
     }
 }
 
@@ -153,7 +109,7 @@ impl ScopeManager {
 /// take any arguments, ScopeManager should implement Default.
 ///
 /// [a]: https://rust-lang.github.io/rust-clippy/master/index.html#/new_without_default
-impl Default for ScopeManager {
+impl<T> Default for ScopeManager<T> {
     fn default() -> Self {
         ScopeManager::new()
     }

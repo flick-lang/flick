@@ -28,6 +28,32 @@ use crate::compilation::scope_manager::ScopeManager;
 use crate::lexing::token::Type;
 use crate::parsing::ast::*;
 
+/// Struct to store a scope manager's value
+pub(crate) enum ScopeManagerValue {
+    Var(Var),
+    Func(Func),
+}
+
+/// Struct to store a variable's [Flick type](Type) as well as the corresponding [LLVM object][a].
+///
+/// [a]: LLVMValueRef
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct Var {
+    // TODO(tbreydo): Minor: do we need to derive Copy? why is it inconsistent with Func below?
+    pub var_type: Type,
+    pub value: LLVMValueRef,
+}
+
+/// Struct to store a function's [Flick prototype](FuncProto) as well as the corresponding
+/// [LLVM object][a].
+///
+/// [a]: LLVMValueRef
+#[derive(Clone, Debug)]
+pub(crate) struct Func {
+    pub proto: FuncProto,
+    pub value: LLVMValueRef,
+}
+
 /// Converts a `&str`, like `"hi"`, into a pointer to a null-terminated C-style str.
 macro_rules! cstr {
     ($str_literal:expr) => {
@@ -57,7 +83,7 @@ pub struct Compiler {
     module: LLVMModuleRef,
     builder: LLVMBuilderRef,
     target_machine: LLVMTargetMachineRef,
-    scope_manager: ScopeManager,
+    scope_manager: ScopeManager<ScopeManagerValue>,
     pass_builder: LLVMPassBuilderOptionsRef,
 }
 
@@ -215,8 +241,8 @@ impl Compiler {
 
     /// Registers a function prototype, panicking if the function has already been defined.
     unsafe fn compile_func_proto(&mut self, func_proto: &FuncProto) {
-        if self.scope_manager.get_func(&func_proto.name).is_some() {
-            panic!("Cannot redefine function '{}'", func_proto.name);
+        if self.scope_manager.get(&func_proto.name).is_some() {
+            panic!("Cannot redefine value '{}'", func_proto.name);
         }
 
         let return_type = self.to_llvm_type(func_proto.return_type);
@@ -249,7 +275,12 @@ impl Compiler {
         let func_name = &func_proto.name;
         // TODO: Minor: Remove clone (like accept owned through function?)
         let func_proto = func_proto.clone();
-        self.scope_manager.set_func(func_name, func_proto, func);
+        let scope_manager_func = Func {
+            proto: func_proto,
+            value: func,
+        };
+        let scope_manager_value = ScopeManagerValue::Func(scope_manager_func);
+        self.scope_manager.set(func_name, scope_manager_value);
     }
 
     /// Complies a function definition, assuming the function's prototype has been compiled.
@@ -281,7 +312,12 @@ impl Compiler {
             let param_value_ref = LLVMGetParam(func, i as c_uint);
             let alloca = self.create_entry_block_alloca(func, param_name, param.param_type);
             LLVMBuildStore(self.builder, param_value_ref, alloca);
-            self.scope_manager.set_var(param_name, param_type, alloca);
+            let scope_manager_var = Var {
+                var_type: param_type,
+                value: alloca,
+            };
+            let scope_manager_value = ScopeManagerValue::Var(scope_manager_var);
+            self.scope_manager.set(param_name, scope_manager_value);
         }
 
         for statement in func_def.body.iter() {
@@ -371,7 +407,12 @@ impl Compiler {
             let var_name = var_declaration.var_name.as_str();
             let var_type = var_declaration.var_type;
             let alloca = self.create_entry_block_alloca(func, var_name, var_type);
-            self.scope_manager.set_var(var_name, var_type, alloca);
+            let scope_manager_var = Var {
+                var_type,
+                value: alloca,
+            };
+            let scope_manager_value = ScopeManagerValue::Var(scope_manager_var);
+            self.scope_manager.set(var_name, scope_manager_value);
 
             if let Some(value_expr) = &var_declaration.var_value {
                 let value = self.compile_expr(value_expr, var_type);
@@ -382,8 +423,11 @@ impl Compiler {
 
     /// Compiles an assignment expression like `foo = 28` (and panics if `foo`'s type can't store 28).
     unsafe fn compile_assignment_statement(&mut self, assign: &Assignment) {
-        let var = match self.scope_manager.get_var(&assign.name) {
-            Some(var) => *var,
+        let var = match self.scope_manager.get(&assign.name) {
+            Some(ScopeManagerValue::Var(var)) => *var,
+            Some(ScopeManagerValue::Func(func)) => {
+                panic!("Cannot assign a value to function {}", func.proto.name)
+            }
             None => panic!("Setting a variable that has not been declared"),
         };
 
@@ -413,8 +457,9 @@ impl Compiler {
         let func_name_buf = LLVMGetValueName2(cur_func, len.as_mut_ptr());
         let func_name_cstr = CStr::from_ptr(func_name_buf);
         let func_name = func_name_cstr.to_str().unwrap();
-        let func = match self.scope_manager.get_func(func_name) {
-            Some(func) => func,
+        let func = match self.scope_manager.get(func_name) {
+            Some(ScopeManagerValue::Func(func)) => func,
+            Some(ScopeManagerValue::Var(var)) => unreachable!(),
             None => panic!("Can't return when not in a function"),
         };
         let return_type = func.proto.return_type;
@@ -431,8 +476,14 @@ impl Compiler {
 
     /// Compiles an identifier expression (variable value) with an expected type.
     unsafe fn compile_identifier(&mut self, id: &str, expected_type: Type) -> LLVMValueRef {
-        let var = match self.scope_manager.get_var(id) {
-            Some(var) => var,
+        let var = match self.scope_manager.get(id) {
+            Some(ScopeManagerValue::Var(var)) => var,
+            Some(ScopeManagerValue::Func(func)) => {
+                panic!(
+                    "Unsupported: cannot use function {} as an identifier",
+                    func.proto.name
+                )
+            }
             None => panic!("Compiler error: undefined identifier '{}'", id),
         };
 
@@ -514,8 +565,11 @@ impl Compiler {
 
     /// Compiles a function call, ensuring its signature has the expected return type.
     unsafe fn compile_call_expr(&mut self, call_expr: &Call, expected_type: Type) -> LLVMValueRef {
-        let func = match self.scope_manager.get_func(&call_expr.function_name) {
-            Some(func) => func.clone(), // TODO: Remove the clone
+        let func = match self.scope_manager.get(&call_expr.function_name) {
+            Some(ScopeManagerValue::Func(func)) => func.clone(), // TODO: Remove the clone
+            Some(ScopeManagerValue::Var(var)) => {
+                panic!("Variable {} is not callable", call_expr.function_name)
+            }
             None => panic!("Unknown function '{}' referenced", call_expr.function_name),
         };
 
@@ -585,15 +639,19 @@ impl Compiler {
         // TODO: style: figure out where our compiler stores/uses prototypes of operators
         //  Like, how do we use <(2, 3) -> bool is allowed and <("hello", hi") -> bool is too.
         match expr {
-            Expr::Identifier(x) => match self.scope_manager.get_var(x) {
-                Some(v) => v.var_type,
+            Expr::Identifier(x) => match self.scope_manager.get(x) {
+                Some(ScopeManagerValue::Var(v)) => v.var_type,
+                Some(ScopeManagerValue::Func(f)) => panic!("Function do not have a type yet"),
                 None => panic!("Variable has to already have been declared"),
             },
             Expr::I64Literal(_) => Type::Int { width: 64 },
             Expr::Binary(b) => self.get_binary_expr_type(b),
             Expr::Comparison(_) => Type::Int { width: 1 },
-            Expr::Call(f) => match self.scope_manager.get_func(&f.function_name) {
-                Some(f) => f.proto.return_type,
+            Expr::Call(f) => match self.scope_manager.get(&f.function_name) {
+                Some(ScopeManagerValue::Func(f)) => f.proto.return_type,
+                Some(ScopeManagerValue::Var(v)) => {
+                    panic!("Unsupported: most likely this will be removed")
+                }
                 None => panic!("Function has to be declared before it can be called"),
             },
         }

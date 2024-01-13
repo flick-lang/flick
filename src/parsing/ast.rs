@@ -1,7 +1,7 @@
 use crate::lexing::token::ComparatorSymbol::*;
 use crate::lexing::token::OperatorSymbol::*;
 use crate::lexing::token::{ComparatorSymbol, OperatorSymbol, Type};
-use core::fmt;
+use std::fmt;
 use std::fmt::Formatter;
 
 /// A program; a collection of function definitions. See also: [FuncDef].

@@ -26,4 +26,4 @@
 /// ```
 pub mod ast;
 /// Module that defines the [Parser] struct for converting tokens to an abstract syntax tree.
-pub(crate) mod parser;
+pub mod parser;

@@ -14,6 +14,8 @@
    - https://ace.c9.io is what rust uses 
 - [ ] make a playground with wasm
 - [ ] pointers
+- [ ] Rethink what structs/files/struct properties/functions in flick should be public vs pub(crate) vs private
+- [ ] ScopeManager and Type are both structs that belong across all modules of the compiler. Maybe they should be moved out of their respective module into the root 'src' folder (or somewhere else)?
 
 ### Maybe one day...
 - [ ] Allow 🇸🇪 as a synonym for something (e.g. return)
