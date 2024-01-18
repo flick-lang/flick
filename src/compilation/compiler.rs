@@ -65,19 +65,6 @@ pub struct Compiler {
 }
 
 impl Compiler {
-    /// Converts a string like `x86_64-unknown-freebsd` into the corresponding [LLVMTarget].
-    unsafe fn get_target_from_triple(triple: *const c_char) -> *mut LLVMTarget {
-        let mut target = std::ptr::null_mut();
-        let mut err_str = MaybeUninit::uninit();
-        if LLVMGetTargetFromTriple(triple, &mut target, err_str.as_mut_ptr()) != 0 {
-            panic!(
-                "Error getting target from triple ({:?})",
-                err_str.assume_init()
-            );
-        }
-        target
-    }
-
     /// Creates a new instance, setting up relevant llvm-sys boilerplate.
     pub fn new() -> Self {
         unsafe {
@@ -144,6 +131,19 @@ impl Compiler {
                 pass_builder,
             }
         }
+    }
+
+    /// Converts a string like `x86_64-unknown-freebsd` into the corresponding [LLVMTarget].
+    unsafe fn get_target_from_triple(triple: *const c_char) -> *mut LLVMTarget {
+        let mut target = std::ptr::null_mut();
+        let mut err_str = MaybeUninit::uninit();
+        if LLVMGetTargetFromTriple(triple, &mut target, err_str.as_mut_ptr()) != 0 {
+            panic!(
+                "Error getting target from triple ({:?})",
+                err_str.assume_init()
+            );
+        }
+        target
     }
 
     /// This function prints the LLVM IR generated so far (via methods like [compile][a]).
@@ -417,7 +417,7 @@ impl Compiler {
         // TODO: signed-ints: Only sign extend if its signed in
 
         match &int_literal.int_type {
-            Type::Int { .. } => {}
+            Type::Int(_) => {}
             t => unreachable!("Unsupported int literal type '{}'", t),
         }
 

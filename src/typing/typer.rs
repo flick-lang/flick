@@ -31,7 +31,7 @@ impl Typer {
     fn type_func_def(&mut self, func_def: &FuncDef) -> TypedFuncDef {
         let func_name = &func_def.proto.name;
         match self.scope_manager.get(func_name) {
-            Some(Type::Func { .. }) => panic!("Cannot redefine function '{}'", func_name),
+            Some(Type::Func(_)) => panic!("Cannot redefine function '{}'", func_name),
             Some(_) => panic!(
                 "Cannot define function '{}' because variable with same name already exists",
                 func_name
