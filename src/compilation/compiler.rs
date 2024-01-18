@@ -23,7 +23,6 @@ use llvm_sys::target_machine::{
 use llvm_sys::transforms::pass_builder::*;
 use llvm_sys::LLVMIntPredicate::*;
 use llvm_sys::LLVMLinkage::{LLVMExternalLinkage, LLVMInternalLinkage};
-use llvm_sys::LLVMTypeKind::LLVMFunctionTypeKind;
 
 use crate::ast::*;
 use crate::typed_ast::*;
@@ -362,7 +361,7 @@ impl Compiler {
         };
 
         // TODO: Maybe allow redefining the function?
-        if LLVMGetTypeKind(LLVMTypeOf(alloca)) == LLVMFunctionTypeKind {
+        if !LLVMIsAFunction(alloca).is_null() {
             // TODO: Split this into a function
             let cur_func = self.get_cur_function();
             let mut len = MaybeUninit::uninit();
