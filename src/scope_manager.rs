@@ -34,8 +34,8 @@ use std::collections::HashMap;
 /// ```
 /// use llvm_sys::core::{LLVMConstInt, LLVMIntType};
 /// use llvm_sys::prelude::*;
-/// use flick::scope_manager::*;
-/// use flick::token::Type;
+/// use flick::ScopeManager;
+/// use flick::Type;
 ///
 /// let outer_val: LLVMValueRef = unsafe { LLVMConstInt(LLVMIntType(64), 20345, 1) };
 /// let inner_val: LLVMValueRef = unsafe { LLVMConstInt(LLVMIntType(64), 1999, 1) };
@@ -93,15 +93,15 @@ impl<T> ScopeManager<T> {
     }
 
     /// Searches through all scopes (starting with the innermost scope) for a value named `name`.
-    pub fn get(&self, name: &str) -> Option<&T> {
-        self.values.iter().rev().find_map(|s| s.get(name))
+    pub fn get(&self, name: impl AsRef<str>) -> Option<&T> {
+        self.values.iter().rev().find_map(|s| s.get(name.as_ref()))
     }
 
     /// Sets a value named `name` in the current scope.
-    pub fn set(&mut self, name: &str, value: T) {
+    pub fn set(&mut self, name: impl AsRef<str>, value: T) {
         let cur_scope = self.values.last_mut().unwrap();
         // TODO: Remove to_string (by accepting references with lifetimes?)
-        cur_scope.insert(name.to_string(), value);
+        cur_scope.insert(name.as_ref().to_string(), value);
     }
 }
 

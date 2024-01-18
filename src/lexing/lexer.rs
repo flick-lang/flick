@@ -1,7 +1,9 @@
 use crate::lexing::token::AssignmentSymbol::*;
 use crate::lexing::token::ComparatorSymbol::*;
 use crate::lexing::token::OperatorSymbol::*;
-use crate::lexing::token::{Token, Type};
+use crate::lexing::token::Token;
+use crate::types::IntType;
+use crate::Type;
 
 /// A struct that takes source code and converts it tokens (see [Token])
 ///
@@ -109,8 +111,6 @@ impl<'a> Lexer<'a> {
             ('-', _) => Token::OperatorSymbol(Minus),
             ('+', _) => Token::OperatorSymbol(Plus),
             (',', _) => Token::Comma,
-            (';', _) => Token::Semicolon,
-            (':', _) => Token::Colon,
             ('(', _) => Token::LParen,
             (')', _) => Token::RParen,
             ('{', _) => Token::LSquirly,
@@ -168,9 +168,7 @@ impl<'a> Lexer<'a> {
     fn read_word(&mut self) -> Token {
         let s = self.take_chars_while(|&c| c.is_ascii_alphanumeric() || c == '_');
         match s.as_str() {
-            "i1" => Token::Type(Type::Int { width: 1 }),
-            "i32" => Token::Type(Type::Int { width: 32 }),
-            "i64" => Token::Type(Type::Int { width: 64 }),
+            "i64" => Token::Type(Type::Int(IntType { width: 64 })),
             "void" => Token::Type(Type::Void),
             "while" => Token::While,
             "pub" => Token::Pub,
@@ -240,12 +238,12 @@ mod tests {
     fn variables() {
         let source_code = "i64 this_is_a_LONG_VARIABLE_NAME = 5\ni64 shortInt = 5";
         let expected_tokens = vec![
-            Token::Type(Type::Int { width: 64 }),
+            Token::Type(Type::Int(IntType { width: 64 })),
             Token::Identifier("this_is_a_LONG_VARIABLE_NAME".to_string()),
             Token::AssignmentSymbol(Eq),
             Token::I64Literal(5),
             Token::Newline,
-            Token::Type(Type::Int { width: 64 }),
+            Token::Type(Type::Int(IntType { width: 64 })),
             Token::Identifier("shortInt".to_string()),
             Token::AssignmentSymbol(Eq),
             Token::I64Literal(5),

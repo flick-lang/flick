@@ -16,6 +16,11 @@
 - [ ] pointers
 - [ ] Rethink what structs/files/struct properties/functions in flick should be public vs pub(crate) vs private
 - [ ] ScopeManager and Type are both structs that belong across all modules of the compiler. Maybe they should be moved out of their respective module into the root 'src' folder (or somewhere else)?
+- [ ] Take all lexer tokens, parsing trees, etc. as references instead of owning
+- [ ] Remove all clones
+- [ ] Only have one of ComparisonOperator and ComparisonSymbol (and same for BinaryOperator and BinarySymbol)
+- [ ] Maybe remove all * imports in all source files
+- [ ] Either use () in structs or use { } in struct properties 
 
 ### Maybe one day...
 - [ ] Allow 🇸🇪 as a synonym for something (e.g. return)

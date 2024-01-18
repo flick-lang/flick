@@ -1,8 +1,8 @@
 use crate::lexing::token::ComparatorSymbol::*;
 use crate::lexing::token::OperatorSymbol::*;
-use crate::lexing::token::{ComparatorSymbol, OperatorSymbol, Type};
+use crate::lexing::token::{ComparatorSymbol, OperatorSymbol};
+use crate::Type;
 use std::fmt;
-use std::fmt::Formatter;
 
 /// A program; a collection of function definitions. See also: [FuncDef].
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -13,7 +13,6 @@ pub struct Program {
 /// A function definition (metadata, prototype, and body).
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct FuncDef {
-    pub is_public: bool,
     pub proto: FuncProto,
     pub body: Vec<Statement>,
 }
@@ -21,6 +20,7 @@ pub struct FuncDef {
 /// A function prototype (name, parameters, and return type).
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct FuncProto {
+    pub is_public: bool,
     pub name: String,
     pub params: Vec<FuncParam>,
     pub return_type: Type,
@@ -52,7 +52,7 @@ pub struct FuncParam {
 /// See also: [Expr].
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Statement {
-    VarDeclarations(Vec<VarDeclaration>),
+    VarDeclaration(VarDeclaration),
     WhileLoop(WhileLoop),
     Assignment(Assignment),
     Return(Option<Expr>),
@@ -67,7 +67,7 @@ pub enum Statement {
 pub struct VarDeclaration {
     pub var_name: String,
     pub var_type: Type,
-    pub var_value: Option<Expr>,
+    pub var_value: Expr,
 }
 
 /// A while loop (its 'while condition' and its body).
@@ -119,7 +119,7 @@ pub enum BinaryOperator {
 }
 
 impl fmt::Display for BinaryOperator {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Add => write!(f, "+"),
             Self::Subtract => write!(f, "-"),
@@ -165,7 +165,7 @@ pub enum ComparisonOperator {
 }
 
 impl fmt::Display for ComparisonOperator {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::NotEqualTo => write!(f, "!="),
             Self::EqualTo => write!(f, "=="),
@@ -176,6 +176,7 @@ impl fmt::Display for ComparisonOperator {
         }
     }
 }
+
 impl From<ComparatorSymbol> for ComparisonOperator {
     fn from(comparator: ComparatorSymbol) -> Self {
         match comparator {
