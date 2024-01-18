@@ -120,14 +120,14 @@ impl Typer {
     fn type_expr(&mut self, expr: &Expr) -> TypedExpr {
         match expr {
             Expr::Identifier(id) => TypedExpr::Identifier(id.clone()),
-            Expr::I64Literal(i) => TypedExpr::IntLiteral(self.type_int_literal(*i)),
+            Expr::IntLiteral(int) => TypedExpr::IntLiteral(self.type_int_literal(int)),
             Expr::Binary(b) => TypedExpr::Binary(self.type_bin_expr(b)),
             Expr::Comparison(c) => TypedExpr::Comparison(self.type_comparison_expr(c)),
             Expr::Call(c) => TypedExpr::Call(self.type_call_expr(c)),
         }
     }
 
-    fn type_int_literal(&mut self, int_literal: i64) -> TypedIntLiteral {
+    fn type_int_literal(&mut self, int_literal: &str) -> TypedIntLiteral {
         TypedIntLiteral {
             int_value: int_literal.to_string(),
             int_type: Type::Int(IntType { width: 64 }),

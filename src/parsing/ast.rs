@@ -83,7 +83,7 @@ pub struct WhileLoop {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expr {
     Identifier(String),
-    I64Literal(i64),
+    IntLiteral(String),
     Binary(Binary),
     Comparison(Comparison),
     Call(Call),

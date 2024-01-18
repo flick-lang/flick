@@ -505,7 +505,7 @@ impl<'a> Parser<'a> {
     fn parse_atom(&mut self) -> Expr {
         match self.next_token() {
             Some(Token::Identifier(id)) => Expr::Identifier(id.clone()),
-            Some(Token::I64Literal(n)) => Expr::I64Literal(*n),
+            Some(Token::IntLiteral(n)) => Expr::IntLiteral(n.clone()),
             // todo Some(Token::StrLiteral())
             Some(token) => panic!("Expected identifier or literal but received {:?}", token),
             None => panic!("Expected identifier or literal but file ended"),
@@ -525,12 +525,12 @@ mod tests {
             Token::Type(Type::Int(IntType { width: 64 })),
             Token::Identifier("x".to_string()),
             Token::AssignmentSymbol(Eq),
-            Token::I64Literal(5),
+            Token::IntLiteral("5".to_string()),
         ];
         let expected = Some(Statement::VarDeclaration(VarDeclaration {
             var_name: "x".to_string(),
             var_type: Type::Int(IntType { width: 64 }),
-            var_value: Expr::I64Literal(5),
+            var_value: Expr::IntLiteral("5".to_string()),
         }));
 
         let mut parser = Parser::new(&tokens);
@@ -544,11 +544,11 @@ mod tests {
         let tokens = vec![
             Token::Identifier("num".to_string()),
             Token::AssignmentSymbol(Eq),
-            Token::I64Literal(10),
+            Token::IntLiteral("10".to_string()),
         ];
         let expected = Some(Statement::Assignment(Assignment {
             name: "num".to_string(),
-            value: Box::new(Expr::I64Literal(10)),
+            value: Box::new(Expr::IntLiteral("10".to_string())),
         }));
 
         let mut parser = Parser::new(&tokens);
@@ -585,38 +585,38 @@ mod tests {
     #[test]
     fn order_of_operations() {
         let tokens = vec![
-            Token::I64Literal(10),
+            Token::IntLiteral("10".to_string()),
             Token::OperatorSymbol(Plus),
-            Token::I64Literal(3),
+            Token::IntLiteral("3".to_string()),
             Token::OperatorSymbol(Asterisk),
-            Token::I64Literal(8),
+            Token::IntLiteral("8".to_string()),
             Token::OperatorSymbol(Slash),
-            Token::I64Literal(4),
+            Token::IntLiteral("4".to_string()),
             Token::OperatorSymbol(Minus),
-            Token::I64Literal(13),
+            Token::IntLiteral("13".to_string()),
             Token::OperatorSymbol(Plus),
-            Token::I64Literal(5),
+            Token::IntLiteral("5".to_string()),
         ];
         let expected = Expr::Binary(Binary {
             left: Box::new(Expr::Binary(Binary {
                 left: Box::new(Expr::Binary(Binary {
-                    left: Box::new(Expr::I64Literal(10)),
+                    left: Box::new(Expr::IntLiteral("10".to_string())),
                     operator: BinaryOperator::Add,
                     right: Box::new(Expr::Binary(Binary {
                         left: Box::new(Expr::Binary(Binary {
-                            left: Box::new(Expr::I64Literal(3)),
+                            left: Box::new(Expr::IntLiteral("3".to_string())),
                             operator: BinaryOperator::Multiply,
-                            right: Box::new(Expr::I64Literal(8)),
+                            right: Box::new(Expr::IntLiteral("8".to_string())),
                         })),
                         operator: BinaryOperator::Divide,
-                        right: Box::new(Expr::I64Literal(4)),
+                        right: Box::new(Expr::IntLiteral("4".to_string())),
                     })),
                 })),
                 operator: BinaryOperator::Subtract,
-                right: Box::new(Expr::I64Literal(13)),
+                right: Box::new(Expr::IntLiteral("13".to_string())),
             })),
             operator: BinaryOperator::Add,
-            right: Box::new(Expr::I64Literal(5)),
+            right: Box::new(Expr::IntLiteral("5".to_string())),
         });
 
         let mut parser = Parser::new(&tokens);
@@ -628,21 +628,21 @@ mod tests {
     #[test]
     fn parenthetical_expression() {
         let tokens = vec![
-            Token::I64Literal(9),
+            Token::IntLiteral("9".to_string()),
             Token::OperatorSymbol(Asterisk),
             Token::LParen,
-            Token::I64Literal(2),
+            Token::IntLiteral("2".to_string()),
             Token::OperatorSymbol(Plus),
-            Token::I64Literal(3),
+            Token::IntLiteral("3".to_string()),
             Token::RParen,
         ];
         let expected = Expr::Binary(Binary {
-            left: Box::new(Expr::I64Literal(9)),
+            left: Box::new(Expr::IntLiteral("9".to_string())),
             operator: BinaryOperator::Multiply,
             right: Box::new(Expr::Binary(Binary {
-                left: Box::new(Expr::I64Literal(2)),
+                left: Box::new(Expr::IntLiteral("2".to_string())),
                 operator: BinaryOperator::Add,
-                right: Box::new(Expr::I64Literal(3)),
+                right: Box::new(Expr::IntLiteral("3".to_string())),
             })),
         });
 
@@ -660,13 +660,13 @@ mod tests {
             Token::Newline,
             Token::Identifier("a".to_string()),
             Token::AssignmentSymbol(Eq),
-            Token::I64Literal(2),
+            Token::IntLiteral("2".to_string()),
             Token::Newline,
             Token::Newline,
         ];
         let expected = Some(Statement::Assignment(Assignment {
             name: "a".to_string(),
-            value: Box::new(Expr::I64Literal(2)),
+            value: Box::new(Expr::IntLiteral("2".to_string())),
         }));
 
         let mut parser = Parser::new(&tokens);
@@ -682,12 +682,12 @@ mod tests {
             Token::LParen,
             Token::Identifier("f".to_string()),
             Token::LParen,
-            Token::I64Literal(1),
+            Token::IntLiteral("1".to_string()),
             Token::RParen,
             Token::Comma,
-            Token::I64Literal(10),
+            Token::IntLiteral("10".to_string()),
             Token::Comma,
-            Token::I64Literal(20),
+            Token::IntLiteral("20".to_string()),
             Token::RParen,
         ];
         let expected = Expr::Call(Call {
@@ -695,10 +695,10 @@ mod tests {
             args: vec![
                 Expr::Call(Call {
                     function_name: "f".to_string(),
-                    args: vec![Expr::I64Literal(1)],
+                    args: vec![Expr::IntLiteral("1".to_string())],
                 }),
-                Expr::I64Literal(10),
-                Expr::I64Literal(20),
+                Expr::IntLiteral("10".to_string()),
+                Expr::IntLiteral("20".to_string()),
             ],
         });
 
@@ -749,12 +749,12 @@ mod tests {
             Token::Ret,
             Token::Identifier("x".to_string()),
             Token::OperatorSymbol(Plus),
-            Token::I64Literal(5),
+            Token::IntLiteral("5".to_string()),
         ];
         let expected = Some(Statement::Return(Some(Expr::Binary(Binary {
             left: Box::new(Expr::Identifier("x".to_string())),
             operator: BinaryOperator::Add,
-            right: Box::new(Expr::I64Literal(5)),
+            right: Box::new(Expr::IntLiteral("5".to_string())),
         }))));
 
         let mut parser = Parser::new(&tokens);
@@ -768,14 +768,14 @@ mod tests {
         let tokens = vec![
             Token::Identifier("x".to_string()),
             Token::AssignmentSymbol(PlusEq),
-            Token::I64Literal(5),
+            Token::IntLiteral("5".to_string()),
         ];
         let expected = Some(Statement::Assignment(Assignment {
             name: "x".to_string(),
             value: Box::new(Expr::Binary(Binary {
                 left: Box::new(Expr::Identifier("x".to_string())),
                 operator: BinaryOperator::Add,
-                right: Box::new(Expr::I64Literal(5)),
+                right: Box::new(Expr::IntLiteral("5".to_string())),
             })),
         }));
 

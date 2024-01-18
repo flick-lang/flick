@@ -13,7 +13,7 @@ pub enum Token {
     Docstring(String),
     Comment(String),
 
-    I64Literal(i64),
+    IntLiteral(String),
     Identifier(String),
 
     // Keywords
@@ -55,7 +55,7 @@ impl fmt::Display for Token {
             Self::Docstring(docstring) => write!(f, "{}", docstring),
             Self::Comment(comment) => write!(f, "{}", comment),
 
-            Self::I64Literal(int) => write!(f, "{}", int),
+            Self::IntLiteral(int) => write!(f, "{}", int),
             Self::Identifier(id) => write!(f, "{}", id),
 
             Self::Pub => write!(f, "pub"),

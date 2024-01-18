@@ -178,7 +178,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Consumes source code characters and returns the corresponding [Token::I64Literal].
+    /// Consumes source code characters and returns the corresponding [Token::IntLiteral].
     ///
     /// # Assumptions:
     ///
@@ -186,8 +186,7 @@ impl<'a> Lexer<'a> {
     fn read_i64_literal(&mut self) -> Token {
         // TODO: Allow negative numbers
         let number = self.take_chars_while(|&c| c.is_ascii_digit());
-        Token::I64Literal(number.parse().unwrap())
-        // TODO: Handle error parsing int! it could be too big for i64
+        Token::IntLiteral(number)
     }
 
     /// Consumes source code characters and returns the corresponding [Token::Comment] or
@@ -241,12 +240,12 @@ mod tests {
             Token::Type(Type::Int(IntType { width: 64 })),
             Token::Identifier("this_is_a_LONG_VARIABLE_NAME".to_string()),
             Token::AssignmentSymbol(Eq),
-            Token::I64Literal(5),
+            Token::IntLiteral("5".to_string()),
             Token::Newline,
             Token::Type(Type::Int(IntType { width: 64 })),
             Token::Identifier("shortInt".to_string()),
             Token::AssignmentSymbol(Eq),
-            Token::I64Literal(5),
+            Token::IntLiteral("5".to_string()),
         ];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
@@ -263,7 +262,7 @@ mod tests {
             Token::While,
             Token::Identifier("x".to_string()),
             Token::ComparatorSymbol(LessOrEqualTo),
-            Token::I64Literal(5),
+            Token::IntLiteral("5".to_string()),
             Token::LSquirly,
             Token::RSquirly,
         ];

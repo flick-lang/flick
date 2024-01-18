@@ -12,13 +12,13 @@
 /// # let _ =
 /// Expr::Binary(
 ///     Binary {
-///         left: Box::new(Expr::I64Literal(9)),
+///         left: Box::new(Expr::IntLiteral("9".to_string())),
 ///         operator: BinaryOperator::Multiply,
 ///         right: Box::new(Expr::Binary(
 ///             Binary {
-///                 left: Box::new(Expr::I64Literal(2)),
+///                 left: Box::new(Expr::IntLiteral("2".to_string())),
 ///                 operator: BinaryOperator::Add,
-///                 right: Box::new(Expr::I64Literal(3)),
+///                 right: Box::new(Expr::IntLiteral("3".to_string())),
 ///             }
 ///         )),
 ///     }
