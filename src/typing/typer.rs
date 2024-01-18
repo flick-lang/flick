@@ -52,6 +52,8 @@ impl Typer {
         });
         self.scope_manager.set(func_name, func_type);
 
+        self.scope_manager.enter_scope();
+
         for param in func_def.proto.params.iter() {
             let param_name = &param.param_name;
             let param_type = param.param_type.clone();
@@ -62,6 +64,8 @@ impl Typer {
         for statement in func_def.body.iter() {
             func_body.push(self.type_statement(statement));
         }
+
+        self.scope_manager.exit_scope();
 
         TypedFuncDef {
             proto: func_def.proto.clone(),
@@ -95,11 +99,14 @@ impl Typer {
 
     fn type_while_loop(&mut self, while_loop: &WhileLoop) -> TypedWhileLoop {
         let condition = self.type_expr(&while_loop.condition);
+
+        self.scope_manager.enter_scope();
         let body: Vec<_> = while_loop
             .body
             .iter()
             .map(|s| self.type_statement(s))
             .collect();
+        self.scope_manager.exit_scope();
 
         TypedWhileLoop { condition, body }
     }
@@ -107,6 +114,7 @@ impl Typer {
     fn type_assignment(&mut self, assignment: &Assignment) -> TypedAssignment {
         let name = assignment.name.clone();
         let value = self.type_expr(assignment.value.as_ref());
+        // self.scope_manager.set(&name, value.expr_type.clone());
         TypedAssignment {
             name,
             value: Box::new(value),
