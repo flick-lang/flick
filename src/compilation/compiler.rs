@@ -23,6 +23,7 @@ use llvm_sys::target_machine::{
 use llvm_sys::transforms::pass_builder::*;
 use llvm_sys::LLVMIntPredicate::*;
 use llvm_sys::LLVMLinkage::{LLVMExternalLinkage, LLVMInternalLinkage};
+use llvm_sys::LLVMTypeKind;
 use llvm_sys::LLVMTypeKind::LLVMFunctionTypeKind;
 
 use crate::ast::*;
@@ -433,6 +434,10 @@ impl Compiler {
         let lhs = self.compile_expr(&bin_expr.left);
         let rhs = self.compile_expr(&bin_expr.right);
 
+        if LLVMTypeOf(lhs) != LLVMTypeOf(rhs) {
+            panic!("Left and right hand side of binary expression do not have the same type")
+        }
+
         match bin_expr.operator {
             Add => LLVMBuildAdd(self.builder, lhs, rhs, cstr!("add")),
             Subtract => LLVMBuildSub(self.builder, lhs, rhs, cstr!("sub")),
@@ -452,6 +457,10 @@ impl Compiler {
         let lhs = self.compile_expr(&comparison.left);
         let rhs = self.compile_expr(&comparison.right);
 
+        if LLVMTypeOf(lhs) != LLVMTypeOf(rhs) {
+            panic!("Left and right hand side of binary expression do not have the same type")
+        }
+
         // TODO: Signed comparisons
         match comparison.operator {
             NotEqualTo => LLVMBuildICmp(self.builder, LLVMIntNE, lhs, rhs, cstr!("neq")),
@@ -470,7 +479,7 @@ impl Compiler {
             None => panic!("Unknown function '{}' referenced", call_expr.function_name),
         };
 
-        if LLVMGetTypeKind(LLVMTypeOf(func)) != LLVMFunctionTypeKind {
+        if LLVMIsAFunction(func).is_null() {
             panic!("Variable {} is not a function", call_expr.function_name)
         }
 
