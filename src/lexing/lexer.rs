@@ -167,8 +167,14 @@ impl<'a> Lexer<'a> {
     /// - The next source code character is one of `a-z`, `A-Z`, or `_`.
     fn read_word(&mut self) -> Token {
         let s = self.take_chars_while(|&c| c.is_ascii_alphanumeric() || c == '_');
+
+        if s.starts_with('i') && s.len() > 1 && s.chars().skip(1).all(|c| c.is_ascii_digit()) {
+            let num: String = s.chars().skip(1).collect();
+            let width: u32 = num.parse().unwrap();
+            return Token::Type(Type::Int(IntType { width }));
+        }
+
         match s.as_str() {
-            "i64" => Token::Type(Type::Int(IntType { width: 64 })),
             "void" => Token::Type(Type::Void),
             "while" => Token::While,
             "pub" => Token::Pub,
