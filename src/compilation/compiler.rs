@@ -23,7 +23,6 @@ use llvm_sys::target_machine::{
 use llvm_sys::transforms::pass_builder::*;
 use llvm_sys::LLVMIntPredicate::*;
 use llvm_sys::LLVMLinkage::{LLVMExternalLinkage, LLVMInternalLinkage};
-use llvm_sys::LLVMTypeKind;
 use llvm_sys::LLVMTypeKind::LLVMFunctionTypeKind;
 
 use crate::ast::*;
