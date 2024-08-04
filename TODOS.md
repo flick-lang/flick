@@ -23,7 +23,10 @@
 
 - [ ] Be looser with types during typing: coercion, i64 = i32 + i32
 - [ ] Pointers
-- [ ] Nice exceptions
+- [ ] Nice compiler errors
+    - Idea: to show all the errors at once, we can collect them as we go.
+    - But how can we keep compiling if we hit an error? Well, we just propagate it up to the statement-level, and then
+      skip to the next statement. (Fatal errors would cause us to stop.)
 - [ ] Rethink what structs/files/struct properties/functions in flick should be public vs pub(crate) vs private
 - [ ] Remove all clones / think about slices / lifetimes / AsRef?
 - [ ] Maybe remove all * imports in all source files

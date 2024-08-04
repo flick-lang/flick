@@ -415,12 +415,7 @@ impl Compiler {
     unsafe fn compile_int_literal(&self, int_literal: &TypedIntLiteral) -> LLVMValueRef {
         // TODO: signed-ints: Only sign extend if its signed in
 
-        match &int_literal.int_type {
-            Type::Int(_) => {}
-            t => unreachable!("Unsupported int literal type '{}'", t),
-        }
-
-        let int_type = self.to_llvm_type(&int_literal.int_type);
+        let int_type = self.to_llvm_type(&Type::Int(int_literal.int_type));
         let value_cstr = CString::new(int_literal.int_value.as_str()).unwrap();
         LLVMConstIntOfString(int_type, value_cstr.as_ptr(), 10)
     }

@@ -1,4 +1,5 @@
 use crate::ast::{BinaryOperator, ComparisonOperator, FuncProto};
+use crate::types::IntType;
 use crate::Type;
 
 /// A program; a collection of function definitions. See also: [TypedFuncDef].
@@ -101,7 +102,7 @@ pub struct TypedBinary {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TypedIntLiteral {
     pub int_value: String,
-    pub int_type: Type,
+    pub int_type: IntType,
 }
 
 /// A comparison expression (the operator and the left/right-hand sides).

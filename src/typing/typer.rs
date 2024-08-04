@@ -157,9 +157,10 @@ impl Typer {
         ret: Option<&Expr>,
         function_return_type: &Type,
     ) -> Option<TypedExpr> {
-        ret.map(|e| self.type_expr(e, Some(&function_return_type)))
+        ret.map(|e| self.type_expr(e, Some(function_return_type)))
     }
 
+    // desired type is optional because, for example, 17 doesn't have a desired type
     fn type_expr(&mut self, expr: &Expr, desired_type: Option<&Type>) -> TypedExpr {
         match expr {
             Expr::Identifier(id) => TypedExpr::Identifier(id.clone()),
@@ -174,16 +175,26 @@ impl Typer {
         }
     }
 
+    /// Checks that `desired_type` is a valid type (namely, and integer type) and wraps the int_li
     fn type_int_literal(
         &mut self,
         int_literal: &str,
         desired_type: Option<&Type>,
     ) -> TypedIntLiteral {
-        let default_type = Type::Int(IntType { width: 64 });
+        let int_type = match desired_type {
+            Some(Type::Int(int_type)) => *int_type,
+            Some(t) => {
+                panic!(
+                    "expected integer type for literal '{}', but the desired type is '{}'",
+                    int_literal, t
+                )
+            }
+            None => IntType { width: 64 },
+        };
 
         TypedIntLiteral {
             int_value: int_literal.to_string(),
-            int_type: desired_type.unwrap_or(&default_type).clone(),
+            int_type,
         }
     }
 
@@ -257,7 +268,7 @@ impl Typer {
     fn find_type(&mut self, typed_expr: &TypedExpr) -> Type {
         match typed_expr {
             TypedExpr::Identifier(id) => self.scope_manager.get(id).unwrap().clone(),
-            TypedExpr::IntLiteral(int) => int.int_type.clone(),
+            TypedExpr::IntLiteral(int) => Type::Int(int.int_type).clone(),
             TypedExpr::Binary(_) => todo!(),
             TypedExpr::Comparison(_) => Type::Int(IntType { width: 1 }),
             TypedExpr::Call(call) => match self.scope_manager.get(&call.function_name) {

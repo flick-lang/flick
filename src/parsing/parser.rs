@@ -13,7 +13,7 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    /// Returns an parsing instance ready to convert `tokens` into an [abstract syntax tree](crate::parsing::ast)
+    /// Returns a parsing instance ready to convert `tokens` into an [abstract syntax tree](crate::parsing::ast)
     pub fn new(tokens: &'a [Token]) -> Self {
         Self { tokens, cursor: 0 }
     }
