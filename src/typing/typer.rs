@@ -266,3 +266,13 @@ impl Typer {
 
     fn cast_type(&mut self) {}
 }
+
+/// As suggested by Clippy's [new_without_default][a], since [Typer::new()] doesn't
+/// take any arguments, Typer should implement Default.
+///
+/// [a]: https://rust-lang.github.io/rust-clippy/master/index.html#/new_without_default
+impl Default for Typer {
+    fn default() -> Self {
+        Typer::new()
+    }
+}
