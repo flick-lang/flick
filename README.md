@@ -5,13 +5,15 @@ We wrote Flick to explore compiler design. Keep reading to see how the compiler 
 ## Table of Contents
 
 <!-- TOC -->
+
 * [How the compiler works](#how-the-compiler-works)
-  * [An overview of Flick](#an-overview-of-flick)
-  * [Step 1: Lexing/tokenization](#step-1-lexingtokenization)
-  * [Step 2: Parsing](#step-2-parsing)
-  * [Step 3: Compilation](#step-3-compilation)
+    * [An overview of Flick](#an-overview-of-flick)
+    * [Step 1: Lexing/tokenization](#step-1-lexingtokenization)
+    * [Step 2: Parsing](#step-2-parsing)
+    * [Step 3: Compilation](#step-3-compilation)
 * [Installing the compiler](#installing-the-compiler)
 * [Using the compiler](#using-the-compiler)
+
 <!-- TOC -->
 
 ## How the compiler works
@@ -61,20 +63,25 @@ Assuming Rust is installed, you can install the Flick compiler with
 cargo install --git "https://github.com/flick-lang/flick.git"
 ```
 
-**Before** that, though, you will also need to install LLVM 17. For example, you could use brew:
+**Before** that, though, you will also need to install LLVM 18.1. For example, you could use brew:
 
 ```shell
-brew install llvm@17
+brew install llvm@18
 ```
 
-You will also need to tell llvm-sys where LLVM 17 is located by adding the following line to `~/.zshrc` (or an equivalent):
+You will also need to tell llvm-sys where LLVM is located by adding the following line to `~/.zshrc` (or an
+equivalent). First, run `brew info llvm` to figure out what the version number is. Then, run
+
 ```shell
-export LLVM_SYS_170_PREFIX=$(brew --prefix llvm)
+export LLVM_SYS_181_PREFIX=$(brew --prefix llvm@18)
 ```
+
+_(Note: you should replace 181 in the environment variable with whatever version of LLVM is installed; 17.2, for
+example, corresponds to the environment variables `LLVM_SYS_172_PREFIX`.)_
 
 ## Using the compiler
 
-You can compile Flick programs with `flick <SOURCE_PATH>`. For example, 
+You can compile Flick programs with `flick <SOURCE_PATH>`. For example,
 
 ```shell
 flick examples/factorial.fl
