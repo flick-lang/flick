@@ -21,6 +21,7 @@
 
 ### Longer Todos
 
+- [ ] Be looser with types during typing: coercion, i64 = i32 + i32
 - [ ] Pointers
 - [ ] Nice exceptions
 - [ ] Rethink what structs/files/struct properties/functions in flick should be public vs pub(crate) vs private

@@ -14,6 +14,9 @@ pub struct Typer {
     scope_manager: ScopeManager<Type>,
 }
 
+// mention that the purpose of this struct is to: (a) catch type mismatches, (b) coerce types,j
+// (c) handle stuff like i64 a = b + c where b and c are i32, (d) disallow i8 = b + c if b, c i32
+// -> don't mention the things it doesn't do yet (since those are left as todos)
 impl Typer {
     pub fn new() -> Self {
         let scope_manager = ScopeManager::new();
@@ -80,6 +83,8 @@ impl Typer {
         }
     }
 
+    // This method takes `function_return_type` in order to type-check return statements, or
+    // statements like while loops that might contain return statements.
     fn type_statement(
         &mut self,
         statement: &Statement,

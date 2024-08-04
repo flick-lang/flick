@@ -9,4 +9,6 @@ git config core.hooksPath hooks  # run from repo root
 
 ## Library-only development
 
-If you are only using the library (and not using the main.rs frontend to the library), make sure to disable the `binary` feature. You can do this by setting `default-features = false` when adding Flick as a dependency, or by passing `--no-default-features` when using a cargo subcommand.
+If you are only using the library (and not using the main.rs frontend to the library), make sure to disable the `binary`
+feature. You can do this by setting `default-features = false` when adding Flick as a dependency, or by passing
+`--no-default-features` when using a cargo subcommand.

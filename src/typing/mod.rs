@@ -21,5 +21,5 @@
 /// });
 /// ```
 pub mod typed_ast;
-/// Module that defines the [Typer] struct for adding types to an abstract syntax tree.
+/// Module that defines the [typer::Typer] struct for adding types to an abstract syntax tree.
 pub mod typer;
