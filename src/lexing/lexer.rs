@@ -13,7 +13,7 @@ use crate::Type;
 ///
 /// ```
 /// # use flick::Lexer;
-/// # let source_code: Vec<_> = String::from("foo(42)").chars().collect();
+/// # let source_code: Vec<_> = "foo(42)".to_string().chars().collect();
 /// let mut lexer = Lexer::new(&source_code);
 /// ```
 ///
@@ -21,7 +21,7 @@ use crate::Type;
 ///
 /// ```
 /// # use flick::Lexer;
-/// # let source_code: Vec<_> = String::from("foo(42)").chars().collect();
+/// # let source_code: Vec<_> = "foo(42)".to_string().chars().collect();
 /// # let mut lexer = Lexer::new(&source_code);
 /// let tokens: Vec<_> = lexer.collect();
 /// ```
@@ -30,7 +30,7 @@ use crate::Type;
 ///
 /// ```
 /// # use flick::Lexer;
-/// # let source_code: Vec<_> = String::from("foo(42)").chars().collect();
+/// # let source_code: Vec<_> = "foo(42)".to_string().chars().collect();
 /// # let mut lexer = Lexer::new(&source_code);
 /// for token in lexer {
 ///     // ...

@@ -207,6 +207,9 @@ impl Typer {
         let operator = comparison.operator;
         let right = self.type_expr(&comparison.right, None);
 
+        let left_type = self.find_type(&left);
+        let right_type = self.find_type(&right);
+
         TypedComparison {
             left: Box::new(left),
             operator,
@@ -246,7 +249,20 @@ impl Typer {
         }
     }
 
-    fn cast_type() {}
+    fn find_type(&mut self, typed_expr: &TypedExpr) -> Type {
+        match typed_expr {
+            TypedExpr::Identifier(id) => self.scope_manager.get(id).unwrap().clone(),
+            TypedExpr::IntLiteral(int) => int.int_type.clone(),
+            TypedExpr::Binary(_) => todo!(),
+            TypedExpr::Comparison(_) => Type::Int(IntType { width: 1 }),
+            TypedExpr::Call(call) => match self.scope_manager.get(&call.function_name) {
+                Some(Type::Func(f)) => f.return_type.as_ref().clone(),
+                _ => unreachable!(),
+            },
+        }
+    }
 
-    fn find_common_type() {}
+    fn find_common_type(&mut self) {}
+
+    fn cast_type(&mut self) {}
 }
