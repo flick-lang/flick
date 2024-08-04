@@ -1,5 +1,6 @@
-sample_programs/*
-!sample_programs/*.fl
+examples/*
+!examples/*.fl
+!examples/README.md
 
 # Created by https://www.toptal.com/developers/gitignore/api/clion+all,macos,linux,vim,emacs,windows,rust
 # Edit at https://www.toptal.com/developers/gitignore?templates=clion+all,macos,linux,vim,emacs,windows,rust
