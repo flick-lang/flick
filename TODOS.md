@@ -7,6 +7,7 @@
 - [ ] Document how to use Flick itself
 - [ ] stdout
 - [ ] strings (array of char; implemented as obj in std library)
+- [ ] add tests for typer
 
 ## Other
 
