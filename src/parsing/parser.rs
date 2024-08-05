@@ -78,7 +78,7 @@ impl<'a> Parser<'a> {
     ///
     /// fn foo(i64 x) {
     ///     i64 a = 10;
-    ///     return a - x * 2;
+    ///     ret a - x * 2;
     /// }
     /// ```
     fn parse_func_def(&mut self) -> Option<FuncDef> {
