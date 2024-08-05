@@ -449,7 +449,7 @@ impl Compiler {
         let rhs = self.compile_expr(&comparison.right);
 
         if LLVMTypeOf(lhs) != LLVMTypeOf(rhs) {
-            panic!("Left and right hand side of binary expression do not have the same type")
+            unreachable!("Comparison: type(LHS) != type(RHS) should've been handled by Typer")
         }
 
         // TODO: Signed comparisons
