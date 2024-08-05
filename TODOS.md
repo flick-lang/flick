@@ -1,12 +1,15 @@
 ## Roadmap to working demo!!!
 
+- [ ] Implement if statements so that our language is Turing-complete
+- [ ] Implement importing of other files
+- [ ] Implement standard library as a different file so that it can be imported
+    - [ ] stdout
+    - [ ] strings (array of char; implemented as obj in std library)
 - [ ] Make a playground for the programming language (with python backend first?)
     - https://ace.c9.io is what rust uses
 - [ ] Deploy the docs and attach link to README.md
 - [ ] Give an overview of how the compiler works in README
 - [ ] Document how to use Flick itself
-- [ ] stdout
-- [ ] strings (array of char; implemented as obj in std library)
 - [ ] add tests for typer
 
 ## Other
