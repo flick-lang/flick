@@ -76,7 +76,7 @@ impl<'a> Parser<'a> {
     /// ```text
     /// // file: test.fl
     ///
-    /// fn foo(i64 x) {
+    /// fn foo(i64 x) i64 {
     ///     i64 a = 10;
     ///     ret a - x * 2;
     /// }
