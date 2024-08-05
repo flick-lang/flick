@@ -33,9 +33,9 @@ pub fn main() {
 }
 ```
 
-You can find other sample programs in the [sample_programs/][sprog] folder.
+You can find other sample programs in the [examples/][a] folder.
 
-[sprog]: https://github.com/flick-lang/flick/tree/main/sample_programs
+[a]: https://github.com/flick-lang/flick/tree/main/examples
 
 ### Step 1: Lexing/tokenization
 
