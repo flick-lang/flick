@@ -218,7 +218,7 @@ impl Compiler {
     /// Registers a function prototype, panicking if the function has already been defined.
     unsafe fn compile_func_proto(&mut self, func_proto: &FuncProto) {
         if self.scope_manager.get(&func_proto.name).is_some() {
-            panic!("Cannot redefine value '{}'", func_proto.name);
+            panic!("Cannot redefine '{}'", func_proto.name);
         }
 
         // TODO: Remove creating new box?
