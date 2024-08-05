@@ -45,11 +45,15 @@ impl<'a> Parser<'a> {
     pub fn parse_program(&mut self) -> Program {
         let mut func_defs = Vec::new();
 
-        self.skip_newlines_comments_and_docstrings();
-        while let Some(func_def) = self.parse_func_def() {
-            func_defs.push(func_def);
+        loop {
             self.skip_newlines_comments_and_docstrings();
+
+            match self.parse_func_def() {
+                Some(func_def) => func_defs.push(func_def),
+                None => break,
+            }
         }
+
         Program { func_defs }
     }
 
@@ -178,7 +182,9 @@ impl<'a> Parser<'a> {
             (Token::While, _) => Statement::WhileLoop(self.parse_while_loop()),
             (Token::Fn, _) => panic!("Nested function definitions are not allowed"),
             (Token::Ret, _) => Statement::Return(self.parse_return_statement()),
-            (_, Some(Token::AssignmentSymbol(_))) => Statement::Assignment(self.parse_assignment()),
+            (Token::Identifier(_), Some(Token::AssignmentSymbol(_))) => {
+                Statement::Assignment(self.parse_assignment())
+            }
             (s, _) => panic!("Unexpected token to start statement: {}", s), // TODO: skip this line and keep checking the file for errors
         };
 
@@ -258,9 +264,10 @@ impl<'a> Parser<'a> {
         let mut body = Vec::new();
         self.assert_next_token(Token::LSquirly);
 
-        self.skip_newlines_comments_and_docstrings();
-        while let Some(token) = self.peek_token(1) {
-            if *token == Token::RSquirly {
+        loop {
+            self.skip_newlines_comments_and_docstrings();
+
+            if self.peek_token(1) == Some(&Token::RSquirly) {
                 break;
             }
 
@@ -268,8 +275,8 @@ impl<'a> Parser<'a> {
                 Some(statement) => body.push(statement),
                 None => panic!("Expected body to be closed ('}}') but file ended"),
             }
-            self.skip_newlines_comments_and_docstrings();
         }
+
         self.assert_next_token(Token::RSquirly);
         body
     }
