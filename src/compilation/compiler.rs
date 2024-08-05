@@ -353,6 +353,7 @@ impl Compiler {
     }
 
     /// Compiles an assignment expression like `foo = 28` (and panics if `foo`'s type can't store 28).
+    // TODO: remove the panics from here and make sure they're in Typer
     unsafe fn compile_assignment_statement(&mut self, assign: &TypedAssignment) {
         let alloca = match self.scope_manager.get(&assign.name) {
             Some(v) => *v,
