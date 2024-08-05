@@ -28,7 +28,7 @@ impl Typer {
         let mut func_defs = Vec::with_capacity(program.func_defs.len());
 
         for func_def in program.func_defs.iter() {
-            self.define_func(func_def);
+            self.declare_func(func_def);
         }
         for func_def in program.func_defs.iter() {
             func_defs.push(self.type_func_def(func_def));
@@ -37,7 +37,7 @@ impl Typer {
         TypedProgram { func_defs }
     }
 
-    fn define_func(&mut self, func_def: &FuncDef) {
+    fn declare_func(&mut self, func_def: &FuncDef) {
         let func_name = &func_def.proto.name;
         match self.scope_manager.get(func_name) {
             Some(Type::Func(_)) => panic!("Cannot redefine function '{}'", func_name),
@@ -276,19 +276,31 @@ impl Typer {
             )
         }
 
+        let num_params = function_type.param_types.len();
+        if num_params != call_expr.args.len() {
+            panic!(
+                "Expected {} argument(s) to function '{}'; got {} argument(s)",
+                function_type.param_types.len(),
+                call_expr.function_name,
+                call_expr.args.len()
+            );
+        }
+
         let args: Vec<_> = call_expr
             .args
             .iter()
             .zip(function_type.param_types.iter())
-            .map(|(e, t)| self.type_expr(e, Some(t)))
+            .map(|(e, desired)| self.type_expr(e, Some(desired)))
             .collect();
 
         TypedCall {
             function_name,
+            function_type,
             args,
         }
     }
 
+    // TODO(max/thomas): delete once we are sure this never gets used
     fn find_type(&mut self, typed_expr: &TypedExpr) -> Type {
         match typed_expr {
             TypedExpr::Identifier(id) => id.id_type.clone(),

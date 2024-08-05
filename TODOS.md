@@ -19,6 +19,7 @@
 - [ ] Document functions in Typer
 - [ ] Maybe define flick build and flick run subcommands (mimicking cargo)
 - [ ] Don't allow pull requests to merge without passing tests, getting approval, and being warning free
+- [ ] Once typer is done, remove redundant checks in compiler and mark them as `unreachable`
 
 ### Longer Todos
 

@@ -46,6 +46,6 @@ impl fmt::Display for FuncType {
             .map(|t| t.to_string())
             .collect::<Vec<String>>()
             .join(", ");
-        write!(f, "func ({}) {}", comma_seperated, self.return_type)
+        write!(f, "fn ({}) {}", comma_seperated, self.return_type)
     }
 }

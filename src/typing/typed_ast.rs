@@ -1,5 +1,5 @@
 use crate::ast::{BinaryOperator, ComparisonOperator, FuncProto};
-use crate::types::IntType;
+use crate::types::{FuncType, IntType};
 use crate::Type;
 
 /// A program; a collection of function definitions. See also: [TypedFuncDef].
@@ -124,6 +124,7 @@ pub struct TypedComparison {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TypedCall {
     pub function_name: String,
+    pub function_type: FuncType,
     pub args: Vec<TypedExpr>,
 }
 

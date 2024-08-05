@@ -159,7 +159,6 @@ impl Compiler {
         unsafe {
             let passes = cstr!("default<O2>");
             let res = LLVMRunPasses(self.module, passes, self.target_machine, self.pass_builder);
-            // TODO: Should it be is_null
             if !res.is_null() {
                 let error_string = CStr::from_ptr(LLVMGetErrorMessage(res));
                 panic!("Error running optimizations: {:?}", error_string);
@@ -413,8 +412,6 @@ impl Compiler {
 
     /// Compiles an integer literal expression.
     unsafe fn compile_int_literal(&self, int_literal: &TypedIntLiteral) -> LLVMValueRef {
-        // TODO: signed-ints: Only sign extend if its signed in
-
         let int_type = self.to_llvm_type(&Type::Int(int_literal.int_type));
         let value_cstr = CString::new(int_literal.int_value.as_str()).unwrap();
         LLVMConstIntOfString(int_type, value_cstr.as_ptr(), 10)
@@ -469,36 +466,28 @@ impl Compiler {
     unsafe fn compile_call_expr(&mut self, call_expr: &TypedCall) -> LLVMValueRef {
         let func = match self.scope_manager.get(&call_expr.function_name) {
             Some(v) => *v,
-            None => panic!("Unknown function '{}' referenced", call_expr.function_name),
+            None => unreachable!("Undefined functions should be handled by typer"),
         };
 
         if LLVMIsAFunction(func).is_null() {
-            panic!("Variable {} is not a function", call_expr.function_name)
+            unreachable!(
+                "Calls like foo() where foo isn't callable (e.g. i32) should be handled by typer"
+            )
         }
 
-        let num_params = LLVMCountParams(func) as usize;
+        let num_params = call_expr.function_type.param_types.len();
         if num_params != call_expr.args.len() {
-            panic!(
-                "Incorrect # arguments passed to function '{}'",
-                call_expr.function_name
-            );
+            unreachable!("Number of arguments should be handled by typer");
         }
 
         let mut arg_values = Vec::with_capacity(call_expr.args.len());
         for i in 0..num_params {
             let arg = call_expr.args.get(i).unwrap();
             let value = self.compile_expr(arg);
-            if value.is_null() {
-                panic!(
-                    "Arg num '{}' when calling function '{}' was null",
-                    i, call_expr.function_name
-                );
-            }
-
             arg_values.push(value);
         }
 
-        let func_type = LLVMGlobalGetValueType(func);
+        let func_type = self.to_llvm_type(&Type::Func(call_expr.function_type.clone()));
         LLVMBuildCall2(
             self.builder,
             func_type,
