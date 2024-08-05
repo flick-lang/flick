@@ -426,7 +426,7 @@ impl Compiler {
         let rhs = self.compile_expr(&bin_expr.right);
 
         if LLVMTypeOf(lhs) != LLVMTypeOf(rhs) {
-            panic!("Left and right hand side of binary expression do not have the same type")
+            unreachable!("Binary expr: type(LHS) != type(RHS) should've been handled by Typer")
         }
 
         match bin_expr.operator {
