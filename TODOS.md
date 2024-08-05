@@ -13,6 +13,8 @@
 
 ### Quick Todos
 
+- [ ] Add tests to parser for spacing and newlines in body and program
+- [ ] Don't call skip newlines twice in parse_body and parse_program
 - [ ] Make `Typer` take the program in its `new()`
 - [ ] Make all module and crate level docstrings start with `//!` instead of `///` and
 - [ ] Move `types.rs` into `typing` module and fix the ignored example in `typing/mod.rs` docstring

@@ -96,6 +96,7 @@ pub struct TypedBinary {
     pub left: Box<TypedExpr>,
     pub operator: BinaryOperator,
     pub right: Box<TypedExpr>,
+    pub result_type: Type,
 }
 
 /// An integer literal

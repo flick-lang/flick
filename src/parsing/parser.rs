@@ -44,8 +44,11 @@ impl<'a> Parser<'a> {
     /// containing them all.
     pub fn parse_program(&mut self) -> Program {
         let mut func_defs = Vec::new();
+
+        self.skip_newlines_comments_and_docstrings();
         while let Some(func_def) = self.parse_func_def() {
             func_defs.push(func_def);
+            self.skip_newlines_comments_and_docstrings();
         }
         Program { func_defs }
     }
@@ -75,8 +78,6 @@ impl<'a> Parser<'a> {
     /// }
     /// ```
     fn parse_func_def(&mut self) -> Option<FuncDef> {
-        self.skip_newlines_comments_and_docstrings();
-
         let is_public = match (self.peek_token(1), self.peek_token(2)) {
             (Some(Token::Pub), Some(Token::Fn)) => true,
             (Some(Token::Pub), Some(t)) => panic!("Expected 'fn' but received {:?}", t),
@@ -172,15 +173,13 @@ impl<'a> Parser<'a> {
     /// - `print(x)`
     /// - `i += 1`
     fn parse_statement(&mut self) -> Option<Statement> {
-        self.skip_newlines_comments_and_docstrings();
-
         let statement = match (self.peek_token(1)?, self.peek_token(2)) {
             (Token::Type(_), _) => Statement::VarDeclaration(self.parse_var_declaration()),
             (Token::While, _) => Statement::WhileLoop(self.parse_while_loop()),
             (Token::Fn, _) => panic!("Nested function definitions are not allowed"),
             (Token::Ret, _) => Statement::Return(self.parse_return_statement()),
             (_, Some(Token::AssignmentSymbol(_))) => Statement::Assignment(self.parse_assignment()),
-            _ => panic!("Unexpected statement"), // TODO: skip this line and keep checking the file
+            (s, _) => panic!("Unexpected token to start statement: {}", s), // TODO: skip this line and keep checking the file for errors
         };
 
         match self.next_token() {
@@ -259,16 +258,17 @@ impl<'a> Parser<'a> {
         let mut body = Vec::new();
         self.assert_next_token(Token::LSquirly);
 
+        self.skip_newlines_comments_and_docstrings();
         while let Some(token) = self.peek_token(1) {
             if *token == Token::RSquirly {
                 break;
             }
 
-            // TODO: allow empty body to have newlines
             match self.parse_statement() {
                 Some(statement) => body.push(statement),
                 None => panic!("Expected body to be closed ('}}') but file ended"),
             }
+            self.skip_newlines_comments_and_docstrings();
         }
         self.assert_next_token(Token::RSquirly);
         body
@@ -655,9 +655,6 @@ mod tests {
     #[test]
     fn spacing() {
         let tokens = vec![
-            Token::Newline,
-            Token::Newline,
-            Token::Newline,
             Token::Identifier("a".to_string()),
             Token::AssignmentSymbol(Eq),
             Token::IntLiteral("2".to_string()),

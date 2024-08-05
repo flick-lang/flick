@@ -226,10 +226,21 @@ impl Typer {
         let left = self.type_expr(&bin_expr.left, desired_type);
         let operator = bin_expr.operator;
         let right = self.type_expr(&bin_expr.right, desired_type);
+
+        let left_type = self.find_type(&left);
+        let right_type = self.find_type(&right);
+        if left_type != right_type {
+            panic!(
+                "Operator '{}' needs left-hand-side ({}) and right-hand-side ({}) to be the same type",
+                operator, left_type, right_type
+            );
+        }
+
         TypedBinary {
             left: Box::new(left),
             operator,
             right: Box::new(right),
+            result_type: left_type, // since both types must be equal
         }
     }
 
@@ -238,10 +249,13 @@ impl Typer {
         comparison: &Comparison,
         desired_type: Option<&Type>,
     ) -> TypedComparison {
-        if desired_type != Some(&Type::Int(IntType { width: 1 })) {
-            panic!("Comparison returns an i1 but expected '{:?}'", desired_type);
+        if desired_type.is_some() && desired_type != Some(&Type::Int(IntType { width: 1 })) {
+            panic!(
+                "Comparison returns an i1 but expected '{}'",
+                desired_type.unwrap()
+            );
         }
-        // TODO: Find common type
+        // TODO for future: Find common type (by casting/coalescing), like i64 can fit both i64 and i32
 
         let left = self.type_expr(&comparison.left, None);
         let operator = comparison.operator;
@@ -249,6 +263,13 @@ impl Typer {
 
         let left_type = self.find_type(&left);
         let right_type = self.find_type(&right);
+
+        if left_type != right_type {
+            panic!(
+                "Comparison '{}' needs left-hand-side ({}) and right-hand-side ({}) to be the same type",
+                comparison.operator, left_type, right_type
+            );
+        }
 
         TypedComparison {
             left: Box::new(left),
@@ -269,10 +290,12 @@ impl Typer {
             ),
         };
 
-        if Some(function_type.return_type.as_ref()) != desired_type {
+        if desired_type.is_some() && Some(function_type.return_type.as_ref()) != desired_type {
             panic!(
-                "Expected function '{}' to return '{}' but it has return type '{:?}'",
-                function_name, function_type.return_type, desired_type
+                "Expected function '{}' to return '{}' but it has return type '{}'",
+                function_name,
+                function_type.return_type,
+                desired_type.unwrap()
             )
         }
 
@@ -300,23 +323,16 @@ impl Typer {
         }
     }
 
-    // TODO(max/thomas): delete once we are sure this never gets used
+    /// Extracts the type from a typed expression.
     fn find_type(&mut self, typed_expr: &TypedExpr) -> Type {
         match typed_expr {
             TypedExpr::Identifier(id) => id.id_type.clone(),
-            TypedExpr::IntLiteral(int) => Type::Int(int.int_type).clone(),
-            TypedExpr::Binary(_) => todo!(),
+            TypedExpr::IntLiteral(int) => Type::Int(int.int_type),
+            TypedExpr::Binary(binary) => binary.result_type.clone(),
             TypedExpr::Comparison(_) => Type::Int(IntType { width: 1 }),
-            TypedExpr::Call(call) => match self.scope_manager.get(&call.function_name) {
-                Some(Type::Func(f)) => f.return_type.as_ref().clone(),
-                _ => unreachable!(),
-            },
+            TypedExpr::Call(call) => Type::Func(call.function_type.clone()),
         }
     }
-
-    fn find_common_type(&mut self) {}
-
-    fn cast_type(&mut self) {}
 }
 
 /// As suggested by Clippy's [new_without_default][a], since [Typer::new()] doesn't
