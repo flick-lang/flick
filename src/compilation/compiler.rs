@@ -406,7 +406,7 @@ impl Compiler {
             None => panic!("Compiler error: undefined identifier '{}'", id.name),
         };
 
-        let alloca_type = LLVMGetAllocatedType(alloca);
+        let alloca_type = self.to_llvm_type(&id.id_type);
         let name = CString::new(id.name.as_str()).unwrap();
         LLVMBuildLoad2(self.builder, alloca_type, alloca, name.as_ptr())
     }
@@ -611,5 +611,15 @@ impl Drop for Compiler {
             LLVMDisposeModule(self.module);
             LLVMContextDispose(self.context);
         }
+    }
+}
+
+/// As suggested by Clippy's [new_without_default][a], since [Compiler::new()] doesn't
+/// take any arguments, Compiler should implement Default.
+///
+/// [a]: https://rust-lang.github.io/rust-clippy/master/index.html#/new_without_default
+impl Default for Compiler {
+    fn default() -> Self {
+        Compiler::new()
     }
 }
