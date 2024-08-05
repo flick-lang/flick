@@ -22,6 +22,7 @@
 
 ### Longer Todos
 
+- [ ] Think about what an identifier is... is it always a variable name? because callexpr is separate...
 - [ ] Be looser with types during typing: coercion, i64 = i32 + i32
 - [ ] Pointers
 - [ ] Nice compiler errors

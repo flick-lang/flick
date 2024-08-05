@@ -400,14 +400,14 @@ impl Compiler {
     }
 
     /// Compiles an identifier expression (variable value) with an expected type.
-    unsafe fn compile_identifier(&mut self, id: &str) -> LLVMValueRef {
-        let alloca = match self.scope_manager.get(id) {
+    unsafe fn compile_identifier(&mut self, id: &TypedIdentifier) -> LLVMValueRef {
+        let alloca = match self.scope_manager.get(id.name.as_str()) {
             Some(v) => *v,
-            None => panic!("Compiler error: undefined identifier '{}'", id),
+            None => panic!("Compiler error: undefined identifier '{}'", id.name),
         };
 
         let alloca_type = LLVMGetAllocatedType(alloca);
-        let name = CString::new(id).unwrap();
+        let name = CString::new(id.name.as_str()).unwrap();
         LLVMBuildLoad2(self.builder, alloca_type, alloca, name.as_ptr())
     }
 

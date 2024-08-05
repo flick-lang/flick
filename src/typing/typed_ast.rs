@@ -71,7 +71,7 @@ pub struct TypedWhileLoop {
 /// For example, `current_length` or `1 + 2` or `foo("bye")` are expressions.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum TypedExpr {
-    Identifier(String),
+    Identifier(TypedIdentifier),
     IntLiteral(TypedIntLiteral),
     Binary(TypedBinary),
     Comparison(TypedComparison),
@@ -125,4 +125,11 @@ pub struct TypedComparison {
 pub struct TypedCall {
     pub function_name: String,
     pub args: Vec<TypedExpr>,
+}
+
+/// An identifier, like `x` or `cur_count`, along with its type.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct TypedIdentifier {
+    pub name: String,
+    pub id_type: Type,
 }

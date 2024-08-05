@@ -5,7 +5,8 @@ use crate::ast::{
 use crate::scope_manager::ScopeManager;
 use crate::typed_ast::{
     TypedAssignment, TypedBinary, TypedCall, TypedComparison, TypedExpr, TypedFuncDef,
-    TypedIntLiteral, TypedProgram, TypedStatement, TypedVarDeclaration, TypedWhileLoop,
+    TypedIdentifier, TypedIntLiteral, TypedProgram, TypedStatement, TypedVarDeclaration,
+    TypedWhileLoop,
 };
 use crate::types::{FuncType, IntType};
 use crate::Type;
@@ -163,7 +164,9 @@ impl Typer {
     // desired type is optional because, for example, 17 doesn't have a desired type
     fn type_expr(&mut self, expr: &Expr, desired_type: Option<&Type>) -> TypedExpr {
         match expr {
-            Expr::Identifier(id) => TypedExpr::Identifier(id.clone()),
+            Expr::Identifier(name) => {
+                TypedExpr::Identifier(self.type_identifier(name, desired_type))
+            }
             Expr::IntLiteral(int) => {
                 TypedExpr::IntLiteral(self.type_int_literal(int, desired_type))
             }
@@ -175,12 +178,33 @@ impl Typer {
         }
     }
 
-    /// Checks that `desired_type` is a valid type (namely, and integer type) and wraps the int_li
-    fn type_int_literal(
-        &mut self,
-        int_literal: &str,
-        desired_type: Option<&Type>,
-    ) -> TypedIntLiteral {
+    /// Checks that the identifier labeled `name` can be interpreted as the type `desired_type`, and
+    /// wraps it as a `TypedIdentifier`.
+    ///
+    /// Note: currently, this function will fail unless `name` was declared to be `desired_type`.
+    /// In the future, this function might support type escalation, like letting an `name` of type
+    /// `i32` but be allowed to be typed as `i64`.
+    fn type_identifier(&self, name: &str, desired_type: Option<&Type>) -> TypedIdentifier {
+        let actual_type = self.scope_manager.get(name);
+        let id_type = match (actual_type, desired_type) {
+            (None, _) => todo!("Deal w/ undeclared variables here? Since it's before compilation?"),
+            (Some(actual), Some(desired)) if actual == desired => actual.clone(),
+            (Some(actual), Some(desired)) => panic!(
+                "identifier '{}' of type '{}' cannot be used as type '{}'",
+                name, actual, desired
+            ),
+            (Some(actual), None) => actual.clone(),
+        };
+
+        TypedIdentifier {
+            name: name.to_string(),
+            id_type,
+        }
+    }
+
+    /// Checks that `desired_type` is a valid type (namely, an integer type) and wraps the
+    /// `int_literal` as a `TypedIntLiteral`.
+    fn type_int_literal(&self, int_literal: &str, desired_type: Option<&Type>) -> TypedIntLiteral {
         let int_type = match desired_type {
             Some(Type::Int(int_type)) => *int_type,
             Some(t) => {
@@ -267,7 +291,7 @@ impl Typer {
 
     fn find_type(&mut self, typed_expr: &TypedExpr) -> Type {
         match typed_expr {
-            TypedExpr::Identifier(id) => self.scope_manager.get(id).unwrap().clone(),
+            TypedExpr::Identifier(id) => id.id_type.clone(),
             TypedExpr::IntLiteral(int) => Type::Int(int.int_type).clone(),
             TypedExpr::Binary(_) => todo!(),
             TypedExpr::Comparison(_) => Type::Int(IntType { width: 1 }),
