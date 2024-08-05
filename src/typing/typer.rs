@@ -187,10 +187,10 @@ impl Typer {
     fn type_identifier(&self, name: &str, desired_type: Option<&Type>) -> TypedIdentifier {
         let actual_type = self.scope_manager.get(name);
         let id_type = match (actual_type, desired_type) {
-            (None, _) => todo!("Deal w/ undeclared variables here? Since it's before compilation?"),
+            (None, _) => panic!("Identifier '{}' has not been declared yet.", name),
             (Some(actual), Some(desired)) if actual == desired => actual.clone(),
             (Some(actual), Some(desired)) => panic!(
-                "identifier '{}' of type '{}' cannot be used as type '{}'",
+                "Identifier '{}' of type '{}' cannot be used as type '{}'",
                 name, actual, desired
             ),
             (Some(actual), None) => actual.clone(),
