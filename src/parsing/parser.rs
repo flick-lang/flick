@@ -655,19 +655,24 @@ mod tests {
     #[test]
     fn spacing() {
         let tokens = vec![
+            Token::LSquirly,
+            Token::Newline,
+            Token::Newline,
+            Token::Newline,
             Token::Identifier("a".to_string()),
             Token::AssignmentSymbol(Eq),
             Token::IntLiteral("2".to_string()),
             Token::Newline,
             Token::Newline,
+            Token::RSquirly,
         ];
-        let expected = Some(Statement::Assignment(Assignment {
+        let expected = vec![Statement::Assignment(Assignment {
             name: "a".to_string(),
             value: Box::new(Expr::IntLiteral("2".to_string())),
-        }));
+        })];
 
         let mut parser = Parser::new(&tokens);
-        let ast = parser.parse_statement();
+        let ast = parser.parse_body();
 
         assert_eq!(expected, ast);
     }
