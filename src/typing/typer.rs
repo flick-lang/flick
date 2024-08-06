@@ -1,12 +1,12 @@
 use crate::ast::{
-    Assignment, Binary, Call, Comparison, Expr, FuncDef, Program, Statement, VarDeclaration,
-    WhileLoop, If
+    Assignment, Binary, Call, Comparison, Expr, FuncDef, If, Program, Statement, VarDeclaration,
+    WhileLoop,
 };
 use crate::scope_manager::ScopeManager;
 use crate::typed_ast::{
     TypedAssignment, TypedBinary, TypedCall, TypedComparison, TypedExpr, TypedFuncDef,
-    TypedIdentifier, TypedIntLiteral, TypedProgram, TypedStatement, TypedVarDeclaration,
-    TypedWhileLoop, TypedIf
+    TypedIdentifier, TypedIf, TypedIntLiteral, TypedProgram, TypedStatement, TypedVarDeclaration,
+    TypedWhileLoop,
 };
 use crate::types::{FuncType, IntType};
 use crate::Type;
@@ -27,7 +27,7 @@ impl Typer {
 
     /// This function goes through the entire `program` and converts it to a [TypedProgram], panicking if
     /// any type mismatches are uncovered.
-    /// 
+    ///
     /// This function assumes that `program` represents a well-parsed program; for example, one returned
     /// by [Parser::parse_program()](crate::Parser::parse_program).
     pub fn type_program(&mut self, program: &Program) -> TypedProgram {
@@ -117,7 +117,7 @@ impl Typer {
                 TypedStatement::Return(self.type_return(r.as_ref(), function_return_type))
             }
             Statement::Call(c) => TypedStatement::Call(self.type_call(c, Some(&Type::Void))),
-            Statement::If(i) => TypedStatement::If(self.type_if_statement(i, function_return_type))
+            Statement::If(i) => TypedStatement::If(self.type_if_statement(i, function_return_type)),
         }
     }
 
@@ -134,11 +134,7 @@ impl Typer {
         }
     }
 
-    fn type_if_statement(
-        &mut self,
-        if_statement: &If,
-        function_return_type: &Type,
-    ) -> TypedIf {
+    fn type_if_statement(&mut self, if_statement: &If, function_return_type: &Type) -> TypedIf {
         let bool_type = Type::Int(IntType { width: 1 });
         let condition = self.type_expr(&if_statement.condition, Some(&bool_type));
 
@@ -329,8 +325,8 @@ impl Typer {
             panic!(
                 "Expected function '{}' to return '{}' but it has return type '{}'",
                 function_name,
-                function_type.return_type,
-                desired_type.unwrap()
+                desired_type.unwrap(),
+                function_type.return_type
             )
         }
 
@@ -382,8 +378,8 @@ impl Default for Typer {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::*;
     use super::*;
+    use crate::ast::*;
 
     #[test]
     #[should_panic]
@@ -400,26 +396,26 @@ mod tests {
                     is_public: true,
                     name: "main".to_string(),
                     params: vec![],
-                    return_type: Type::Int(IntType { width: 32 })
+                    return_type: Type::Int(IntType { width: 32 }),
                 },
                 body: vec![
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "a".to_string(),
                         var_value: Expr::IntLiteral("3".to_string()),
-                        var_type: Type::Int(IntType { width: 64 })
+                        var_type: Type::Int(IntType { width: 64 }),
                     }),
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "b".to_string(),
                         var_value: Expr::IntLiteral("a".to_string()),
-                        var_type: Type::Int(IntType { width: 64 })
+                        var_type: Type::Int(IntType { width: 64 }),
                     }),
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "c".to_string(),
-                        var_value: Expr::Identifier("b".to_string()),   // this should panic, since b (i64) can't be in c (i32)
-                        var_type: Type::Int(IntType { width: 32 })
-                    })
-                ]
-            }]
+                        var_value: Expr::Identifier("b".to_string()), // this should panic, since b (i64) can't be in c (i32)
+                        var_type: Type::Int(IntType { width: 32 }),
+                    }),
+                ],
+            }],
         };
 
         let mut typer = Typer::new();
@@ -440,22 +436,22 @@ mod tests {
                     is_public: true,
                     name: "main".to_string(),
                     params: vec![],
-                    return_type: Type::Int(IntType { width: 32 })
+                    return_type: Type::Int(IntType { width: 32 }),
                 },
                 body: vec![
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "a".to_string(),
                         var_value: Expr::IntLiteral("3".to_string()),
-                        var_type: Type::Int(IntType { width: 32 })
+                        var_type: Type::Int(IntType { width: 32 }),
                     }),
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "b".to_string(),
                         var_value: Expr::IntLiteral("a".to_string()),
-                        var_type: Type::Int(IntType { width: 32 })
+                        var_type: Type::Int(IntType { width: 32 }),
                     }),
-                    Statement::Return(Some(Expr::Identifier("b".to_string())))
-                ]
-            }]
+                    Statement::Return(Some(Expr::Identifier("b".to_string()))),
+                ],
+            }],
         };
 
         let expected_typed_program = TypedProgram {
@@ -464,33 +460,33 @@ mod tests {
                     is_public: true,
                     name: "main".to_string(),
                     params: vec![],
-                    return_type: Type::Int(IntType { width: 32 })
+                    return_type: Type::Int(IntType { width: 32 }),
                 },
                 body: vec![
                     TypedStatement::VarDeclaration(TypedVarDeclaration {
                         var_name: "a".to_string(),
                         var_value: TypedExpr::IntLiteral(TypedIntLiteral {
                             int_value: "3".to_string(),
-                            int_type: IntType { width: 32 }
+                            int_type: IntType { width: 32 },
                         }),
-                        var_type: Type::Int(IntType { width: 32 })
+                        var_type: Type::Int(IntType { width: 32 }),
                     }),
                     TypedStatement::VarDeclaration(TypedVarDeclaration {
                         var_name: "b".to_string(),
                         var_value: TypedExpr::IntLiteral(TypedIntLiteral {
                             int_value: "a".to_string(),
-                            int_type: IntType { width: 32 }
+                            int_type: IntType { width: 32 },
                         }),
-                        var_type: Type::Int(IntType { width: 32 })
+                        var_type: Type::Int(IntType { width: 32 }),
                     }),
                     TypedStatement::Return(Some(TypedExpr::Identifier(TypedIdentifier {
                         name: "b".to_string(),
-                        id_type: Type::Int(IntType { width: 32 })
-                    })))
-                ]
-            }]
+                        id_type: Type::Int(IntType { width: 32 }),
+                    }))),
+                ],
+            }],
         };
-        
+
         let mut typer = Typer::new();
         let actual_typed_program = typer.type_program(&program);
         assert_eq!(expected_typed_program, actual_typed_program);
