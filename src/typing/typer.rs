@@ -415,7 +415,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn assignmen_with_mismatched_types() {
+    fn assignment_with_mismatched_types() {
         // pub fn main() i32 {
         //     i64 a = 3
         //     i64 b = a
