@@ -1,4 +1,9 @@
+pub fn test() {
+    i64 i = 2
+}
+
 pub fn main() i11 {
+    test()
     ret sum(2, sum(3, 4))
 }
 

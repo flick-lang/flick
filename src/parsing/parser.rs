@@ -163,7 +163,7 @@ impl<'a> Parser<'a> {
             match self.next_token() {
                 Some(Token::RParen) => break,
                 Some(Token::Comma) => continue,
-                Some(token) => panic!("Expected ')' but received {:?}", token),
+                Some(token) => panic!("Expected ')' but received {}", token),
                 None => panic!("Expected ')' but file ended"),
             }
         }
@@ -185,12 +185,13 @@ impl<'a> Parser<'a> {
             (Token::Identifier(_), Some(Token::AssignmentSymbol(_))) => {
                 Statement::Assignment(self.parse_assignment())
             }
+            (Token::Identifier(_), Some(Token::LParen)) => Statement::Call(self.parse_call()),
             (s, _) => panic!("Unexpected token to start statement: {}", s), // TODO: skip this line and keep checking the file for errors
         };
 
         match self.next_token() {
             Some(Token::Newline) | None => Some(statement),
-            Some(token) => panic!("Expected newline or EOF but received {:?}", token),
+            Some(token) => panic!("Expected newline or EOF but received {}", token),
         }
     }
 
@@ -451,21 +452,19 @@ impl<'a> Parser<'a> {
                 self.assert_next_token(Token::RParen);
                 expr
             }
-            (Some(Token::Identifier(_)), Some(Token::LParen)) => self.parse_call_expr(),
+            (Some(Token::Identifier(_)), Some(Token::LParen)) => Expr::Call(self.parse_call()),
             _ => self.parse_atom(),
         }
     }
 
-    /// Parses expressions like `foo()` or `bar(7, 2)`
-    /// see [Parser::parse_expr] for expression-parsing details.
-    fn parse_call_expr(&mut self) -> Expr {
-        let identifier = self.parse_identifier();
-        match self.peek_token(1) {
-            Some(Token::LParen) => Expr::Call(Call {
-                function_name: identifier,
-                args: self.parse_func_args(),
-            }),
-            _ => Expr::Identifier(identifier),
+    /// Parses expressions like `foo()` or `bar(7, 2)`; see [Parser::parse_expr] for 
+    /// expression-parsing details.
+    fn parse_call(&mut self) -> Call {
+        let function_name = self.parse_identifier();
+        let args = self.parse_func_args();
+        Call {
+            function_name,
+            args
         }
     }
 

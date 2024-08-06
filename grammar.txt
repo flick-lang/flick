@@ -1,6 +1,6 @@
 program     := {func_def}
 
-statement   := var_dec | while_loop | expr | return_stmt
+statement   := var_dec | while_loop | assignment_stmt | return_stmt | call
                     NOTE: statement must be FOLLOWED BY '\n' or EOF
 
 func_def    := ['pub'] 'fn' IDENTIFIER '(' [parameters] ')' [VARTYPE] '{' {statement} '}'
@@ -9,18 +9,20 @@ parameters  := {VARTYPE IDENTIFIER ','} VARTYPE IDENTIFIER
 var_decl    := VARTYPE IDENTIFIER '=' expr
 while_loop  := 'while' '{' [statement]+ '}'
 
-return_stmt     := 'ret' expr
-expr            := assigment_expr
-assigment_expr  := {IDENTIFIER =} logical_or_expr
+return_stmt := 'ret' expr
+
+assigment   := IDENTIFIER = expr
+
+expr            := logical_or
 logical_or      := {logical_and or} logical_and
 logical_and     := {eq_neq_expr and} eq_neq_expr
 comparison_expr := {add_sub_expr !=,==} add_sub_expr
 add_sub_expr    := {mul_div_expr (+-)} mul_div_expr
 mul_div_expr    := {primary_expr (*/)} primary_expr
-primary_expr    := atom | call_expr | '(' expr ')'
-                          ^^^^^^^^^ will become call_and_index_expr
+primary_expr    := atom | call | '(' expr ')'
+                          ^^^^ will become call_and_index_expr
 
 // call_and_index_expr  := IDENTIFIER { [ '(' [args] ')' ] { '[' [index]  ']' } }
-call_expr   := IDENTIFIER [ '(' [args] ')' ]
+call        := IDENTIFIER [ '(' [args] ')' ]
 args        := {arg ,} arg
 atom        := IDENTIFIER | INT_LITERAL | STR_LITERAL
