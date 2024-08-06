@@ -498,7 +498,7 @@ impl Compiler {
             func,
             arg_values.as_mut_ptr(),
             arg_values.len() as c_uint,
-            cstr!("call"),
+            cstr!(""),
         )
     }
 
