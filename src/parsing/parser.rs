@@ -293,7 +293,7 @@ impl<'a> Parser<'a> {
     ///     i += 1
     /// }
     fn parse_if_statement(&mut self) -> If {
-        self.assert_next_token(Token::While);
+        self.assert_next_token(Token::If);
 
         let condition = self.parse_expr();
         let body = self.parse_body();
