@@ -1,6 +1,6 @@
 use crate::ast::{
-    Assignment, Binary, Call, Comparison, Expr, FuncDef, If, Program, Statement, VarDeclaration,
-    WhileLoop,
+    Assignment, Binary, Call, Comparison, Expr, FuncDef, FuncProto, If, Program, Statement,
+    VarDeclaration, WhileLoop,
 };
 use crate::scope_manager::ScopeManager;
 use crate::typed_ast::{
@@ -15,26 +15,30 @@ pub struct Typer {
     scope_manager: ScopeManager<Type>,
 }
 
-// mention that the purpose of this struct is to: (a) catch type mismatches, (b) coerce types,j
-// (c) handle stuff like i64 a = b + c where b and c are i32, (d) disallow i8 = b + c if b, c i32
-// -> don't mention the things it doesn't do yet (since those are left as todos)
-// TODO: Document Typer!
+/// This struct handles the conversion from a regular [abstract syntax tree](crate::ast) to a
+/// [typed abstract syntax tree](crate::typed_ast). See [Typer::type_program] for details.
 impl Typer {
     pub fn new() -> Self {
         let scope_manager = ScopeManager::new();
         Self { scope_manager }
     }
 
-    /// This function goes through the entire `program` and converts it to a [TypedProgram], panicking if
-    /// any type mismatches are uncovered.
+    /// This method goes through the entire `program` and converts it to a [TypedProgram],
+    /// panicking if any type mismatches or undefined identifiers are uncovered.
     ///
-    /// This function assumes that `program` represents a well-parsed program; for example, one returned
-    /// by [Parser::parse_program()](crate::Parser::parse_program).
+    /// In the future, this method may also coerce types as necessary, such as when `i32` and
+    /// `i32` are summed and placed into an `i64` (currently, programs can only store `i32 + i32`
+    /// in another `i32`).
+    ///
+    /// # Assumptions
+    ///
+    /// This method assumes that `program` represents a well-parsed program; for example, one
+    /// returned by [Parser::parse_program()](crate::Parser::parse_program).
     pub fn type_program(&mut self, program: &Program) -> TypedProgram {
         let mut func_defs = Vec::with_capacity(program.func_defs.len());
 
         for func_def in program.func_defs.iter() {
-            self.declare_func(func_def);
+            self.type_func_proto(&func_def.proto);
         }
         for func_def in program.func_defs.iter() {
             func_defs.push(self.type_func_def(func_def));
@@ -43,8 +47,10 @@ impl Typer {
         TypedProgram { func_defs }
     }
 
-    fn declare_func(&mut self, func_def: &FuncDef) {
-        let func_name = &func_def.proto.name;
+    /// This method processes the prototype of a function, updating the internal scope manager
+    /// and confirming the function isn't being redeclared.
+    fn type_func_proto(&mut self, func_proto: &FuncProto) {
+        let func_name = &func_proto.name;
         match self.scope_manager.get(func_name) {
             Some(Type::Func(_)) => panic!("Cannot redefine function '{}'", func_name),
             Some(_) => panic!(
@@ -54,13 +60,12 @@ impl Typer {
             None => {}
         }
 
-        let param_types: Vec<_> = func_def
-            .proto
+        let param_types: Vec<_> = func_proto
             .params
             .iter()
             .map(|p| p.param_type.clone())
             .collect();
-        let return_type = Box::new(func_def.proto.return_type.clone());
+        let return_type = Box::new(func_proto.return_type.clone());
         let func_type = Type::Func(FuncType {
             param_types,
             return_type,
@@ -68,6 +73,8 @@ impl Typer {
         self.scope_manager.set(func_name, func_type);
     }
 
+    /// This method processes a function definition by processing each statement within the body,
+    /// and by confirming that it always returns the correct type (according to its prototype).
     fn type_func_def(&mut self, func_def: &FuncDef) -> TypedFuncDef {
         self.scope_manager.enter_scope();
 
@@ -98,8 +105,12 @@ impl Typer {
         }
     }
 
-    // This method takes `function_return_type` in order to type-check return statements, or
-    // statements like while loops that might contain return statements.
+    /// This method processes a statement and makes sure that its internals are well-typed.
+    ///
+    /// # Notes
+    ///
+    /// This method takes `function_return_type` so that it can type-check return statements, or
+    /// statements like while loops that might contain return statements.
     fn type_statement(
         &mut self,
         statement: &Statement,
@@ -121,6 +132,8 @@ impl Typer {
         }
     }
 
+    /// This method checks that the variable introduced by `var_declaration` is being set to a value
+    /// of its declared type.
     fn type_var_declaration(&mut self, var_declaration: &VarDeclaration) -> TypedVarDeclaration {
         let var_name = var_declaration.var_name.clone();
         let var_type = var_declaration.var_type.clone();
@@ -134,6 +147,8 @@ impl Typer {
         }
     }
 
+    /// This method checks that an if statement has a *boolean* condition and a collection of body
+    /// statements that are well-typed.
     fn type_if_statement(&mut self, if_statement: &If, function_return_type: &Type) -> TypedIf {
         let bool_type = Type::Int(IntType { width: 1 });
         let condition = self.type_expr(&if_statement.condition, Some(&bool_type));
@@ -149,6 +164,8 @@ impl Typer {
         TypedIf { condition, body }
     }
 
+    /// This method checks that a while loop has a *boolean* condition and a collection of body
+    /// statements that are well-typed.
     fn type_while_loop(
         &mut self,
         while_loop: &WhileLoop,
@@ -168,6 +185,8 @@ impl Typer {
         TypedWhileLoop { condition, body }
     }
 
+    /// This method checks that an assignment is assigning to a declared variable, and that the new
+    /// value matches the variable's declared type.
     fn type_assignment(&mut self, assignment: &Assignment) -> TypedAssignment {
         let name = assignment.name.clone();
         let var_type = match self.scope_manager.get(&name) {
@@ -184,6 +203,7 @@ impl Typer {
         }
     }
 
+    // TODO: finish documenting Typer from here
     fn type_return(
         &mut self,
         ret: Option<&Expr>,
