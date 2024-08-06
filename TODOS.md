@@ -1,6 +1,8 @@
 ## Roadmap to working demo!!!
 
+- [ ] Add tests for typer
 - [ ] Support for calling void functions
+    - [ ] should we let non void functions also be called w value ignored
 - [ ] Implement if statements so that our language is Turing-complete
 - [ ] Implement importing of other files
 - [ ] Implement standard library as a different file so that it can be imported
@@ -11,7 +13,6 @@
 - [ ] Deploy the docs and attach link to README.md
 - [ ] Give an overview of how the compiler works in README
 - [ ] Document how to use Flick itself
-- [ ] add tests for typer
 
 ## Other
 
@@ -29,6 +30,7 @@
 
 ### Longer Todos
 
+- [ ] Embed LLD linker so not calling clang
 - [ ] Think about what an identifier is... is it always a variable name? because callexpr is separate...
 - [ ] Be looser with types during typing: coercion, i64 = i32 + i32
 - [ ] Pointers
