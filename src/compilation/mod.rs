@@ -2,9 +2,4 @@
 /// into LLVM code.
 ///
 /// [a]: crate::parser::ast;
-pub(crate) mod compiler;
-
-/// This module is used by [Compiler](compiler::Compiler), because it manages namespaces/scopes.
-///
-/// See [scope_manager::ScopeManager] for more details.
-pub mod scope_manager;
+pub mod compiler;

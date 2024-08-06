@@ -11,6 +11,8 @@ pub fn main() i64 {
         i += 1
     }
 
+    ret answer
+
     // todo: move print to std
-    print(answer)
+    //print(answer)
 }

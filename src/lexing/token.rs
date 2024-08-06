@@ -1,3 +1,4 @@
+use crate::Type;
 use std::fmt;
 
 /// An enum to represent any given non-whitespace token in a source code
@@ -12,7 +13,7 @@ pub enum Token {
     Docstring(String),
     Comment(String),
 
-    I64Literal(i64),
+    IntLiteral(String),
     Identifier(String),
 
     // Keywords
@@ -32,8 +33,6 @@ pub enum Token {
 
     // Punctuation
     Newline,
-    Semicolon,
-    Colon,
     Comma,
 
     /// One of `+`, `-`, `*`, and `/`
@@ -56,7 +55,7 @@ impl fmt::Display for Token {
             Self::Docstring(docstring) => write!(f, "{}", docstring),
             Self::Comment(comment) => write!(f, "{}", comment),
 
-            Self::I64Literal(int) => write!(f, "{}", int),
+            Self::IntLiteral(int) => write!(f, "{}", int),
             Self::Identifier(id) => write!(f, "{}", id),
 
             Self::Pub => write!(f, "pub"),
@@ -71,32 +70,11 @@ impl fmt::Display for Token {
             Self::LParen => write!(f, "("),
             Self::RParen => write!(f, ")"),
             Self::Newline => writeln!(f),
-            Self::Semicolon => write!(f, ";"),
-            Self::Colon => write!(f, ":"),
             Self::Comma => write!(f, ","),
 
             Self::OperatorSymbol(operator_symbol) => write!(f, "{}", operator_symbol),
             Self::ComparatorSymbol(comparator_symbol) => write!(f, "{}", comparator_symbol),
             Self::AssignmentSymbol(assignment_symbol) => write!(f, "{}", assignment_symbol),
-        }
-    }
-}
-
-/// An enum to store the built-in Flick types, like `void`
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum Type {
-    /// Variable-size int type, with `width` bits.
-    Int {
-        width: u32,
-    },
-    Void,
-}
-
-impl fmt::Display for Type {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Int { width } => write!(f, "i{}", width),
-            Self::Void => write!(f, "void"),
         }
     }
 }

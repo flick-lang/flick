@@ -1,7 +1,9 @@
 use crate::lexing::token::AssignmentSymbol::*;
 use crate::lexing::token::ComparatorSymbol::*;
 use crate::lexing::token::OperatorSymbol::*;
-use crate::lexing::token::{Token, Type};
+use crate::lexing::token::Token;
+use crate::types::IntType;
+use crate::Type;
 
 /// A struct that takes source code and converts it tokens (see [Token])
 ///
@@ -11,7 +13,7 @@ use crate::lexing::token::{Token, Type};
 ///
 /// ```
 /// # use flick::Lexer;
-/// # let source_code: Vec<_> = String::from("foo(42)").chars().collect();
+/// # let source_code: Vec<_> = "foo(42)".to_string().chars().collect();
 /// let mut lexer = Lexer::new(&source_code);
 /// ```
 ///
@@ -19,7 +21,7 @@ use crate::lexing::token::{Token, Type};
 ///
 /// ```
 /// # use flick::Lexer;
-/// # let source_code: Vec<_> = String::from("foo(42)").chars().collect();
+/// # let source_code: Vec<_> = "foo(42)".to_string().chars().collect();
 /// # let mut lexer = Lexer::new(&source_code);
 /// let tokens: Vec<_> = lexer.collect();
 /// ```
@@ -28,7 +30,7 @@ use crate::lexing::token::{Token, Type};
 ///
 /// ```
 /// # use flick::Lexer;
-/// # let source_code: Vec<_> = String::from("foo(42)").chars().collect();
+/// # let source_code: Vec<_> = "foo(42)".to_string().chars().collect();
 /// # let mut lexer = Lexer::new(&source_code);
 /// for token in lexer {
 ///     // ...
@@ -109,8 +111,6 @@ impl<'a> Lexer<'a> {
             ('-', _) => Token::OperatorSymbol(Minus),
             ('+', _) => Token::OperatorSymbol(Plus),
             (',', _) => Token::Comma,
-            (';', _) => Token::Semicolon,
-            (':', _) => Token::Colon,
             ('(', _) => Token::LParen,
             (')', _) => Token::RParen,
             ('{', _) => Token::LSquirly,
@@ -167,10 +167,14 @@ impl<'a> Lexer<'a> {
     /// - The next source code character is one of `a-z`, `A-Z`, or `_`.
     fn read_word(&mut self) -> Token {
         let s = self.take_chars_while(|&c| c.is_ascii_alphanumeric() || c == '_');
+
+        if s.starts_with('i') && s.len() > 1 && s.chars().skip(1).all(|c| c.is_ascii_digit()) {
+            let num: String = s.chars().skip(1).collect();
+            let width: u32 = num.parse().unwrap();
+            return Token::Type(Type::Int(IntType { width }));
+        }
+
         match s.as_str() {
-            "i1" => Token::Type(Type::Int { width: 1 }),
-            "i32" => Token::Type(Type::Int { width: 32 }),
-            "i64" => Token::Type(Type::Int { width: 64 }),
             "void" => Token::Type(Type::Void),
             "while" => Token::While,
             "pub" => Token::Pub,
@@ -180,7 +184,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Consumes source code characters and returns the corresponding [Token::I64Literal].
+    /// Consumes source code characters and returns the corresponding [Token::IntLiteral].
     ///
     /// # Assumptions:
     ///
@@ -188,8 +192,7 @@ impl<'a> Lexer<'a> {
     fn read_i64_literal(&mut self) -> Token {
         // TODO: Allow negative numbers
         let number = self.take_chars_while(|&c| c.is_ascii_digit());
-        Token::I64Literal(number.parse().unwrap())
-        // TODO: Handle error parsing int! it could be too big for i64
+        Token::IntLiteral(number)
     }
 
     /// Consumes source code characters and returns the corresponding [Token::Comment] or
@@ -240,15 +243,15 @@ mod tests {
     fn variables() {
         let source_code = "i64 this_is_a_LONG_VARIABLE_NAME = 5\ni64 shortInt = 5";
         let expected_tokens = vec![
-            Token::Type(Type::Int { width: 64 }),
+            Token::Type(Type::Int(IntType { width: 64 })),
             Token::Identifier("this_is_a_LONG_VARIABLE_NAME".to_string()),
             Token::AssignmentSymbol(Eq),
-            Token::I64Literal(5),
+            Token::IntLiteral("5".to_string()),
             Token::Newline,
-            Token::Type(Type::Int { width: 64 }),
+            Token::Type(Type::Int(IntType { width: 64 })),
             Token::Identifier("shortInt".to_string()),
             Token::AssignmentSymbol(Eq),
-            Token::I64Literal(5),
+            Token::IntLiteral("5".to_string()),
         ];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
@@ -265,7 +268,7 @@ mod tests {
             Token::While,
             Token::Identifier("x".to_string()),
             Token::ComparatorSymbol(LessOrEqualTo),
-            Token::I64Literal(5),
+            Token::IntLiteral("5".to_string()),
             Token::LSquirly,
             Token::RSquirly,
         ];

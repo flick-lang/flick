@@ -1,0 +1,7 @@
+pub fn main() i11 {
+    ret sum(2, sum(3, 4))
+}
+
+fn sum(i11 x, i11 y) i11 {
+    ret x+y
+}

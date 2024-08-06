@@ -1,7 +1,8 @@
 use crate::lexing::token::AssignmentSymbol::*;
 use crate::lexing::token::OperatorSymbol::*;
-use crate::lexing::token::{Token, Type};
+use crate::lexing::token::Token;
 use crate::parsing::ast::*;
+use crate::Type;
 
 /// A struct that takes tokens and parses them into a [abstract syntax tree](crate::parsing::ast)
 pub struct Parser<'a> {
@@ -12,7 +13,7 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    /// Returns an parsing instance ready to convert `tokens` into an [abstract syntax tree](crate::parsing::ast)
+    /// Returns a parsing instance ready to convert `tokens` into an [abstract syntax tree](crate::parsing::ast)
     pub fn new(tokens: &'a [Token]) -> Self {
         Self { tokens, cursor: 0 }
     }
@@ -43,9 +44,16 @@ impl<'a> Parser<'a> {
     /// containing them all.
     pub fn parse_program(&mut self) -> Program {
         let mut func_defs = Vec::new();
-        while let Some(func_def) = self.parse_func_def() {
-            func_defs.push(func_def);
+
+        loop {
+            self.skip_newlines_comments_and_docstrings();
+
+            match self.parse_func_def() {
+                Some(func_def) => func_defs.push(func_def),
+                None => break,
+            }
         }
+
         Program { func_defs }
     }
 
@@ -68,14 +76,12 @@ impl<'a> Parser<'a> {
     /// ```text
     /// // file: test.fl
     ///
-    /// fn foo(i64 x) {
+    /// fn foo(i64 x) i64 {
     ///     i64 a = 10;
-    ///     return a - x * 2;
+    ///     ret a - x * 2;
     /// }
     /// ```
     fn parse_func_def(&mut self) -> Option<FuncDef> {
-        self.skip_newlines_comments_and_docstrings();
-
         let is_public = match (self.peek_token(1), self.peek_token(2)) {
             (Some(Token::Pub), Some(Token::Fn)) => true,
             (Some(Token::Pub), Some(t)) => panic!("Expected 'fn' but received {:?}", t),
@@ -108,17 +114,14 @@ impl<'a> Parser<'a> {
 
         let body = self.parse_body();
 
-        let func_proto = FuncProto {
+        let proto = FuncProto {
+            is_public,
             name,
             params,
             return_type,
         };
 
-        let func_def = FuncDef {
-            is_public,
-            proto: func_proto,
-            body,
-        };
+        let func_def = FuncDef { proto, body };
 
         Some(func_def)
     }
@@ -174,19 +177,19 @@ impl<'a> Parser<'a> {
     /// - `print(x)`
     /// - `i += 1`
     fn parse_statement(&mut self) -> Option<Statement> {
-        self.skip_newlines_comments_and_docstrings();
-
         let statement = match (self.peek_token(1)?, self.peek_token(2)) {
-            (Token::Type(_), _) => Statement::VarDeclarations(self.parse_var_declarations()),
+            (Token::Type(_), _) => Statement::VarDeclaration(self.parse_var_declaration()),
             (Token::While, _) => Statement::WhileLoop(self.parse_while_loop()),
             (Token::Fn, _) => panic!("Nested function definitions are not allowed"),
             (Token::Ret, _) => Statement::Return(self.parse_return_statement()),
-            (_, Some(Token::AssignmentSymbol(_))) => Statement::Assignment(self.parse_assignment()),
-            _ => panic!("Unexpected statement"), // TODO: skip this line and keep checking the file
+            (Token::Identifier(_), Some(Token::AssignmentSymbol(_))) => {
+                Statement::Assignment(self.parse_assignment())
+            }
+            (s, _) => panic!("Unexpected token to start statement: {}", s), // TODO: skip this line and keep checking the file for errors
         };
 
         match self.next_token() {
-            Some(Token::Newline | Token::Semicolon) | None => Some(statement),
+            Some(Token::Newline) | None => Some(statement),
             Some(token) => panic!("Expected newline or EOF but received {:?}", token),
         }
     }
@@ -203,7 +206,7 @@ impl<'a> Parser<'a> {
     /// Parses a built-in type, like [Type::Void], and panics if the next token isn't one.
     fn parse_type(&mut self) -> Type {
         match self.next_token() {
-            Some(Token::Type(var_type)) => *var_type,
+            Some(Token::Type(var_type)) => var_type.clone(),
             Some(t) => panic!("Expected type of variable but received {:?}", t),
             None => panic!("Expected type of variable but file ended"),
         }
@@ -222,44 +225,27 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Parses 1 or more variable declaration, and panics if the next tokens don't form one.
+    /// Parses 1 variable declaration
     ///
     /// # Flick example code
-    /// - `i64 a`
-    /// - `i64 ten = 10, i64 hundred = 10 * ten, i64 counter`
-    fn parse_var_declarations(&mut self) -> Vec<VarDeclaration> {
+    /// - `i64 ten = 10`
+    /// - `i64 hundred = 10 * ten`
+    fn parse_var_declaration(&mut self) -> VarDeclaration {
         let var_type = self.parse_type();
 
-        let mut var_declarations = Vec::new();
+        // TODO: Error messages: Add custom error message to tell user that variables can't be named the same as types
+        //  (e.g. "void" or "i64")
+        let var_name = self.parse_identifier();
 
-        loop {
-            // TODO: Error messages: Add custom error message to tell user that variables can't be named the same as types
-            //  (e.g. "void" or "i64")
-            let var_name = self.parse_identifier();
+        self.assert_next_token(Token::AssignmentSymbol(Eq));
 
-            let var_value = match self.peek_token(1) {
-                Some(Token::AssignmentSymbol(Eq)) => {
-                    self.skip_token();
-                    Some(self.parse_expr())
-                }
-                _ => None,
-            };
+        let var_value = self.parse_expr();
 
-            let var_dec = VarDeclaration {
-                var_name,
-                var_type,
-                var_value,
-            };
-
-            var_declarations.push(var_dec);
-
-            match self.peek_token(1) {
-                Some(Token::Comma) => self.skip_token(),
-                _ => break,
-            }
+        VarDeclaration {
+            var_name,
+            var_type,
+            var_value,
         }
-
-        var_declarations
     }
 
     /// Parses 0 or more statements surrounded by curly brackets, and panics if unsuccessful.
@@ -278,17 +264,19 @@ impl<'a> Parser<'a> {
         let mut body = Vec::new();
         self.assert_next_token(Token::LSquirly);
 
-        while let Some(token) = self.peek_token(1) {
-            if *token == Token::RSquirly {
+        loop {
+            self.skip_newlines_comments_and_docstrings();
+
+            if self.peek_token(1) == Some(&Token::RSquirly) {
                 break;
             }
 
-            // TODO: allow empty body to have newlines
             match self.parse_statement() {
                 Some(statement) => body.push(statement),
                 None => panic!("Expected body to be closed ('}}') but file ended"),
             }
         }
+
         self.assert_next_token(Token::RSquirly);
         body
     }
@@ -316,7 +304,7 @@ impl<'a> Parser<'a> {
         self.assert_next_token(Token::Ret);
 
         match self.peek_token(1)? {
-            Token::Newline | Token::Semicolon => None,
+            Token::Newline => None,
             _ => Some(self.parse_expr()),
         }
     }
@@ -524,7 +512,7 @@ impl<'a> Parser<'a> {
     fn parse_atom(&mut self) -> Expr {
         match self.next_token() {
             Some(Token::Identifier(id)) => Expr::Identifier(id.clone()),
-            Some(Token::I64Literal(n)) => Expr::I64Literal(*n),
+            Some(Token::IntLiteral(n)) => Expr::IntLiteral(n.clone()),
             // todo Some(Token::StrLiteral())
             Some(token) => panic!("Expected identifier or literal but received {:?}", token),
             None => panic!("Expected identifier or literal but file ended"),
@@ -536,38 +524,21 @@ impl<'a> Parser<'a> {
 mod tests {
     use super::*;
     use crate::lexing::token::ComparatorSymbol::LessOrEqualTo;
+    use crate::types::IntType;
 
     #[test]
     fn var_declaration() {
         let tokens = vec![
-            Token::Type(Type::Int { width: 64 }),
+            Token::Type(Type::Int(IntType { width: 64 })),
             Token::Identifier("x".to_string()),
             Token::AssignmentSymbol(Eq),
-            Token::I64Literal(5),
-            Token::Comma,
-            Token::Identifier("a".to_string()),
-            Token::Comma,
-            Token::Identifier("m".to_string()),
-            Token::AssignmentSymbol(Eq),
-            Token::I64Literal(3),
+            Token::IntLiteral("5".to_string()),
         ];
-        let expected = Some(Statement::VarDeclarations(vec![
-            VarDeclaration {
-                var_name: "x".to_string(),
-                var_type: Type::Int { width: 64 },
-                var_value: Some(Expr::I64Literal(5)),
-            },
-            VarDeclaration {
-                var_name: "a".to_string(),
-                var_type: Type::Int { width: 64 },
-                var_value: None,
-            },
-            VarDeclaration {
-                var_name: "m".to_string(),
-                var_type: Type::Int { width: 64 },
-                var_value: Some(Expr::I64Literal(3)),
-            },
-        ]));
+        let expected = Some(Statement::VarDeclaration(VarDeclaration {
+            var_name: "x".to_string(),
+            var_type: Type::Int(IntType { width: 64 }),
+            var_value: Expr::IntLiteral("5".to_string()),
+        }));
 
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();
@@ -580,11 +551,11 @@ mod tests {
         let tokens = vec![
             Token::Identifier("num".to_string()),
             Token::AssignmentSymbol(Eq),
-            Token::I64Literal(10),
+            Token::IntLiteral("10".to_string()),
         ];
         let expected = Some(Statement::Assignment(Assignment {
             name: "num".to_string(),
-            value: Box::new(Expr::I64Literal(10)),
+            value: Box::new(Expr::IntLiteral("10".to_string())),
         }));
 
         let mut parser = Parser::new(&tokens);
@@ -621,38 +592,38 @@ mod tests {
     #[test]
     fn order_of_operations() {
         let tokens = vec![
-            Token::I64Literal(10),
+            Token::IntLiteral("10".to_string()),
             Token::OperatorSymbol(Plus),
-            Token::I64Literal(3),
+            Token::IntLiteral("3".to_string()),
             Token::OperatorSymbol(Asterisk),
-            Token::I64Literal(8),
+            Token::IntLiteral("8".to_string()),
             Token::OperatorSymbol(Slash),
-            Token::I64Literal(4),
+            Token::IntLiteral("4".to_string()),
             Token::OperatorSymbol(Minus),
-            Token::I64Literal(13),
+            Token::IntLiteral("13".to_string()),
             Token::OperatorSymbol(Plus),
-            Token::I64Literal(5),
+            Token::IntLiteral("5".to_string()),
         ];
         let expected = Expr::Binary(Binary {
             left: Box::new(Expr::Binary(Binary {
                 left: Box::new(Expr::Binary(Binary {
-                    left: Box::new(Expr::I64Literal(10)),
+                    left: Box::new(Expr::IntLiteral("10".to_string())),
                     operator: BinaryOperator::Add,
                     right: Box::new(Expr::Binary(Binary {
                         left: Box::new(Expr::Binary(Binary {
-                            left: Box::new(Expr::I64Literal(3)),
+                            left: Box::new(Expr::IntLiteral("3".to_string())),
                             operator: BinaryOperator::Multiply,
-                            right: Box::new(Expr::I64Literal(8)),
+                            right: Box::new(Expr::IntLiteral("8".to_string())),
                         })),
                         operator: BinaryOperator::Divide,
-                        right: Box::new(Expr::I64Literal(4)),
+                        right: Box::new(Expr::IntLiteral("4".to_string())),
                     })),
                 })),
                 operator: BinaryOperator::Subtract,
-                right: Box::new(Expr::I64Literal(13)),
+                right: Box::new(Expr::IntLiteral("13".to_string())),
             })),
             operator: BinaryOperator::Add,
-            right: Box::new(Expr::I64Literal(5)),
+            right: Box::new(Expr::IntLiteral("5".to_string())),
         });
 
         let mut parser = Parser::new(&tokens);
@@ -664,21 +635,21 @@ mod tests {
     #[test]
     fn parenthetical_expression() {
         let tokens = vec![
-            Token::I64Literal(9),
+            Token::IntLiteral("9".to_string()),
             Token::OperatorSymbol(Asterisk),
             Token::LParen,
-            Token::I64Literal(2),
+            Token::IntLiteral("2".to_string()),
             Token::OperatorSymbol(Plus),
-            Token::I64Literal(3),
+            Token::IntLiteral("3".to_string()),
             Token::RParen,
         ];
         let expected = Expr::Binary(Binary {
-            left: Box::new(Expr::I64Literal(9)),
+            left: Box::new(Expr::IntLiteral("9".to_string())),
             operator: BinaryOperator::Multiply,
             right: Box::new(Expr::Binary(Binary {
-                left: Box::new(Expr::I64Literal(2)),
+                left: Box::new(Expr::IntLiteral("2".to_string())),
                 operator: BinaryOperator::Add,
-                right: Box::new(Expr::I64Literal(3)),
+                right: Box::new(Expr::IntLiteral("3".to_string())),
             })),
         });
 
@@ -691,22 +662,24 @@ mod tests {
     #[test]
     fn spacing() {
         let tokens = vec![
+            Token::LSquirly,
             Token::Newline,
             Token::Newline,
             Token::Newline,
             Token::Identifier("a".to_string()),
             Token::AssignmentSymbol(Eq),
-            Token::I64Literal(2),
+            Token::IntLiteral("2".to_string()),
             Token::Newline,
             Token::Newline,
+            Token::RSquirly,
         ];
-        let expected = Some(Statement::Assignment(Assignment {
+        let expected = vec![Statement::Assignment(Assignment {
             name: "a".to_string(),
-            value: Box::new(Expr::I64Literal(2)),
-        }));
+            value: Box::new(Expr::IntLiteral("2".to_string())),
+        })];
 
         let mut parser = Parser::new(&tokens);
-        let ast = parser.parse_statement();
+        let ast = parser.parse_body();
 
         assert_eq!(expected, ast);
     }
@@ -718,12 +691,12 @@ mod tests {
             Token::LParen,
             Token::Identifier("f".to_string()),
             Token::LParen,
-            Token::I64Literal(1),
+            Token::IntLiteral("1".to_string()),
             Token::RParen,
             Token::Comma,
-            Token::I64Literal(10),
+            Token::IntLiteral("10".to_string()),
             Token::Comma,
-            Token::I64Literal(20),
+            Token::IntLiteral("20".to_string()),
             Token::RParen,
         ];
         let expected = Expr::Call(Call {
@@ -731,10 +704,10 @@ mod tests {
             args: vec![
                 Expr::Call(Call {
                     function_name: "f".to_string(),
-                    args: vec![Expr::I64Literal(1)],
+                    args: vec![Expr::IntLiteral("1".to_string())],
                 }),
-                Expr::I64Literal(10),
-                Expr::I64Literal(20),
+                Expr::IntLiteral("10".to_string()),
+                Expr::IntLiteral("20".to_string()),
             ],
         });
 
@@ -751,23 +724,23 @@ mod tests {
             Token::Fn,
             Token::Identifier("test".to_string()),
             Token::LParen,
-            Token::Type(Type::Int { width: 64 }),
+            Token::Type(Type::Int(IntType { width: 64 })),
             Token::Identifier("a".to_string()),
             Token::RParen,
-            Token::Type(Type::Int { width: 64 }),
+            Token::Type(Type::Int(IntType { width: 64 })),
             Token::LSquirly,
             Token::RSquirly,
         ];
         let expected = Program {
             func_defs: vec![FuncDef {
-                is_public: true,
                 proto: FuncProto {
+                    is_public: true,
                     name: "test".to_string(),
                     params: vec![FuncParam {
-                        param_type: Type::Int { width: 64 },
+                        param_type: Type::Int(IntType { width: 64 }),
                         param_name: "a".to_string(),
                     }],
-                    return_type: Type::Int { width: 64 },
+                    return_type: Type::Int(IntType { width: 64 }),
                 },
                 body: vec![],
             }],
@@ -785,12 +758,12 @@ mod tests {
             Token::Ret,
             Token::Identifier("x".to_string()),
             Token::OperatorSymbol(Plus),
-            Token::I64Literal(5),
+            Token::IntLiteral("5".to_string()),
         ];
         let expected = Some(Statement::Return(Some(Expr::Binary(Binary {
             left: Box::new(Expr::Identifier("x".to_string())),
             operator: BinaryOperator::Add,
-            right: Box::new(Expr::I64Literal(5)),
+            right: Box::new(Expr::IntLiteral("5".to_string())),
         }))));
 
         let mut parser = Parser::new(&tokens);
@@ -804,14 +777,14 @@ mod tests {
         let tokens = vec![
             Token::Identifier("x".to_string()),
             Token::AssignmentSymbol(PlusEq),
-            Token::I64Literal(5),
+            Token::IntLiteral("5".to_string()),
         ];
         let expected = Some(Statement::Assignment(Assignment {
             name: "x".to_string(),
             value: Box::new(Expr::Binary(Binary {
                 left: Box::new(Expr::Identifier("x".to_string())),
                 operator: BinaryOperator::Add,
-                right: Box::new(Expr::I64Literal(5)),
+                right: Box::new(Expr::IntLiteral("5".to_string())),
             })),
         }));
 

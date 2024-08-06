@@ -1,6 +1,6 @@
 use llvm_sys::analysis::LLVMVerifierFailureAction::LLVMPrintMessageAction;
 use llvm_sys::analysis::LLVMVerifyFunction;
-use std::ffi::{c_char, c_uint, c_ulonglong, CStr, CString};
+use std::ffi::{c_char, c_uint, CStr, CString};
 use std::mem::MaybeUninit;
 use std::path::Path;
 
@@ -24,9 +24,11 @@ use llvm_sys::transforms::pass_builder::*;
 use llvm_sys::LLVMIntPredicate::*;
 use llvm_sys::LLVMLinkage::{LLVMExternalLinkage, LLVMInternalLinkage};
 
-use crate::compilation::scope_manager::ScopeManager;
-use crate::lexing::token::Type;
-use crate::parsing::ast::*;
+use crate::ast::*;
+use crate::typed_ast::*;
+use crate::types::FuncType;
+use crate::ScopeManager;
+use crate::Type;
 
 /// Converts a `&str`, like `"hi"`, into a pointer to a null-terminated C-style str.
 macro_rules! cstr {
@@ -40,9 +42,9 @@ macro_rules! cstr {
 /// # Example usage
 ///
 /// ```
-/// # use flick::{ast, Compiler};
+/// # use flick::{typed_ast, Compiler};
 /// let mut compiler = Compiler::new();
-/// let syntax_tree = ast::Program {
+/// let syntax_tree = typed_ast::TypedProgram {
 ///     // generated during parsing
 ///     # func_defs: vec![]
 /// } ;
@@ -57,24 +59,11 @@ pub struct Compiler {
     module: LLVMModuleRef,
     builder: LLVMBuilderRef,
     target_machine: LLVMTargetMachineRef,
-    scope_manager: ScopeManager,
+    scope_manager: ScopeManager<LLVMValueRef>,
     pass_builder: LLVMPassBuilderOptionsRef,
 }
 
 impl Compiler {
-    /// Converts a string like `x86_64-unknown-freebsd` into the corresponding [LLVMTarget].
-    unsafe fn get_target_from_triple(triple: *const c_char) -> *mut LLVMTarget {
-        let mut target = std::ptr::null_mut();
-        let mut err_str = MaybeUninit::uninit();
-        if LLVMGetTargetFromTriple(triple, &mut target, err_str.as_mut_ptr()) != 0 {
-            panic!(
-                "Error getting target from triple ({:?})",
-                err_str.assume_init()
-            );
-        }
-        target
-    }
-
     /// Creates a new instance, setting up relevant llvm-sys boilerplate.
     pub fn new() -> Self {
         unsafe {
@@ -143,6 +132,19 @@ impl Compiler {
         }
     }
 
+    /// Converts a string like `x86_64-unknown-freebsd` into the corresponding [LLVMTarget].
+    unsafe fn get_target_from_triple(triple: *const c_char) -> *mut LLVMTarget {
+        let mut target = std::ptr::null_mut();
+        let mut err_str = MaybeUninit::uninit();
+        if LLVMGetTargetFromTriple(triple, &mut target, err_str.as_mut_ptr()) != 0 {
+            panic!(
+                "Error getting target from triple ({:?})",
+                err_str.assume_init()
+            );
+        }
+        target
+    }
+
     /// This function prints the LLVM IR generated so far (via methods like [compile][a]).
     ///
     /// [a]: Compiler::compile
@@ -202,7 +204,7 @@ impl Compiler {
     /// [a]: Compiler::optimize
     /// [b]: Compiler::print_ir
     /// [c]: Compiler::to_file
-    pub fn compile(&mut self, program: &Program) {
+    pub fn compile(&mut self, program: &TypedProgram) {
         unsafe {
             for func_def in program.func_defs.iter() {
                 self.compile_func_proto(&func_def.proto);
@@ -215,24 +217,28 @@ impl Compiler {
 
     /// Registers a function prototype, panicking if the function has already been defined.
     unsafe fn compile_func_proto(&mut self, func_proto: &FuncProto) {
-        if self.scope_manager.get_func(&func_proto.name).is_some() {
-            panic!("Cannot redefine function '{}'", func_proto.name);
+        if self.scope_manager.get(&func_proto.name).is_some() {
+            panic!("Cannot redefine '{}'", func_proto.name);
         }
 
-        let return_type = self.to_llvm_type(func_proto.return_type);
-        let num_params = func_proto.params.len() as c_uint;
-        let mut param_types: Vec<_> = func_proto
+        // TODO: Remove creating new box?
+        let return_type = Box::new(func_proto.return_type.clone());
+        let param_types: Vec<_> = func_proto
             .params
             .iter()
-            .map(|p| self.to_llvm_type(p.param_type))
+            .map(|p| p.param_type.clone())
             .collect();
 
-        let func_type = LLVMFunctionType(return_type, param_types.as_mut_ptr(), num_params, 0);
+        let func_type = Type::Func(FuncType {
+            param_types,
+            return_type,
+        });
 
+        let func_llvm_type = self.to_llvm_type(&func_type);
         let func_name = CString::new(func_proto.name.as_str()).unwrap();
-        let func = LLVMAddFunction(self.module, func_name.as_ptr(), func_type);
+        let func = LLVMAddFunction(self.module, func_name.as_ptr(), func_llvm_type);
 
-        if func.is_null() {
+        if LLVMIsNull(func) == 1 {
             panic!("Error defining function '{}'", func_proto.name);
         }
 
@@ -243,31 +249,27 @@ impl Compiler {
             LLVMSetValueName2(param_value_ref, param_name.as_ptr(), param_name_len);
         }
 
+        match func_proto.is_public {
+            true => LLVMSetLinkage(func, LLVMExternalLinkage),
+            false => LLVMSetLinkage(func, LLVMInternalLinkage),
+        }
+
         // TODO: Design: Remove variable shadowing
         //  By that, do you think we meant allow variables to shadow functions inside a scope?
         //  If so, I think we do that...? Not sure.
         let func_name = &func_proto.name;
-        // TODO: Minor: Remove clone (like accept owned through function?)
-        let func_proto = func_proto.clone();
-        self.scope_manager.set_func(func_name, func_proto, func);
+        self.scope_manager.set(func_name, func);
     }
 
     /// Complies a function definition, assuming the function's prototype has been compiled.
-    unsafe fn compile_func_def(&mut self, func_def: &FuncDef) {
+    unsafe fn compile_func_def(&mut self, func_def: &TypedFuncDef) {
         let func_name = CString::new(func_def.proto.name.as_str()).unwrap();
         let func = LLVMGetNamedFunction(self.module, func_name.as_ptr());
-        if func.is_null() {
+        if LLVMIsNull(func) == 1 {
             panic!(
                 "The prototype for function '{}' has not been defined",
                 func_def.proto.name
             );
-        }
-
-        // TODO: QUICK: Should linkage be set in the compile_func_proto function?
-        //  YES! IT SHOULD! Let's move is_public to be a part of func_def.proto.
-        match func_def.is_public {
-            true => LLVMSetLinkage(func, LLVMExternalLinkage),
-            false => LLVMSetLinkage(func, LLVMInternalLinkage),
         }
 
         let entry_block = LLVMAppendBasicBlockInContext(self.context, func, cstr!("entry"));
@@ -277,11 +279,11 @@ impl Compiler {
 
         for (i, param) in func_def.proto.params.iter().enumerate() {
             let param_name = param.param_name.as_str();
-            let param_type = param.param_type;
+            let param_type = &param.param_type;
             let param_value_ref = LLVMGetParam(func, i as c_uint);
-            let alloca = self.create_entry_block_alloca(func, param_name, param.param_type);
+            let alloca = self.create_entry_block_alloca(func, param_name, param_type);
             LLVMBuildStore(self.builder, param_value_ref, alloca);
-            self.scope_manager.set_var(param_name, param_type, alloca);
+            self.scope_manager.set(param_name, alloca);
         }
 
         for statement in func_def.body.iter() {
@@ -289,43 +291,46 @@ impl Compiler {
             self.compile_statement(statement);
         }
 
-        // TODO: minor: Is this the best way of implicitly returning void?
-        //  It's correct. It might be redundant if the second-to-last statement
-        //  was a return. But I think this is fine.
-        // Implicitly return void if no return statement
-        match func_def.body.last() {
-            Some(Statement::Return(_)) => {}
-            _ => self.compile_ret_statement(&None),
-        }
-
         self.scope_manager.exit_scope();
 
+        // TODO: Convert LLVM into Flick error by using LLVMReturnStatusAction
         if LLVMVerifyFunction(func, LLVMPrintMessageAction) == 1 {
             panic!("Function '{}' is not valid", func_def.proto.name);
         }
     }
 
     /// Compiles a statement, assuming the LLVM builder is building inside a function body.
-    unsafe fn compile_statement(&mut self, statement: &Statement) {
+    unsafe fn compile_statement(&mut self, statement: &TypedStatement) {
         match statement {
-            Statement::VarDeclarations(v) => self.compile_var_declarations(v),
-            Statement::WhileLoop(w) => self.compile_while_loop(w),
-            Statement::Assignment(a) => self.compile_assignment_statement(a),
-            Statement::Return(r) => self.compile_ret_statement(r),
+            TypedStatement::VarDeclaration(v) => self.compile_var_declaration(v),
+            TypedStatement::WhileLoop(w) => self.compile_while_loop(w),
+            TypedStatement::Assignment(a) => self.compile_assignment_statement(a),
+            TypedStatement::Return(r) => self.compile_ret_statement(r),
         }
     }
 
-    /// Converts Flick's [Type] enum to llvm-sys's [LLVMTypeRef].
-    unsafe fn to_llvm_type(&self, t: Type) -> LLVMTypeRef {
-        match t {
-            Type::Int { width } => LLVMIntTypeInContext(self.context, width),
-            Type::Void => LLVMVoidTypeInContext(self.context),
-        }
+    /// Compiles 0 or more variable declarations.
+    unsafe fn compile_var_declaration(&mut self, var_declaration: &TypedVarDeclaration) {
+        let func = match self.get_cur_function() {
+            Some(func) => func,
+            None => panic!("Cannot compile var declaration outside of a function"),
+        };
+        let var_name = var_declaration.var_name.as_str();
+        let var_type = &var_declaration.var_type;
+        let alloca = self.create_entry_block_alloca(func, var_name, var_type);
+
+        self.scope_manager.set(var_name, alloca);
+
+        let value = self.compile_expr(&var_declaration.var_value);
+        LLVMBuildStore(self.builder, value, alloca);
     }
 
     /// Compiles a while loop, assuming the LLVM builder is building inside a function body.
-    unsafe fn compile_while_loop(&mut self, while_loop: &WhileLoop) {
-        let cur_func = self.get_cur_function();
+    unsafe fn compile_while_loop(&mut self, while_loop: &TypedWhileLoop) {
+        let cur_func = match self.get_cur_function() {
+            Some(func) => func,
+            None => panic!("Cannot compile while declaration outside of a function"),
+        };
         let cond_block = LLVMAppendBasicBlockInContext(self.context, cur_func, cstr!("cond"));
         let loop_block = LLVMAppendBasicBlockInContext(self.context, cur_func, cstr!("loop"));
         // Build block to go to after loop is done executing
@@ -336,9 +341,7 @@ impl Compiler {
         // Insert an explicit fall through from the current block to the loop_block.
         LLVMPositionBuilderAtEnd(self.builder, cond_block);
 
-        // TODO: types: Should have type bool
-        // Build a boolean LLVMValueRef with value 'condition != 0', which represents whether we should continue looping
-        let condition = self.compile_expr(&while_loop.condition, Type::Int { width: 1 });
+        let condition = self.compile_expr(&while_loop.condition);
         LLVMBuildCondBr(self.builder, condition, loop_block, after_block);
 
         // Start insertion in loop_block.
@@ -355,123 +358,84 @@ impl Compiler {
         LLVMPositionBuilderAtEnd(self.builder, after_block);
     }
 
-    /// Returns the function currently being built by the compiler.
-    unsafe fn get_cur_function(&self) -> LLVMValueRef {
-        let cur_func = LLVMGetBasicBlockParent(LLVMGetInsertBlock(self.builder));
-        if cur_func.is_null() {
-            panic!("Builder is not inside a function; can't get current function.");
-        }
-        cur_func
-    }
-
-    /// Compiles 0 or more variable declarations.
-    unsafe fn compile_var_declarations(&mut self, var_declarations: &[VarDeclaration]) {
-        let func = self.get_cur_function();
-        for var_declaration in var_declarations {
-            let var_name = var_declaration.var_name.as_str();
-            let var_type = var_declaration.var_type;
-            let alloca = self.create_entry_block_alloca(func, var_name, var_type);
-            self.scope_manager.set_var(var_name, var_type, alloca);
-
-            if let Some(value_expr) = &var_declaration.var_value {
-                let value = self.compile_expr(value_expr, var_type);
-                LLVMBuildStore(self.builder, value, alloca);
-            }
-        }
-    }
-
     /// Compiles an assignment expression like `foo = 28` (and panics if `foo`'s type can't store 28).
-    unsafe fn compile_assignment_statement(&mut self, assign: &Assignment) {
-        let var = match self.scope_manager.get_var(&assign.name) {
-            Some(var) => *var,
+    // TODO: should we remove the panics from here since they're already in Typer
+    unsafe fn compile_assignment_statement(&mut self, assign: &TypedAssignment) {
+        let alloca = match self.scope_manager.get(&assign.name) {
+            Some(v) => *v,
             None => panic!("Setting a variable that has not been declared"),
         };
 
-        let value = self.compile_expr(assign.value.as_ref(), var.var_type);
-        let alloca = var.value;
+        // TODO: allow assigning functions with matching types to each other
+        if !LLVMIsAFunction(alloca).is_null() {
+            panic!("Cannot assign a value to function '{}'", assign.name);
+        }
+
+        let value = self.compile_expr(&assign.value);
         LLVMBuildStore(self.builder, value, alloca);
+    }
+
+    /// Compiles a return statement, panicking if the builder isn't inside a function.
+    unsafe fn compile_ret_statement(&mut self, ret_value: &Option<TypedExpr>) {
+        if self.get_cur_function().is_none() {
+            panic!("Cannot compile ret statement outside of a function");
+        }
+
+        match ret_value {
+            Some(expr) => LLVMBuildRet(self.builder, self.compile_expr(expr)),
+            None => LLVMBuildRetVoid(self.builder),
+        };
     }
 
     /// Compiles an expression, panicking if its value's type doesn't match the expected type.
     ///
     /// Note: if `expected_type` is `None`, then no type-checking is performed (because the caller
     /// doesn't actually know what the type must be).
-    unsafe fn compile_expr(&mut self, expr: &Expr, expected_type: Type) -> LLVMValueRef {
+    unsafe fn compile_expr(&mut self, expr: &TypedExpr) -> LLVMValueRef {
         match expr {
-            Expr::Identifier(id) => self.compile_identifier(id, expected_type),
-            Expr::I64Literal(x) => self.compile_int_literal(*x, expected_type),
-            Expr::Binary(bin_expr) => self.compile_bin_expr(bin_expr, expected_type),
-            Expr::Comparison(comparison) => self.compile_comparison_expr(comparison, expected_type),
-            Expr::Call(call_expr) => self.compile_call_expr(call_expr, expected_type),
+            TypedExpr::Identifier(id) => self.compile_identifier(id),
+            TypedExpr::IntLiteral(int_literal) => self.compile_int_literal(int_literal),
+            TypedExpr::Binary(bin_expr) => self.compile_bin_expr(bin_expr),
+            TypedExpr::Comparison(comparison) => self.compile_comparison_expr(comparison),
+            TypedExpr::Call(call_expr) => self.compile_call_expr(call_expr),
         }
-    }
-
-    /// Compiles a return statement, panicking if the builder isn't inside a function.
-    unsafe fn compile_ret_statement(&mut self, ret_value: &Option<Expr>) {
-        let cur_func = self.get_cur_function();
-        let mut len = MaybeUninit::uninit();
-        let func_name_buf = LLVMGetValueName2(cur_func, len.as_mut_ptr());
-        let func_name_cstr = CStr::from_ptr(func_name_buf);
-        let func_name = func_name_cstr.to_str().unwrap();
-        let func = match self.scope_manager.get_func(func_name) {
-            Some(func) => func,
-            None => panic!("Can't return when not in a function"),
-        };
-        let return_type = func.proto.return_type;
-
-        // TODO once we set up type checking and once we can do
-        //  Expr::get_type(), we should make sure that ret_value matches
-        //  LLVMGETReturnType(self.cur_function())
-
-        match ret_value {
-            Some(expr) => LLVMBuildRet(self.builder, self.compile_expr(expr, return_type)),
-            None => LLVMBuildRetVoid(self.builder),
-        };
     }
 
     /// Compiles an identifier expression (variable value) with an expected type.
-    unsafe fn compile_identifier(&mut self, id: &str, expected_type: Type) -> LLVMValueRef {
-        let var = match self.scope_manager.get_var(id) {
-            Some(var) => var,
-            None => panic!("Compiler error: undefined identifier '{}'", id),
+    unsafe fn compile_identifier(&mut self, id: &TypedIdentifier) -> LLVMValueRef {
+        let alloca = match self.scope_manager.get(id.name.as_str()) {
+            Some(v) => *v,
+            None => panic!("Compiler error: undefined identifier '{}'", id.name),
         };
 
-        if var.var_type != expected_type {
-            panic!(
-                "Identifier '{}' has type '{}' but expected '{}'",
-                id, var.var_type, expected_type
-            );
-        }
-
-        let alloca_ref = var.value;
-        let alloca_type = LLVMGetAllocatedType(alloca_ref);
-        let name = CString::new(id).unwrap();
-        LLVMBuildLoad2(self.builder, alloca_type, alloca_ref, name.as_ptr())
+        let alloca_type = self.to_llvm_type(&id.id_type);
+        let name = CString::new(id.name.as_str()).unwrap();
+        LLVMBuildLoad2(self.builder, alloca_type, alloca, name.as_ptr())
     }
 
     /// Compiles an integer literal expression.
-    unsafe fn compile_int_literal(&self, x: i64, expected_type: Type) -> LLVMValueRef {
-        // TODO: signed-ints: Only sign extend if its signed in
-
-        match expected_type {
-            t @ Type::Int { .. } => LLVMConstInt(self.to_llvm_type(t), x as c_ulonglong, 1),
-            t => unreachable!("Unsupported int literal type '{}'", t),
-        }
+    unsafe fn compile_int_literal(&self, int_literal: &TypedIntLiteral) -> LLVMValueRef {
+        let int_type = self.to_llvm_type(&Type::Int(int_literal.int_type));
+        let value_cstr = CString::new(int_literal.int_value.as_str()).unwrap();
+        LLVMConstIntOfString(int_type, value_cstr.as_ptr(), 10)
     }
 
     /// Compiles a binary expression (recursively compiling left- and right-hand sides).
-    unsafe fn compile_bin_expr(&mut self, bin_expr: &Binary, expected_type: Type) -> LLVMValueRef {
+    unsafe fn compile_bin_expr(&mut self, bin_expr: &TypedBinary) -> LLVMValueRef {
         use BinaryOperator::*;
 
-        // TODO: typing: binary expression should dictate types here
-        let lhs = self.compile_expr(&bin_expr.left, expected_type);
-        let rhs = self.compile_expr(&bin_expr.right, expected_type);
+        let lhs = self.compile_expr(&bin_expr.left);
+        let rhs = self.compile_expr(&bin_expr.right);
 
-        // TODO: signed-ints: Signed vs unsigned operations depending on expected_type
+        if LLVMTypeOf(lhs) != LLVMTypeOf(rhs) {
+            panic!("Binary expr: type(LHS) != type(RHS) should've been handled by Typer")
+        }
+
         match bin_expr.operator {
             Add => LLVMBuildAdd(self.builder, lhs, rhs, cstr!("add")),
             Subtract => LLVMBuildSub(self.builder, lhs, rhs, cstr!("sub")),
             Multiply => LLVMBuildMul(self.builder, lhs, rhs, cstr!("mul")),
+            // TODO: signed-ints: Signed vs unsigned division
             Divide => LLVMBuildSDiv(self.builder, lhs, rhs, cstr!("sdiv")),
         }
     }
@@ -480,28 +444,17 @@ impl Compiler {
     ///
     /// Note that this function accept an `expected_type`, only to confirm that it is `i1` (boolean),
     /// since comparison expressions.
-    unsafe fn compile_comparison_expr(
-        &mut self,
-        comparison: &Comparison,
-        expected_type: Type,
-    ) -> LLVMValueRef {
+    unsafe fn compile_comparison_expr(&mut self, comparison: &TypedComparison) -> LLVMValueRef {
         use ComparisonOperator::*;
 
-        match expected_type {
-            Type::Int { width: 1 } => {}
-            t => panic!("Expected type '{}' but got comparison expression", t),
+        let lhs = self.compile_expr(&comparison.left);
+        let rhs = self.compile_expr(&comparison.right);
+
+        if LLVMTypeOf(lhs) != LLVMTypeOf(rhs) {
+            panic!("Comparison: type(LHS) != type(RHS) should've been handled by Typer")
         }
 
-        let lhs_type = self.get_expr_type(&comparison.left);
-        let rhs_type = self.get_expr_type(&comparison.right);
-        let expr_type = match (lhs_type, rhs_type) {
-            (Type::Int { width: w1 }, Type::Int { width: w2 }) => Type::Int { width: w1.max(w2) },
-            (t1, t2) => panic!("'{}' {} '{}' is not supported", t1, comparison.operator, t2),
-        };
-
-        let lhs = self.compile_expr(&comparison.left, expr_type);
-        let rhs = self.compile_expr(&comparison.right, expr_type);
-
+        // TODO: Signed comparisons
         match comparison.operator {
             NotEqualTo => LLVMBuildICmp(self.builder, LLVMIntNE, lhs, rhs, cstr!("neq")),
             EqualTo => LLVMBuildICmp(self.builder, LLVMIntEQ, lhs, rhs, cstr!("eq")),
@@ -513,54 +466,58 @@ impl Compiler {
     }
 
     /// Compiles a function call, ensuring its signature has the expected return type.
-    unsafe fn compile_call_expr(&mut self, call_expr: &Call, expected_type: Type) -> LLVMValueRef {
-        let func = match self.scope_manager.get_func(&call_expr.function_name) {
-            Some(func) => func.clone(), // TODO: Remove the clone
-            None => panic!("Unknown function '{}' referenced", call_expr.function_name),
+    unsafe fn compile_call_expr(&mut self, call_expr: &TypedCall) -> LLVMValueRef {
+        let func = match self.scope_manager.get(&call_expr.function_name) {
+            Some(v) => *v,
+            None => panic!("Undefined functions should be handled by typer"),
         };
 
-        if func.proto.return_type != expected_type {
+        if LLVMIsAFunction(func).is_null() {
             panic!(
-                "Function '{}' has return type '{}' but returned a value of type '{}'",
-                func.proto.name, func.proto.return_type, expected_type
-            );
+                "Calls like foo() where foo isn't callable (e.g. i32) should be handled by typer"
+            )
         }
 
-        let func_ref = func.value;
-
-        let num_params = LLVMCountParams(func_ref) as usize;
+        let num_params = call_expr.function_type.param_types.len();
         if num_params != call_expr.args.len() {
-            panic!(
-                "Incorrect # arguments passed to function '{}'",
-                call_expr.function_name
-            );
+            panic!("Number of arguments should be handled by typer");
         }
 
-        let mut arg_values = Vec::new();
+        let mut arg_values = Vec::with_capacity(call_expr.args.len());
         for i in 0..num_params {
-            let param = func.proto.params.get(i).unwrap();
             let arg = call_expr.args.get(i).unwrap();
-
-            let value = self.compile_expr(arg, param.param_type);
-            if value.is_null() {
-                panic!(
-                    "Arg num '{}' when calling function '{}' was null",
-                    i, call_expr.function_name
-                );
-            }
-
+            let value = self.compile_expr(arg);
             arg_values.push(value);
         }
 
-        let func_type = LLVMGlobalGetValueType(func_ref);
+        let func_type = self.to_llvm_type(&Type::Func(call_expr.function_type.clone()));
         LLVMBuildCall2(
             self.builder,
             func_type,
-            func_ref,
+            func,
             arg_values.as_mut_ptr(),
             arg_values.len() as c_uint,
             cstr!("call"),
         )
+    }
+
+    /// Converts Flick's [Type] enum to llvm-sys's [LLVMTypeRef].
+    unsafe fn to_llvm_type(&self, t: &Type) -> LLVMTypeRef {
+        match t {
+            Type::Int(int_type) => LLVMIntTypeInContext(self.context, int_type.width),
+            Type::Void => LLVMVoidTypeInContext(self.context),
+            Type::Func(func_type) => {
+                let return_type = self.to_llvm_type(func_type.return_type.as_ref());
+                let num_params = func_type.param_types.len() as c_uint;
+                let mut param_types: Vec<_> = func_type
+                    .param_types
+                    .iter()
+                    .map(|p| self.to_llvm_type(p))
+                    .collect();
+
+                LLVMFunctionType(return_type, param_types.as_mut_ptr(), num_params, 0)
+            }
+        }
     }
 
     /// Creates an LLVM 'alloca', which can then be used to set up a local variable.
@@ -568,46 +525,26 @@ impl Compiler {
         &self,
         func: LLVMValueRef,
         var_name: &str,
-        var_type: Type,
+        var_type: &Type,
     ) -> LLVMValueRef {
         // todo reposition self.builder instead of creating temp builder
         let temp_builder = LLVMCreateBuilderInContext(self.context);
         let entry_block = LLVMGetEntryBasicBlock(func);
         LLVMPositionBuilderAtEnd(temp_builder, entry_block);
+        // TODO: Error handling instead of unwrap
         let name = CString::new(var_name).unwrap();
         let alloca = LLVMBuildAlloca(temp_builder, self.to_llvm_type(var_type), name.as_ptr());
         LLVMDisposeBuilder(temp_builder);
         alloca
     }
 
-    /// Returns the smallest type that can store expression.
-    unsafe fn get_expr_type(&self, expr: &Expr) -> Type {
-        // TODO: style: figure out where our compiler stores/uses prototypes of operators
-        //  Like, how do we use <(2, 3) -> bool is allowed and <("hello", hi") -> bool is too.
-        match expr {
-            Expr::Identifier(x) => match self.scope_manager.get_var(x) {
-                Some(v) => v.var_type,
-                None => panic!("Variable has to already have been declared"),
-            },
-            Expr::I64Literal(_) => Type::Int { width: 64 },
-            Expr::Binary(b) => self.get_binary_expr_type(b),
-            Expr::Comparison(_) => Type::Int { width: 1 },
-            Expr::Call(f) => match self.scope_manager.get_func(&f.function_name) {
-                Some(f) => f.proto.return_type,
-                None => panic!("Function has to be declared before it can be called"),
-            },
+    /// Returns the function currently being built by the compiler.
+    unsafe fn get_cur_function(&self) -> Option<LLVMValueRef> {
+        let cur_func = LLVMGetBasicBlockParent(LLVMGetInsertBlock(self.builder));
+        if LLVMIsNull(cur_func) == 1 {
+            return None;
         }
-    }
-
-    /// Returns the smallest type that can store a binary expression.
-    unsafe fn get_binary_expr_type(&self, bin_expr: &Binary) -> Type {
-        let lhs_type = self.get_expr_type(&bin_expr.left);
-        let rhs_type = self.get_expr_type(&bin_expr.right);
-
-        match (lhs_type, rhs_type) {
-            (Type::Int { width: w1 }, Type::Int { width: w2 }) => Type::Int { width: w1.max(w2) },
-            (t1, t2) => panic!("'{}' {} '{}' is not supported", t1, bin_expr.operator, t2),
-        }
+        Some(cur_func)
     }
 }
 
@@ -621,5 +558,15 @@ impl Drop for Compiler {
             LLVMDisposeModule(self.module);
             LLVMContextDispose(self.context);
         }
+    }
+}
+
+/// As suggested by Clippy's [new_without_default][a], since [Compiler::new()] doesn't
+/// take any arguments, Compiler should implement Default.
+///
+/// [a]: https://rust-lang.github.io/rust-clippy/master/index.html#/new_without_default
+impl Default for Compiler {
+    fn default() -> Self {
+        Compiler::new()
     }
 }

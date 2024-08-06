@@ -6,9 +6,7 @@ use std::process::Command;
 use anyhow::Result;
 use clap::Parser as ClapParser;
 
-use flick::Compiler;
-use flick::Lexer;
-use flick::Parser;
+use flick::{Compiler, Lexer, Parser, Typer};
 
 /// A command line interface using [clap]
 #[derive(ClapParser)]
@@ -75,9 +73,11 @@ fn main() -> Result<()> {
     let mut parser = Parser::new(&tokens);
     let program = parser.parse_program();
 
-    let mut compiler = Compiler::new();
+    let mut typer = Typer::new();
+    let typed_program = typer.type_program(&program);
 
-    compiler.compile(&program);
+    let mut compiler = Compiler::new();
+    compiler.compile(&typed_program);
 
     if cli.emit_ir {
         println!("\nIR before optimization:");
