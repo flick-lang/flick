@@ -46,6 +46,7 @@ pub enum TypedStatement {
     Assignment(TypedAssignment),
     Return(Option<TypedExpr>),
     Call(TypedCall),
+    If(TypedIf),
 }
 
 /// A variable declaration and, optionally, variable definition as well.
@@ -63,6 +64,13 @@ pub struct TypedVarDeclaration {
 /// A while loop (its 'while condition' and its body).
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TypedWhileLoop {
+    pub condition: TypedExpr,
+    pub body: Vec<TypedStatement>,
+}
+
+/// An if statement (its 'if condition' and its body).
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct TypedIf {
     pub condition: TypedExpr,
     pub body: Vec<TypedStatement>,
 }

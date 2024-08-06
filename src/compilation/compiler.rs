@@ -307,6 +307,7 @@ impl Compiler {
             TypedStatement::Assignment(a) => self.compile_assignment_statement(a),
             TypedStatement::Return(r) => self.compile_ret_statement(r),
             TypedStatement::Call(c) => _ = self.compile_call(c),
+            TypedStatement::If(_) => todo!(),
         }
     }
 

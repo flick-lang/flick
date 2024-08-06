@@ -180,6 +180,7 @@ impl<'a> Lexer<'a> {
             "pub" => Token::Pub,
             "fn" => Token::Fn,
             "ret" => Token::Ret,
+            "if" => Token::If,
             _ => Token::Identifier(s),
         }
     }

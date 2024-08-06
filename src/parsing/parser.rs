@@ -182,6 +182,7 @@ impl<'a> Parser<'a> {
             (Token::While, _) => Statement::WhileLoop(self.parse_while_loop()),
             (Token::Fn, _) => panic!("Nested function definitions are not allowed"),
             (Token::Ret, _) => Statement::Return(self.parse_return_statement()),
+            (Token::If, _) => Statement::If(self.parse_if_statement()),
             (Token::Identifier(_), Some(Token::AssignmentSymbol(_))) => {
                 Statement::Assignment(self.parse_assignment())
             }
@@ -280,6 +281,24 @@ impl<'a> Parser<'a> {
 
         self.assert_next_token(Token::RSquirly);
         body
+    }
+
+    /// Parses an if statement (`if [condition] [body]`) and panics if unsuccessful.
+    ///
+    /// See also: [Parser::parse_expr], [Parser::parse_body]
+    ///
+    /// # Flick example code
+    /// ```text
+    /// if i * i < p {
+    ///     i += 1
+    /// }
+    fn parse_if_statement(&mut self) -> If {
+        self.assert_next_token(Token::While);
+
+        let condition = self.parse_expr();
+        let body = self.parse_body();
+
+        If { condition, body }
     }
 
     /// Parses a while loop (`while [expr] [body]`) and panics if unsuccessful.

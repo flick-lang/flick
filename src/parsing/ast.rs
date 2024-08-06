@@ -57,6 +57,7 @@ pub enum Statement {
     Assignment(Assignment),
     Return(Option<Expr>),
     Call(Call),
+    If(If),
 }
 
 /// A variable declaration and, optionally, variable definition as well.
@@ -69,6 +70,13 @@ pub struct VarDeclaration {
     pub var_name: String,
     pub var_type: Type,
     pub var_value: Expr,
+}
+
+/// A if statement (its 'if condition' and its body).
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct If {
+    pub condition: Expr,
+    pub body: Vec<Statement>,
 }
 
 /// A while loop (its 'while condition' and its body).

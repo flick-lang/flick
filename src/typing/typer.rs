@@ -1,12 +1,12 @@
 use crate::ast::{
     Assignment, Binary, Call, Comparison, Expr, FuncDef, Program, Statement, VarDeclaration,
-    WhileLoop,
+    WhileLoop, If
 };
 use crate::scope_manager::ScopeManager;
 use crate::typed_ast::{
     TypedAssignment, TypedBinary, TypedCall, TypedComparison, TypedExpr, TypedFuncDef,
     TypedIdentifier, TypedIntLiteral, TypedProgram, TypedStatement, TypedVarDeclaration,
-    TypedWhileLoop,
+    TypedWhileLoop, TypedIf
 };
 use crate::types::{FuncType, IntType};
 use crate::Type;
@@ -116,7 +116,8 @@ impl Typer {
             Statement::Return(r) => {
                 TypedStatement::Return(self.type_return(r.as_ref(), function_return_type))
             }
-            Statement::Call(c) => TypedStatement::Call(self.type_call(c, Some(&Type::Void)))
+            Statement::Call(c) => TypedStatement::Call(self.type_call(c, Some(&Type::Void))),
+            Statement::If(i) => TypedStatement::If(self.type_if_statement(i, function_return_type))
         }
     }
 
@@ -131,6 +132,25 @@ impl Typer {
             var_type,
             var_value,
         }
+    }
+
+    fn type_if_statement(
+        &mut self,
+        if_statement: &If,
+        function_return_type: &Type,
+    ) -> TypedIf {
+        let bool_type = Type::Int(IntType { width: 1 });
+        let condition = self.type_expr(&if_statement.condition, Some(&bool_type));
+
+        self.scope_manager.enter_scope();
+        let body: Vec<_> = if_statement
+            .body
+            .iter()
+            .map(|s| self.type_statement(s, function_return_type))
+            .collect();
+        self.scope_manager.exit_scope();
+
+        TypedIf { condition, body }
     }
 
     fn type_while_loop(
