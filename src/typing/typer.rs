@@ -77,6 +77,14 @@ impl Typer {
             func_body.push(self.type_statement(statement, &func_def.proto.return_type));
         }
 
+        // Implicitly return void at end of functions with void return type
+        if Type::Void == func_def.proto.return_type {
+            match func_body.last() {
+                Some(TypedStatement::Return(_)) => {}
+                _ => func_body.push(TypedStatement::Return(None)),
+            }
+        }
+
         self.scope_manager.exit_scope();
 
         TypedFuncDef {
