@@ -56,6 +56,7 @@ pub enum Statement {
     WhileLoop(WhileLoop),
     Assignment(Assignment),
     Return(Option<Expr>),
+    Call(Call),
 }
 
 /// A variable declaration and, optionally, variable definition as well.
@@ -89,7 +90,7 @@ pub enum Expr {
     Call(Call),
 }
 
-/// An assignment expression (the variable name and the new value).
+/// An assignment statement (the variable name and the new value).
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Assignment {
     pub name: String,

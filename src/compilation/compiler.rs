@@ -306,6 +306,7 @@ impl Compiler {
             TypedStatement::WhileLoop(w) => self.compile_while_loop(w),
             TypedStatement::Assignment(a) => self.compile_assignment_statement(a),
             TypedStatement::Return(r) => self.compile_ret_statement(r),
+            TypedStatement::Call(c) => _ = self.compile_call(c),
         }
     }
 
@@ -397,7 +398,7 @@ impl Compiler {
             TypedExpr::IntLiteral(int_literal) => self.compile_int_literal(int_literal),
             TypedExpr::Binary(bin_expr) => self.compile_bin_expr(bin_expr),
             TypedExpr::Comparison(comparison) => self.compile_comparison_expr(comparison),
-            TypedExpr::Call(call_expr) => self.compile_call_expr(call_expr),
+            TypedExpr::Call(call_expr) => self.compile_call(call_expr),
         }
     }
 
@@ -465,8 +466,8 @@ impl Compiler {
         }
     }
 
-    /// Compiles a function call, ensuring its signature has the expected return type.
-    unsafe fn compile_call_expr(&mut self, call_expr: &TypedCall) -> LLVMValueRef {
+    /// Compiles a typed function call
+    unsafe fn compile_call(&mut self, call_expr: &TypedCall) -> LLVMValueRef {
         let func = match self.scope_manager.get(&call_expr.function_name) {
             Some(v) => *v,
             None => panic!("Undefined functions should be handled by typer"),

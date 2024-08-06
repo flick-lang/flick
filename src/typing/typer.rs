@@ -116,6 +116,7 @@ impl Typer {
             Statement::Return(r) => {
                 TypedStatement::Return(self.type_return(r.as_ref(), function_return_type))
             }
+            Statement::Call(c) => TypedStatement::Call(self.type_call(c, Some(&Type::Void)))
         }
     }
 
@@ -188,7 +189,7 @@ impl Typer {
             Expr::Comparison(c) => {
                 TypedExpr::Comparison(self.type_comparison_expr(c, desired_type))
             }
-            Expr::Call(c) => TypedExpr::Call(self.type_call_expr(c, desired_type)),
+            Expr::Call(c) => TypedExpr::Call(self.type_call(c, desired_type)),
         }
     }
 
@@ -292,7 +293,7 @@ impl Typer {
         }
     }
 
-    fn type_call_expr(&mut self, call_expr: &Call, desired_type: Option<&Type>) -> TypedCall {
+    fn type_call(&mut self, call_expr: &Call, desired_type: Option<&Type>) -> TypedCall {
         let function_name = call_expr.function_name.clone();
 
         let function_type = match self.scope_manager.get(&function_name) {

@@ -45,6 +45,7 @@ pub enum TypedStatement {
     WhileLoop(TypedWhileLoop),
     Assignment(TypedAssignment),
     Return(Option<TypedExpr>),
+    Call(TypedCall),
 }
 
 /// A variable declaration and, optionally, variable definition as well.
