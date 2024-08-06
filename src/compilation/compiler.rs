@@ -311,7 +311,10 @@ impl Compiler {
 
     /// Compiles 0 or more variable declarations.
     unsafe fn compile_var_declaration(&mut self, var_declaration: &TypedVarDeclaration) {
-        let func = self.get_cur_function();
+        let func = match self.get_cur_function() {
+            Some(func) => func,
+            None => panic!("Cannot compile var declaration outside of a function"),
+        };
         let var_name = var_declaration.var_name.as_str();
         let var_type = &var_declaration.var_type;
         let alloca = self.create_entry_block_alloca(func, var_name, var_type);
@@ -324,7 +327,10 @@ impl Compiler {
 
     /// Compiles a while loop, assuming the LLVM builder is building inside a function body.
     unsafe fn compile_while_loop(&mut self, while_loop: &TypedWhileLoop) {
-        let cur_func = self.get_cur_function();
+        let cur_func = match self.get_cur_function() {
+            Some(func) => func,
+            None => panic!("Cannot compile while declaration outside of a function"),
+        };
         let cond_block = LLVMAppendBasicBlockInContext(self.context, cur_func, cstr!("cond"));
         let loop_block = LLVMAppendBasicBlockInContext(self.context, cur_func, cstr!("loop"));
         // Build block to go to after loop is done executing
@@ -353,22 +359,16 @@ impl Compiler {
     }
 
     /// Compiles an assignment expression like `foo = 28` (and panics if `foo`'s type can't store 28).
-    // TODO: remove the panics from here and make sure they're in Typer
+    // TODO: should we remove the panics from here since they're already in Typer
     unsafe fn compile_assignment_statement(&mut self, assign: &TypedAssignment) {
         let alloca = match self.scope_manager.get(&assign.name) {
             Some(v) => *v,
             None => panic!("Setting a variable that has not been declared"),
         };
 
-        // TODO: Maybe allow redefining the function?
+        // TODO: allow assigning functions with matching types to each other
         if !LLVMIsAFunction(alloca).is_null() {
-            // TODO: Split this into a function
-            let cur_func = self.get_cur_function();
-            let mut len = MaybeUninit::uninit();
-            let func_name_buf = LLVMGetValueName2(cur_func, len.as_mut_ptr());
-            let func_name_cstr = CStr::from_ptr(func_name_buf);
-            let func_name = func_name_cstr.to_str().unwrap();
-            panic!("Cannot assign a value to function '{}'", func_name);
+            panic!("Cannot assign a value to function '{}'", assign.name);
         }
 
         let value = self.compile_expr(&assign.value);
@@ -377,7 +377,9 @@ impl Compiler {
 
     /// Compiles a return statement, panicking if the builder isn't inside a function.
     unsafe fn compile_ret_statement(&mut self, ret_value: &Option<TypedExpr>) {
-        // TODO: Ensure user is inside function (otherwise they shouldn't be able to return)
+        if self.get_cur_function().is_none() {
+            panic!("Cannot compile ret statement outside of a function");
+        }
 
         match ret_value {
             Some(expr) => LLVMBuildRet(self.builder, self.compile_expr(expr)),
@@ -426,7 +428,7 @@ impl Compiler {
         let rhs = self.compile_expr(&bin_expr.right);
 
         if LLVMTypeOf(lhs) != LLVMTypeOf(rhs) {
-            unreachable!("Binary expr: type(LHS) != type(RHS) should've been handled by Typer")
+            panic!("Binary expr: type(LHS) != type(RHS) should've been handled by Typer")
         }
 
         match bin_expr.operator {
@@ -449,7 +451,7 @@ impl Compiler {
         let rhs = self.compile_expr(&comparison.right);
 
         if LLVMTypeOf(lhs) != LLVMTypeOf(rhs) {
-            unreachable!("Comparison: type(LHS) != type(RHS) should've been handled by Typer")
+            panic!("Comparison: type(LHS) != type(RHS) should've been handled by Typer")
         }
 
         // TODO: Signed comparisons
@@ -467,18 +469,18 @@ impl Compiler {
     unsafe fn compile_call_expr(&mut self, call_expr: &TypedCall) -> LLVMValueRef {
         let func = match self.scope_manager.get(&call_expr.function_name) {
             Some(v) => *v,
-            None => unreachable!("Undefined functions should be handled by typer"),
+            None => panic!("Undefined functions should be handled by typer"),
         };
 
         if LLVMIsAFunction(func).is_null() {
-            unreachable!(
+            panic!(
                 "Calls like foo() where foo isn't callable (e.g. i32) should be handled by typer"
             )
         }
 
         let num_params = call_expr.function_type.param_types.len();
         if num_params != call_expr.args.len() {
-            unreachable!("Number of arguments should be handled by typer");
+            panic!("Number of arguments should be handled by typer");
         }
 
         let mut arg_values = Vec::with_capacity(call_expr.args.len());
@@ -537,58 +539,13 @@ impl Compiler {
     }
 
     /// Returns the function currently being built by the compiler.
-    unsafe fn get_cur_function(&self) -> LLVMValueRef {
+    unsafe fn get_cur_function(&self) -> Option<LLVMValueRef> {
         let cur_func = LLVMGetBasicBlockParent(LLVMGetInsertBlock(self.builder));
         if LLVMIsNull(cur_func) == 1 {
-            panic!("Builder is not inside a function; can't get current function.");
+            return None;
         }
-        cur_func
+        Some(cur_func)
     }
-
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    // /// Returns the smallest type that can store expression.
-    // unsafe fn get_expr_type(&self, expr: &Expr) -> Type {
-    //     // TODO: style: figure out where our compiler stores/uses prototypes of operators
-    //     //  Like, how do we use <(2, 3) -> bool is allowed and <("hello", hi") -> bool is too.
-    //     match expr {
-    //         Expr::Identifier(x) => match self.scope_manager.get(x) {
-    //             Some(ScopeManagerValue::Var(v)) => v.var_type,
-    //             Some(ScopeManagerValue::Func(f)) => panic!("Function do not have a type yet"),
-    //             None => panic!("Variable has to already have been declared"),
-    //         },
-    //         Expr::I64Literal(_) => Type::Int { width: 64 },
-    //         Expr::Binary(b) => self.get_binary_expr_type(b),
-    //         Expr::Comparison(_) => Type::Int { width: 1 },
-    //         Expr::Call(f) => match self.scope_manager.get(&f.function_name) {
-    //             Some(ScopeManagerValue::Func(f)) => f.proto.return_type,
-    //             Some(ScopeManagerValue::Var(v)) => {
-    //                 panic!("Unsupported: most likely this will be removed")
-    //             }
-    //             None => panic!("Function has to be declared before it can be called"),
-    //         },
-    //     }
-    // }
-    //
-    // /// Returns the smallest type that can store a binary expression.
-    // unsafe fn get_binary_expr_type(&self, bin_expr: &Binary) -> Type {
-    //     let lhs_type = self.get_expr_type(&bin_expr.left);
-    //     let rhs_type = self.get_expr_type(&bin_expr.right);
-    //
-    //     match (lhs_type, rhs_type) {
-    //         (Type::Int { width: w1 }, Type::Int { width: w2 }) => Type::Int { width: w1.max(w2) },
-    //         (t1, t2) => panic!("'{}' {} '{}' is not supported", t1, bin_expr.operator, t2),
-    //     }
-    // }
 }
 
 impl Drop for Compiler {

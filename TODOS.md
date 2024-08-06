@@ -1,5 +1,6 @@
 ## Roadmap to working demo!!!
 
+- [ ] Support for calling void functions
 - [ ] Implement if statements so that our language is Turing-complete
 - [ ] Implement importing of other files
 - [ ] Implement standard library as a different file so that it can be imported
