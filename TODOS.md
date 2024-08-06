@@ -1,7 +1,6 @@
 ## Roadmap to working demo!!!
 
-- [ ] Add tests for typer
-- [ ] Support for calling void functions
+- [x] Support for calling void functions
     - [ ] should we let non void functions also be called w value ignored
 - [ ] Implement if statements so that our language is Turing-complete
 - [ ] Implement importing of other files
@@ -13,20 +12,20 @@
 - [ ] Deploy the docs and attach link to README.md
 - [ ] Give an overview of how the compiler works in README
 - [ ] Document how to use Flick itself
+- [x] Add tests for typer
 
 ## Other
 
 ### Quick Todos
 
-- [ ] Add tests to parser for spacing and newlines in body and program
-- [ ] Don't call skip newlines twice in parse_body and parse_program
 - [ ] Make `Typer` take the program in its `new()`
 - [ ] Make all module and crate level docstrings start with `//!` instead of `///` and
 - [ ] Move `types.rs` into `typing` module and fix the ignored example in `typing/mod.rs` docstring
 - [ ] Document functions in Typer
 - [ ] Maybe define flick build and flick run subcommands (mimicking cargo)
-- [ ] Don't allow pull requests to merge without passing tests, getting approval, and being warning free
 - [ ] Once typer is done, remove redundant checks in compiler and mark them as `unreachable`
+- [x] Add tests to parser for spacing and newlines in body and program
+- [x] Don't call skip newlines twice in parse_body and parse_program
 
 ### Longer Todos
 
@@ -41,6 +40,7 @@
 - [ ] Rethink what structs/files/struct properties/functions in flick should be public vs pub(crate) vs private
 - [ ] Remove all clones / think about slices / lifetimes / AsRef?
 - [ ] Maybe remove all * imports in all source files
+- [ ] Block PRs to main without passing tests and being warning free (though we'd have to install LLVM on GitHub)
 - [x] Be consistent with what's pub, pub(crate), etc.
 - [x] Rename lexer/ to lexing/; rename parser/ to parsing/; rename compiler/ to compilation/. This way, we avoid
   lexer/lexer.rs, and so we can delete `#[allow(clippy::module_inception)]`
