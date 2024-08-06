@@ -11,12 +11,12 @@ use crate::typed_ast::{
 use crate::types::{FuncType, IntType};
 use crate::Type;
 
+/// This struct handles the conversion from a regular [abstract syntax tree](crate::ast) to a
+/// [typed abstract syntax tree](crate::typed_ast). See [Typer::type_program] for details.
 pub struct Typer {
     scope_manager: ScopeManager<Type>,
 }
 
-/// This struct handles the conversion from a regular [abstract syntax tree](crate::ast) to a
-/// [typed abstract syntax tree](crate::typed_ast). See [Typer::type_program] for details.
 impl Typer {
     pub fn new() -> Self {
         let scope_manager = ScopeManager::new();
@@ -203,7 +203,8 @@ impl Typer {
         }
     }
 
-    // TODO: finish documenting Typer from here
+    /// Processes a return statement by confirming that the returned expression matches the return
+    /// type of †he function.
     fn type_return(
         &mut self,
         ret: Option<&Expr>,
@@ -213,6 +214,11 @@ impl Typer {
     }
 
     // desired type is optional because, for example, 17 doesn't have a desired type
+    /// Recursively type-checks the provided expression, confirming that it is of type
+    /// `desired_type`.
+    ///
+    /// Note, if the provided `desired_type` is `None`, then the returned `TypedExpr` is allowed to
+    /// be of any type.
     fn type_expr(&mut self, expr: &Expr, desired_type: Option<&Type>) -> TypedExpr {
         match expr {
             Expr::Identifier(name) => {
@@ -273,6 +279,7 @@ impl Typer {
         }
     }
 
+    /// Types a binary expression; see [Typer::type_expr] for details.
     fn type_bin_expr(&mut self, bin_expr: &Binary, desired_type: Option<&Type>) -> TypedBinary {
         let left = self.type_expr(&bin_expr.left, desired_type);
         let operator = bin_expr.operator;
@@ -295,6 +302,7 @@ impl Typer {
         }
     }
 
+    /// Types a comparison expression; see [Typer::type_expr] for details.
     fn type_comparison_expr(
         &mut self,
         comparison: &Comparison,
@@ -329,6 +337,10 @@ impl Typer {
         }
     }
 
+    /// Types a call expression, making sure that it matches the function's prototype, and that the
+    /// return type matches the `desired_type`.[^note]
+    ///
+    /// [^note]: See also [Typer::type_expr] for details about `desired_type`.
     fn type_call(&mut self, call_expr: &Call, desired_type: Option<&Type>) -> TypedCall {
         let function_name = call_expr.function_name.clone();
 
