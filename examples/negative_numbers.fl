@@ -1,0 +1,5 @@
+pub fn main() i32 {
+    i32 a = -1
+    i32 b = 5 -2 - a
+    ret b
+}
