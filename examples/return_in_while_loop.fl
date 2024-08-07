@@ -1,7 +1,8 @@
 pub fn main() i64 {
     i64 i = 0
-    while i < 10 {
-        i += 1
-        ret i
-    }
+    ret i
+    //while i < 10 {
+    //    i += 1
+    //    ret i
+    //}
 }

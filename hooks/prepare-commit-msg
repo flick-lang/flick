@@ -14,8 +14,16 @@ if ! RUSTDOCFLAGS="-D warnings" cargo doc --no-deps; then
   exit 1
 fi
 
-if ! cargo build && target/debug/flick examples/*.fl; then
-  printf "\n"
-  echo "Some programs don't compile; aborting commit"
-  exit 1
+if ! cargo build; then
+    printf "\n"
+    echo "Couldn't build; aborting commit"
+    exit 1
 fi
+
+for FLICK_SRC_FILE in examples/*.fl; do
+  if ! target/debug/flick $FLICK_SRC_FILE; then
+    printf "\n"
+    echo "$FLICK_SRC_FILE does not compile; aborting commit"
+    exit 1
+  fi
+done
