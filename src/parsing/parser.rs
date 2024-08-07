@@ -40,21 +40,29 @@ impl<'a> Parser<'a> {
         self.cursor += 1;
     }
 
-    /// Parses as many function definitions as possible and returns a [Program]
-    /// containing them all.
+    /// Parses as many global statements as possible and returns a [Program] containing them all.
     pub fn parse_program(&mut self) -> Program {
-        let mut func_defs = Vec::new();
+        let mut global_statements = Vec::new();
 
         loop {
             self.skip_newlines_comments_and_docstrings();
 
-            match self.parse_func_def() {
-                Some(func_def) => func_defs.push(func_def),
+            match self.parse_global_statement() {
+                Some(s) => global_statements.push(s),
                 None => break,
             }
         }
 
-        Program { func_defs }
+        Program { global_statements }
+    }
+
+    /// Parses a global statement, like an external function declaration or a function definition.
+    fn parse_global_statement(&mut self) -> Option<GlobalStatement> {
+        match self.peek_token(1) {
+            Some(Token::Extern) => Some(GlobalStatement::Extern(self.parse_func_proto())),
+            Some(_) => Some(GlobalStatement::FuncDef(self.parse_func_def())),
+            None => None,
+        }
     }
 
     /// Advances the cursor past all newline, comment, and docstring tokens.
@@ -65,6 +73,51 @@ impl<'a> Parser<'a> {
             self.peek_token(1)
         {
             self.skip_token();
+        }
+    }
+
+    /// Parses the `fn foo(i64 x) i64` part of a function definition or an external function
+    /// declaration.
+    fn parse_func_proto(&mut self) -> FuncProto {
+        let func_visibility = match (self.peek_token(1), self.peek_token(2)) {
+            (Some(Token::Pub), Some(Token::Fn)) => FuncVisibility::Public,
+            (Some(Token::Pub), Some(t)) => panic!("Expected 'pub fn' but received {}", t),
+            (Some(Token::Pub), None) => panic!("Expected 'pub fn' but file ended"),
+            (Some(Token::Extern), Some(Token::Fn)) => FuncVisibility::Extern,
+            (Some(Token::Extern), Some(t)) => panic!("Expected 'extern fn' but received {}", t),
+            (Some(Token::Extern), None) => panic!("Expected 'extern fn' but file ended"),
+            (Some(Token::Fn), _) => FuncVisibility::Private,
+            (Some(t), _) => panic!("Expected 'fn' or 'pub' but received {:?}", t),
+            (None, _) => panic!("Expected 'fn' or 'pub' but file ended"),
+        };
+
+        if func_visibility != FuncVisibility::Private {
+            self.skip_token(); // skip the 'extern' / 'pub' in 'extern fn' / 'pub fn'
+        }
+        self.skip_token();  // skip the 'fn'
+
+        let name = self.parse_identifier();
+        let params = self.parse_func_params();
+
+        let return_type = match self.peek_token(1) {
+            Some(Token::LSquirly) => Type::Void,  // implicit void ret-type omitted before body opened
+            Some(Token::Newline) => Type::Void,   // implicit void ret-type omitted but no '{' because, e.g., extern fn
+            Some(Token::Type(_)) => self.parse_type(),
+            Some(t) => panic!(
+                "Expected return type for function '{}' but received {:?}",
+                name, t
+            ),
+            None => panic!(
+                "Expected return type for function '{}' but file ended",
+                name
+            ),
+        };
+
+        FuncProto {
+            func_visibility,
+            name,
+            params,
+            return_type,
         }
     }
 
@@ -81,49 +134,10 @@ impl<'a> Parser<'a> {
     ///     ret a - x * 2;
     /// }
     /// ```
-    fn parse_func_def(&mut self) -> Option<FuncDef> {
-        let is_public = match (self.peek_token(1), self.peek_token(2)) {
-            (Some(Token::Pub), Some(Token::Fn)) => true,
-            (Some(Token::Pub), Some(t)) => panic!("Expected 'fn' but received {:?}", t),
-            (Some(Token::Pub), None) => panic!("Expected 'fn' but file ended"),
-            (Some(Token::Fn), _) => false,
-            (Some(t), _) => panic!("Expected 'fn' or 'pub' but received {:?}", t),
-            (None, _) => return None,
-        };
-
-        if is_public {
-            self.skip_token();
-        }
-        self.skip_token();
-
-        let name = self.parse_identifier();
-        let params = self.parse_func_params();
-
-        let return_type = match self.peek_token(1) {
-            Some(Token::LSquirly) => Type::Void,
-            Some(Token::Type(_)) => self.parse_type(),
-            Some(t) => panic!(
-                "Expected return type for function '{}' but received {:?}",
-                name, t
-            ),
-            None => panic!(
-                "Expected return type for function '{}' but file ended",
-                name
-            ),
-        };
-
+    fn parse_func_def(&mut self) -> FuncDef {
+        let proto = self.parse_func_proto();
         let body = self.parse_body();
-
-        let proto = FuncProto {
-            is_public,
-            name,
-            params,
-            return_type,
-        };
-
-        let func_def = FuncDef { proto, body };
-
-        Some(func_def)
+        FuncDef { proto, body }
     }
 
     /// Parses function parameters, which is useful when parsing a function definition.
@@ -766,9 +780,9 @@ mod tests {
             Token::RSquirly,
         ];
         let expected = Program {
-            func_defs: vec![FuncDef {
+            global_statements: vec![GlobalStatement::FuncDef(FuncDef {
                 proto: FuncProto {
-                    is_public: true,
+                    func_visibility: FuncVisibility::Public,
                     name: "test".to_string(),
                     params: vec![FuncParam {
                         param_type: Type::Int(IntType { width: 64 }),
@@ -777,7 +791,7 @@ mod tests {
                     return_type: Type::Int(IntType { width: 64 }),
                 },
                 body: vec![],
-            }],
+            })],
         };
 
         let mut parser = Parser::new(&tokens);

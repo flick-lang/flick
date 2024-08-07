@@ -2,13 +2,20 @@ use crate::ast::{BinaryOperator, ComparisonOperator, FuncProto};
 use crate::types::{FuncType, IntType};
 use crate::Type;
 
-/// A program; a collection of function definitions. See also: [TypedFuncDef].
+/// A typed version of [Program](crate::ast::Program)
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TypedProgram {
-    pub func_defs: Vec<TypedFuncDef>,
+    pub global_statements: Vec<TypedGlobalStatement>,
 }
 
-/// A function definition (metadata, prototype, and body).
+/// A typed version of [GlobalStatement](crate::ast::GlobalStatement)
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum TypedGlobalStatement {
+    Extern(FuncProto),
+    FuncDef(TypedFuncDef)
+}
+
+/// A typed version of [crate::ast::FuncDef]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TypedFuncDef {
     pub proto: FuncProto,
@@ -22,23 +29,7 @@ pub struct TypedFuncParam {
     pub param_name: String,
 }
 
-/// A statement (the equivalent of 'a line of code').
-///
-/// Statements do not evaluate to any particular value, but they have side effects. For
-/// example, consider the following code:
-///
-/// ```text
-/// i64 i = 0  // this is a statement
-/// if should_change_i() (
-///     i = 1  // this is a statement
-/// }
-/// ```
-///
-/// Each line is a statement. Note, `i = 1` is also technically an expression that
-/// evaluates to `1`. However, since we are not using the value of `i = 1` when we write
-/// `i = 1`, our code becomes a statement.
-///
-/// See also: [TypedExpr].
+/// A typed version of [Statement](crate::ast::Statement).
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum TypedStatement {
     VarDeclaration(TypedVarDeclaration),
@@ -49,11 +40,7 @@ pub enum TypedStatement {
     If(TypedIf),
 }
 
-/// A variable declaration and, optionally, variable definition as well.
-///
-/// This struct stores the name and type of the declared variable, as well as its
-/// value (if the variable declaration comes with an assignment, like `int a = 7;` instead of
-/// `int a;`).
+/// A typed version of [VarDeclaration](crate::ast::VarDeclaration)
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TypedVarDeclaration {
     pub var_name: String,
@@ -61,14 +48,14 @@ pub struct TypedVarDeclaration {
     pub var_value: TypedExpr,
 }
 
-/// A typed version of [crate::ast::WhileLoop].
+/// A typed version of [WhileLoop](crate::ast::WhileLoop).
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TypedWhileLoop {
     pub condition: TypedExpr,
     pub body: Vec<TypedStatement>,
 }
 
-/// A typed version of [crate::ast::If].
+/// A typed version of [If](crate::ast::If).
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TypedIf {
     pub condition: TypedExpr,
@@ -76,9 +63,7 @@ pub struct TypedIf {
     pub else_body: Option<Vec<TypedStatement>>,
 }
 
-/// An expression, which is any piece of code that has a value.
-///
-/// For example, `current_length` or `1 + 2` or `foo("bye")` are expressions.
+/// A typed version of [Expr](crate::ast::Expr)
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum TypedExpr {
     Identifier(TypedIdentifier),
@@ -88,19 +73,14 @@ pub enum TypedExpr {
     Call(TypedCall),
 }
 
-/// An assignment expression (the variable name and the new value).
+/// A typed version of [Assignment](crate::ast::Assignment).
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TypedAssignment {
     pub name: String,
     pub value: Box<TypedExpr>,
 }
 
-/// A binary expression (the operator and the left/right-hand sides).
-///
-/// For example, `a + foo(1)` breaks down into:
-/// - left: `a`
-/// - operator: `+`
-/// - right: `foo(1)`
+/// A typed version of [Binary](crate::ast::Binary).
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TypedBinary {
     pub left: Box<TypedExpr>,
@@ -109,7 +89,7 @@ pub struct TypedBinary {
     pub result_type: Type,
 }
 
-/// An integer literal
+/// A typed version of [IntLiteral](crate::ast::Expr::IntLiteral)
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TypedIntLiteral {
     pub int_value: String,

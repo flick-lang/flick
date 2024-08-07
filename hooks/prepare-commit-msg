@@ -13,3 +13,9 @@ if ! RUSTDOCFLAGS="-D warnings" cargo doc --no-deps; then
   echo "Docs don't build correctly; aborting commit"
   exit 1
 fi
+
+if ! cargo build && target/debug/flick examples/*.fl; then
+  printf "\n"
+  echo "Some programs don't compile; aborting commit"
+  exit 1
+fi

@@ -46,8 +46,8 @@ macro_rules! cstr {
 /// let mut compiler = Compiler::new();
 /// let syntax_tree = typed_ast::TypedProgram {
 ///     // generated during parsing
-///     # func_defs: vec![]
-/// } ;
+///     # global_statements: vec![]
+/// };
 /// compiler.compile(&syntax_tree);
 /// compiler.optimize();
 /// compiler.print_ir();  // or compiler.to_file("out")
@@ -105,21 +105,6 @@ impl Compiler {
 
             // Configure pass manager
             let pass_builder = LLVMCreatePassBuilderOptions();
-
-            // TODO(tbreydo): outdated: remove this stuff?
-
-            // LLVMPassBuilderOptionsSetCallGraphProfile(pass_builder, 1);
-            // LLVMPassBuilderOptionsSetDebugLogging(pass_builder, 1);
-            // LLVMPassBuilderOptionsSetForgetAllSCEVInLoopUnroll(pass_builder, 1);
-            // LLVMPassBuilderOptionsSetInlinerThreshold(pass_builder, 75);
-            // LLVMPassBuilderOptionsSetLicmMssaNoAccForPromotionCap(pass_builder, 1);
-            // LLVMPassBuilderOptionsSetLicmMssaOptCap(pass_builder, 1);
-            // LLVMPassBuilderOptionsSetLoopInterleaving(pass_builder, 1);
-            // LLVMPassBuilderOptionsSetLoopUnrolling(pass_builder, 1);
-            // LLVMPassBuilderOptionsSetLoopVectorization(pass_builder, 1);
-            // LLVMPassBuilderOptionsSetMergeFunctions(pass_builder, 1);
-            // LLVMPassBuilderOptionsSetSLPVectorization(pass_builder, 1);
-            // LLVMPassBuilderOptionsSetVerifyEach(pass_builder, 1);
 
             Self {
                 context,
@@ -206,12 +191,23 @@ impl Compiler {
     /// [c]: Compiler::to_file
     pub fn compile(&mut self, program: &TypedProgram) {
         unsafe {
-            for func_def in program.func_defs.iter() {
-                self.compile_func_proto(&func_def.proto);
+            for global_statement in program.global_statements.iter() {
+                // TODO: In the future when we have additional global statements, maybe move this into a new function called 'preprocess_global_statement' or something like that
+                match global_statement {
+                    TypedGlobalStatement::Extern(p) => self.compile_func_proto(p),
+                    TypedGlobalStatement::FuncDef(f) => self.compile_func_proto(&f.proto)
+                }
             }
-            for func_def in program.func_defs.iter() {
-                self.compile_func_def(func_def);
+            for global_statement in program.global_statements.iter() {
+                self.compile_global_statement(global_statement);
             }
+        }
+    }
+
+    /// Compiles a function prototype (or a )
+    unsafe fn compile_global_statement(&mut self, global_statement: &TypedGlobalStatement) {
+        if let TypedGlobalStatement::FuncDef(func_def) = global_statement {
+            self.compile_func_def(func_def);
         }
     }
 
@@ -249,9 +245,10 @@ impl Compiler {
             LLVMSetValueName2(param_value_ref, param_name.as_ptr(), param_name_len);
         }
 
-        match func_proto.is_public {
-            true => LLVMSetLinkage(func, LLVMExternalLinkage),
-            false => LLVMSetLinkage(func, LLVMInternalLinkage),
+        match func_proto.func_visibility {
+            FuncVisibility::Public => LLVMSetLinkage(func, LLVMExternalLinkage),
+            FuncVisibility::Private => LLVMSetLinkage(func, LLVMInternalLinkage),
+            FuncVisibility::Extern => LLVMSetLinkage(func, LLVMExternalLinkage),
         }
 
         // TODO: Design: Remove variable shadowing
@@ -281,7 +278,9 @@ impl Compiler {
             let param_name = param.param_name.as_str();
             let param_type = &param.param_type;
             let param_value_ref = LLVMGetParam(func, i as c_uint);
-            let alloca = self.create_entry_block_alloca(func, param_name, param_type);
+            // let alloca = self.create_entry_block_alloca(func, param_name, param_type);
+            let alloca = self.create_alloca(param_name, param_type);
+
             LLVMBuildStore(self.builder, param_value_ref, alloca);
             self.scope_manager.set(param_name, alloca);
         }
@@ -310,13 +309,13 @@ impl Compiler {
 
     /// Compiles a variable declaration.
     unsafe fn compile_var_declaration(&mut self, var_declaration: &TypedVarDeclaration) {
-        let func = match self.get_cur_function() {
-            Some(func) => func,
-            None => panic!("Cannot compile var declaration outside of a function"),
-        };
+        if self.get_cur_function().is_none() {
+            panic!("Cannot compile var declaration outside of a function");
+        }
+        
         let var_name = var_declaration.var_name.as_str();
         let var_type = &var_declaration.var_type;
-        let alloca = self.create_entry_block_alloca(func, var_name, var_type);
+        let alloca = self.create_alloca(var_name, var_type);
 
         self.scope_manager.set(var_name, alloca);
 
@@ -570,21 +569,9 @@ impl Compiler {
     }
 
     /// Creates an LLVM 'alloca', which can then be used to set up a local variable.
-    unsafe fn create_entry_block_alloca(
-        &self,
-        func: LLVMValueRef,
-        var_name: &str,
-        var_type: &Type,
-    ) -> LLVMValueRef {
-        // todo reposition self.builder instead of creating temp builder
-        let temp_builder = LLVMCreateBuilderInContext(self.context);
-        let entry_block = LLVMGetEntryBasicBlock(func);
-        LLVMPositionBuilderAtEnd(temp_builder, entry_block);
-        // TODO: Error handling instead of unwrap
-        let name = CString::new(var_name).unwrap();
-        let alloca = LLVMBuildAlloca(temp_builder, self.to_llvm_type(var_type), name.as_ptr());
-        LLVMDisposeBuilder(temp_builder);
-        alloca
+    unsafe fn create_alloca(&self, var_name: &str, var_type: &Type) -> LLVMValueRef {
+        let var_name_c = CString::new(var_name).unwrap();
+        LLVMBuildAlloca(self.builder, self.to_llvm_type(var_type), var_name_c.as_ptr())
     }
 
     /// Returns the function currently being built by the compiler.

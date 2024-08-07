@@ -182,6 +182,7 @@ impl<'a> Lexer<'a> {
             "fn" => Token::Fn,
             "ret" => Token::Ret,
             "if" => Token::If,
+            "extern" => Token::Extern,
             "else" => Token::Else,
             _ => Token::Identifier(s),
         }

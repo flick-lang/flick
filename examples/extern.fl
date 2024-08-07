@@ -1,0 +1,11 @@
+extern fn srand(i8 seed)
+extern fn putchar(i8 c) i8
+
+
+pub fn main() {
+    i64 x = 4
+    if x > 3 {
+        i8 d = putchar(72)
+    }
+    ret
+}
