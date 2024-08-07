@@ -90,7 +90,8 @@ impl<'a> Lexer<'a> {
         // Figure out what type the next token is and call handling function
         let peeked_token = match (self.peek_char(1)?, self.peek_char(2)) {
             ('a'..='z' | 'A'..='Z' | '_', _) => return Some(self.read_word()),
-            ('0'..='9', _) => return Some(self.read_i64_literal()),
+            ('0'..='9', _) => return Some(self.read_int_literal()),
+            ('-', Some('0'..='9')) => return Some(self.read_int_literal()),
             ('/', Some('/')) => return Some(self.read_comment()),
 
             ('>', Some('=')) => Token::ComparatorSymbol(GreaterOrEqualTo),
@@ -190,10 +191,10 @@ impl<'a> Lexer<'a> {
     ///
     /// # Assumptions:
     ///
-    /// - The next source code character is a digit.
-    fn read_i64_literal(&mut self) -> Token {
-        // TODO: Allow negative numbers
-        let number = self.take_chars_while(|&c| c.is_ascii_digit());
+    /// - The next source code character is a digit or a '-'
+    fn read_int_literal(&mut self) -> Token {
+        let mut number = self.next_char().expect("function assumes >0 chars in source").to_string();
+        number.push_str(&self.take_chars_while(|&c| c.is_ascii_digit()));
         Token::IntLiteral(number)
     }
 

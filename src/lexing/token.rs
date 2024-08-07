@@ -4,9 +4,9 @@ use std::fmt;
 /// An enum to represent any given non-whitespace token in a source code
 ///
 /// For example, `foo(42)` consists of four tokens:
-/// 1. `Token::Identifier("print")`
+/// 1. `Token::Identifier("foo".to_string())`
 /// 1. `Token::LParen`
-/// 1. `Token::I64Literal(42)`
+/// 1. `Token::IntLiteral("42".to_string())`
 /// 1. `Token::RParen`
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token {
