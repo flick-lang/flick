@@ -4,10 +4,19 @@ use crate::lexing::token::{ComparatorSymbol, OperatorSymbol};
 use crate::Type;
 use std::fmt;
 
-/// A program; a collection of function definitions. See also: [FuncDef].
+/// A program consisting of at least one [GlobalStatement].
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Program {
-    pub func_defs: Vec<FuncDef>,
+    pub global_statements: Vec<GlobalStatement>
+}
+
+/// A global statement is something that can be written in the "global" scope, as opposed
+/// to inside of a function body. So, for example, function definitions and external function
+/// declarations are "global" statements.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum GlobalStatement {
+    Extern(FuncProto),
+    FuncDef(FuncDef),
 }
 
 /// A function definition (metadata, prototype, and body).
@@ -20,10 +29,18 @@ pub struct FuncDef {
 /// A function prototype (name, parameters, and return type).
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct FuncProto {
-    pub is_public: bool,
+    pub func_visibility: FuncVisibility,
     pub name: String,
     pub params: Vec<FuncParam>,
     pub return_type: Type,
+}
+
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum FuncVisibility {
+    Public,
+    Private,
+    Extern
 }
 
 /// A function parameter (its name and its data type).

@@ -1,12 +1,11 @@
 use crate::ast::{
-    Assignment, Binary, Call, Comparison, Expr, FuncDef, FuncProto, If, Program, Statement,
-    VarDeclaration, WhileLoop,
+    Assignment, Binary, Call, Comparison, Expr, FuncDef, FuncProto, GlobalStatement, If, Program, Statement, VarDeclaration, WhileLoop
 };
 use crate::scope_manager::ScopeManager;
 use crate::typed_ast::{
     TypedAssignment, TypedBinary, TypedCall, TypedComparison, TypedExpr, TypedFuncDef,
     TypedIdentifier, TypedIf, TypedIntLiteral, TypedProgram, TypedStatement, TypedVarDeclaration,
-    TypedWhileLoop,
+    TypedWhileLoop, TypedGlobalStatement
 };
 use crate::types::{FuncType, IntType};
 use crate::Type;
@@ -35,21 +34,24 @@ impl Typer {
     /// This method assumes that `program` represents a well-parsed program; for example, one
     /// returned by [Parser::parse_program()](crate::Parser::parse_program).
     pub fn type_program(&mut self, program: &Program) -> TypedProgram {
-        let mut func_defs = Vec::with_capacity(program.func_defs.len());
+        let mut global_statements = Vec::with_capacity(program.global_statements.len());
 
-        for func_def in program.func_defs.iter() {
-            self.type_func_proto(&func_def.proto);
+        for global_statement in program.global_statements.iter() {
+            match global_statement {
+                GlobalStatement::Extern(proto) => self.register_func_proto(proto),
+                GlobalStatement::FuncDef(f) => self.register_func_proto(&f.proto),
+            }
         }
-        for func_def in program.func_defs.iter() {
-            func_defs.push(self.type_func_def(func_def));
+        for global_statement in program.global_statements.iter() {
+            global_statements.push(self.type_global_statement(global_statement))
         }
 
-        TypedProgram { func_defs }
+        TypedProgram { global_statements }
     }
 
     /// This method processes the prototype of a function, updating the internal scope manager
     /// and confirming the function isn't being redeclared.
-    fn type_func_proto(&mut self, func_proto: &FuncProto) {
+    fn register_func_proto(&mut self, func_proto: &FuncProto) {
         let func_name = &func_proto.name;
         match self.scope_manager.get(func_name) {
             Some(Type::Func(_)) => panic!("Cannot redefine function '{}'", func_name),
@@ -71,6 +73,13 @@ impl Typer {
             return_type,
         });
         self.scope_manager.set(func_name, func_type);
+    }
+
+    fn type_global_statement(&mut self, global_statement: &GlobalStatement) -> TypedGlobalStatement {
+        match global_statement {
+            GlobalStatement::Extern(proto) => TypedGlobalStatement::Extern(proto.clone()),
+            GlobalStatement::FuncDef(f) => TypedGlobalStatement::FuncDef(self.type_func_def(f)),
+        }
     }
 
     /// This method processes a function definition by processing each statement within the body,
@@ -419,9 +428,9 @@ mod tests {
         // }
 
         let program = Program {
-            func_defs: vec![FuncDef {
+            global_statements: vec![GlobalStatement::FuncDef(FuncDef {
                 proto: FuncProto {
-                    is_public: true,
+                    func_visibility: FuncVisibility::Public,
                     name: "main".to_string(),
                     params: vec![],
                     return_type: Type::Int(IntType { width: 32 }),
@@ -443,7 +452,7 @@ mod tests {
                         var_type: Type::Int(IntType { width: 32 }),
                     }),
                 ],
-            }],
+            })],
         };
 
         let mut typer = Typer::new();
@@ -459,9 +468,9 @@ mod tests {
         // }
 
         let program = Program {
-            func_defs: vec![FuncDef {
+            global_statements: vec![GlobalStatement::FuncDef(FuncDef {
                 proto: FuncProto {
-                    is_public: true,
+                    func_visibility: FuncVisibility::Public,
                     name: "main".to_string(),
                     params: vec![],
                     return_type: Type::Int(IntType { width: 32 }),
@@ -479,13 +488,13 @@ mod tests {
                     }),
                     Statement::Return(Some(Expr::Identifier("b".to_string()))),
                 ],
-            }],
+            })],
         };
 
         let expected_typed_program = TypedProgram {
-            func_defs: vec![TypedFuncDef {
+            global_statements: vec![TypedGlobalStatement::FuncDef(TypedFuncDef {
                 proto: FuncProto {
-                    is_public: true,
+                    func_visibility: FuncVisibility::Public,
                     name: "main".to_string(),
                     params: vec![],
                     return_type: Type::Int(IntType { width: 32 }),
@@ -512,7 +521,7 @@ mod tests {
                         id_type: Type::Int(IntType { width: 32 }),
                     }))),
                 ],
-            }],
+            })],
         };
 
         let mut typer = Typer::new();

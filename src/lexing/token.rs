@@ -17,10 +17,11 @@ pub enum Token {
     Identifier(String),
 
     // Keywords
+    Extern,
     Pub,
     Fn,
-    While,
     Ret,
+    While,
     If,
     Else,
 
@@ -62,6 +63,7 @@ impl fmt::Display for Token {
 
             Self::Pub => write!(f, "pub"),
             Self::Fn => write!(f, "fn"),
+            Self::Extern => write!(f, "extern"),
             Self::While => write!(f, "while"),
             Self::Ret => write!(f, "ret"),
             Self::If => write!(f, "if"),

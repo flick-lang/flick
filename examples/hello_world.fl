@@ -1,0 +1,17 @@
+extern fn putchar(i8 c) i8
+
+pub fn main() {
+    i8 a = putchar(72)
+    i8 a = putchar(101)
+    i8 a = putchar(108)
+    i8 a = putchar(108)
+    i8 a = putchar(111)
+    i8 a = putchar(32)
+    i8 a = putchar(119)
+    i8 a = putchar(111)
+    i8 a = putchar(114)
+    i8 a = putchar(108)
+    i8 a = putchar(100)
+    i8 a = putchar(10)
+}
+
