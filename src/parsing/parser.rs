@@ -182,6 +182,7 @@ impl<'a> Parser<'a> {
             (Token::While, _) => Statement::WhileLoop(self.parse_while_loop()),
             (Token::Fn, _) => panic!("Nested function definitions are not allowed"),
             (Token::Ret, _) => Statement::Return(self.parse_return_statement()),
+            (Token::If, _) => Statement::If(self.parse_if_statement()),
             (Token::Identifier(_), Some(Token::AssignmentSymbol(_))) => {
                 Statement::Assignment(self.parse_assignment())
             }
@@ -280,6 +281,40 @@ impl<'a> Parser<'a> {
 
         self.assert_next_token(Token::RSquirly);
         body
+    }
+
+    /// Parses an if statement (`if [condition] [body]`) and panics if unsuccessful.
+    ///
+    /// See also: [Parser::parse_expr], [Parser::parse_body]
+    ///
+    /// # Flick example code
+    /// ```text
+    /// if i * i < p {
+    ///     i += 1
+    /// }
+    fn parse_if_statement(&mut self) -> If {
+        self.assert_next_token(Token::If);
+
+        let condition = self.parse_expr();
+        let then_body = self.parse_body();
+
+        let else_body = match self.peek_token(1) {
+            Some(&Token::Else) => Some(self.parse_else_statement()),
+            _ => None
+        };
+
+        If { condition, then_body, else_body }
+    }
+    
+    fn parse_else_statement(&mut self) -> Vec<Statement> {
+        self.assert_next_token(Token::Else);
+
+        match self.peek_token(1) {
+            Some(Token::If) => vec![Statement::If(self.parse_if_statement())],
+            Some(Token::LSquirly) => self.parse_body(),
+            Some(t) => panic!("Unexpected token '{}' after 'else'; expected 'else {{' or 'else if'", t),
+            None => panic!("Unexpected end of file after 'else'; expected 'else {{' or 'else if'")
+        }
     }
 
     /// Parses a while loop (`while [expr] [body]`) and panics if unsuccessful.
@@ -747,6 +782,58 @@ mod tests {
 
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_program();
+
+        assert_eq!(expected, ast);
+    }
+
+    #[test]
+    fn if_statement() {
+        let tokens = vec![
+            Token::If,
+            Token::Identifier("x".to_string()),
+            Token::ComparatorSymbol(LessOrEqualTo),
+            Token::IntLiteral("5".to_string()),
+            Token::LSquirly,
+            Token::Ret,
+            Token::Newline,
+            Token::RSquirly,
+            Token::Else,
+            Token::If,
+            Token::Identifier("x".to_string()),
+            Token::ComparatorSymbol(LessOrEqualTo),
+            Token::IntLiteral("10".to_string()),
+            Token::LSquirly,
+            Token::Ret,
+            Token::Newline,
+            Token::RSquirly,
+            Token::Else,
+            Token::LSquirly,
+            Token::Ret,
+            Token::Newline,
+            Token::RSquirly,
+        ];
+        let expected = Some(Statement::If(If { 
+            condition: Expr::Comparison(Comparison { 
+                left: Box::new(Expr::Identifier("x".to_string())), 
+                operator: ComparisonOperator::LessOrEqualTo, 
+                right: Box::new(Expr::IntLiteral("5".to_string())) ,
+            }), 
+            then_body: vec![Statement::Return(None)], 
+            else_body: Some(vec![
+                Statement::If(If { 
+                    condition: Expr::Comparison(Comparison { 
+                        left: Box::new(Expr::Identifier("x".to_string())), 
+                        operator: ComparisonOperator::LessOrEqualTo, 
+                        right: Box::new(Expr::IntLiteral("10".to_string())) ,
+                    }),
+                    then_body: vec![Statement::Return(None)],
+                    else_body: Some(vec![Statement::Return(None)]),
+                })
+            ]),
+        }));
+
+        let mut parser = Parser::new(&tokens);
+        let ast = parser.parse_statement();
 
         assert_eq!(expected, ast);
     }

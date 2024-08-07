@@ -157,7 +157,7 @@ impl Compiler {
     /// [a]: Compiler::compile
     pub fn optimize(&mut self) {
         unsafe {
-            let passes = cstr!("default<O2>");
+            let passes = cstr!("default<O1>");
             let res = LLVMRunPasses(self.module, passes, self.target_machine, self.pass_builder);
             if !res.is_null() {
                 let error_string = CStr::from_ptr(LLVMGetErrorMessage(res));
@@ -286,10 +286,7 @@ impl Compiler {
             self.scope_manager.set(param_name, alloca);
         }
 
-        for statement in func_def.body.iter() {
-            // TODO: Error if compiling statement fails?
-            self.compile_statement(statement);
-        }
+        self.compile_body(&func_def.body);
 
         self.scope_manager.exit_scope();
 
@@ -307,10 +304,11 @@ impl Compiler {
             TypedStatement::Assignment(a) => self.compile_assignment_statement(a),
             TypedStatement::Return(r) => self.compile_ret_statement(r),
             TypedStatement::Call(c) => _ = self.compile_call(c),
+            TypedStatement::If(i) => self.compile_if_statement(i),
         }
     }
 
-    /// Compiles 0 or more variable declarations.
+    /// Compiles a variable declaration.
     unsafe fn compile_var_declaration(&mut self, var_declaration: &TypedVarDeclaration) {
         let func = match self.get_cur_function() {
             Some(func) => func,
@@ -333,29 +331,23 @@ impl Compiler {
             None => panic!("Cannot compile while declaration outside of a function"),
         };
         let cond_block = LLVMAppendBasicBlockInContext(self.context, cur_func, cstr!("cond"));
-        let loop_block = LLVMAppendBasicBlockInContext(self.context, cur_func, cstr!("loop"));
+        let loop_block = LLVMCreateBasicBlockInContext(self.context, cstr!("loop"));
         // Build block to go to after loop is done executing
-        let after_block = LLVMAppendBasicBlockInContext(self.context, cur_func, cstr!("after"));
+        let after_block = LLVMCreateBasicBlockInContext(self.context, cstr!("after"));
 
         LLVMBuildBr(self.builder, cond_block);
-        // todo: consider deleting?
-        // Insert an explicit fall through from the current block to the loop_block.
         LLVMPositionBuilderAtEnd(self.builder, cond_block);
 
         let condition = self.compile_expr(&while_loop.condition);
         LLVMBuildCondBr(self.builder, condition, loop_block, after_block);
 
         // Start insertion in loop_block.
+        LLVMAppendExistingBasicBlock(cur_func, loop_block);
         LLVMPositionBuilderAtEnd(self.builder, loop_block);
-
-        self.scope_manager.enter_scope();
-        for statement in while_loop.body.iter() {
-            self.compile_statement(statement);
-        }
-        self.scope_manager.exit_scope();
-
+        self.compile_body(&while_loop.body);
         LLVMBuildBr(self.builder, cond_block);
-
+        
+        LLVMAppendExistingBasicBlock(cur_func, after_block);
         LLVMPositionBuilderAtEnd(self.builder, after_block);
     }
 
@@ -386,6 +378,62 @@ impl Compiler {
             Some(expr) => LLVMBuildRet(self.builder, self.compile_expr(expr)),
             None => LLVMBuildRetVoid(self.builder),
         };
+    }
+
+    unsafe fn compile_body(&mut self, body: &[TypedStatement], ) {
+        self.scope_manager.enter_scope();
+        for statement in body {
+            self.compile_statement(statement);
+        }
+        self.scope_manager.exit_scope();
+    }
+
+    /// This method compiles an typed if statementi.
+    /// 
+    /// # Notes
+    /// - If `if_statement` has no else block, this method will still produce an empty else block;
+    /// it will be optimized away during LLVM's optimization passes anyway.
+    unsafe fn compile_if_statement(&mut self, if_statement: &TypedIf) {
+        let cur_func = match self.get_cur_function() {
+            Some(func) => func,
+            None => panic!("Cannot compile if statement outside of a function"),
+        };
+
+        let cond_block = LLVMAppendBasicBlockInContext(self.context, cur_func, cstr!("cond"));
+        // then_block will be appended once cond_block is built
+        let then_block = LLVMCreateBasicBlockInContext(self.context, cstr!("then"));
+        // else_block will be appended once then_block is built
+        let else_block = LLVMCreateBasicBlockInContext(self.context, cstr!("else"));
+        // merge_block will be appended once else_block is built
+        let merge_block = LLVMCreateBasicBlockInContext(self.context, cstr!("merge"));
+
+        LLVMBuildBr(self.builder, cond_block);
+        LLVMPositionBuilderAtEnd(self.builder, cond_block);
+
+        let condition = self.compile_expr(&if_statement.condition);
+
+        LLVMBuildCondBr(self.builder, condition, then_block, else_block);
+
+        // ------------------------ THEN BLOCK ------------------------------
+        // Start insertion in then_block.
+        LLVMAppendExistingBasicBlock(cur_func, then_block);
+        LLVMPositionBuilderAtEnd(self.builder, then_block);
+        self.compile_body(&if_statement.then_body);
+        // Build branch to merge_block after if statement
+        LLVMBuildBr(self.builder, merge_block);
+
+        // ------------------------ ELSE BLOCK ------------------------------
+        LLVMAppendExistingBasicBlock(cur_func, else_block); // start building else block
+        LLVMPositionBuilderAtEnd(self.builder, else_block);
+        if let Some(else_body) = &if_statement.else_body {
+            self.compile_body(else_body);
+        }
+        LLVMBuildBr(self.builder, merge_block);
+
+        // ------------------------ MERGE BLOCK ------------------------------
+
+        LLVMAppendExistingBasicBlock(cur_func, merge_block);
+        LLVMPositionBuilderAtEnd(self.builder, merge_block);
     }
 
     /// Compiles an expression, panicking if its value's type doesn't match the expected type.

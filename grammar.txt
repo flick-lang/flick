@@ -1,15 +1,22 @@
 program     := {func_def}
 
-statement   := var_dec | while_loop | assignment_stmt | return_stmt | call
+statement   := var_dec | while_loop | if_stmt | assignment_stmt | return_stmt | call
                     NOTE: statement must be FOLLOWED BY '\n' or EOF
 
-func_def    := ['pub'] 'fn' IDENTIFIER '(' [parameters] ')' [VARTYPE] '{' {statement} '}'
+func_def    := ['pub'] 'fn' IDENTIFIER '(' [parameters] ')' [VARTYPE] body
 parameters  := {VARTYPE IDENTIFIER ','} VARTYPE IDENTIFIER
 
 var_decl    := VARTYPE IDENTIFIER '=' expr
-while_loop  := 'while' '{' [statement]+ '}'
+while_loop  := 'while' condition body
 
 return_stmt := 'ret' expr
+
+if_stmt     := 'if' condition body [else_stmt]
+
+else_stmt   := 'else' body | 'else' if_stmt
+
+condition   := expr
+body        := '{' [statement]+ '}'
 
 assigment   := IDENTIFIER = expr
 
@@ -24,5 +31,5 @@ primary_expr    := atom | call | '(' expr ')'
 
 // call_and_index_expr  := IDENTIFIER { [ '(' [args] ')' ] { '[' [index]  ']' } }
 call        := IDENTIFIER [ '(' [args] ')' ]
-args        := {arg ,} arg
+args        := {atom,} atom
 atom        := IDENTIFIER | INT_LITERAL | STR_LITERAL

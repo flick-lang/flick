@@ -1,9 +1,11 @@
 /// Module that adds types to Flick's [abstract syntax tree (AST)](crate::ast).
+/// Look at [typer::Typer] to see how abstract syntax trees are typed.
 ///
-/// The top-level node in Flick's typed AST is [typed_ast::TypedProgram], which stores a collection of function
-/// definitions ([typed_ast::TypedFuncDef]). Each function's body is a collection of [statements](typed_ast::TypedStatement),
-/// which further break down into [expressions](typed_ast::TypedExpr), which break down further into
-/// components.
+/// The top-level node in Flick's typed AST is [typed_ast::TypedProgram], which stores a collection
+/// of function definitions ([typed_ast::TypedFuncDef]). Each function's body is a collection of
+/// [statements](typed_ast::TypedStatement), which further break down into
+/// [expressions](typed_ast::TypedExpr), which break down further into components.
+///
 ///
 /// For example, `9 * (2 + 3);` corresponds to the following expression:
 ///
