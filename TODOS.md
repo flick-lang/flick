@@ -29,6 +29,7 @@
 
 ### Longer Todos
 
+- [ ] Test suite like Tsoding's where we can test many .fl files
 - [ ] Embed LLD linker so not calling clang
 - [ ] Think about what an identifier is... is it always a variable name? because callexpr is separate...
 - [ ] Be looser with types during typing: coercion, i64 = i32 + i32

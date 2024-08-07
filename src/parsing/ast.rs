@@ -72,12 +72,17 @@ pub struct VarDeclaration {
     pub var_value: Expr,
 }
 
-/// A if statement (its 'if condition' and its body).
+/// A if statement.
+/// 
+/// Note, `then_body` corresponds to the statements to be executed if the condition is true,
+/// and `else_body` (optional) corresponds to the "else" block of the if statement.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct If {
     pub condition: Expr,
-    pub body: Vec<Statement>,
+    pub then_body: Vec<Statement>,
+    pub else_body: Option<Vec<Statement>>,
 }
+
 
 /// A while loop (its 'while condition' and its body).
 #[derive(Debug, PartialEq, Eq, Clone)]

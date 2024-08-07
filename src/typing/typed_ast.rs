@@ -61,18 +61,19 @@ pub struct TypedVarDeclaration {
     pub var_value: TypedExpr,
 }
 
-/// A while loop (its 'while condition' and its body).
+/// A typed version of [crate::ast::WhileLoop].
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TypedWhileLoop {
     pub condition: TypedExpr,
     pub body: Vec<TypedStatement>,
 }
 
-/// An if statement (its 'if condition' and its body).
+/// A typed version of [crate::ast::If].
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TypedIf {
     pub condition: TypedExpr,
-    pub body: Vec<TypedStatement>,
+    pub then_body: Vec<TypedStatement>,
+    pub else_body: Option<Vec<TypedStatement>>,
 }
 
 /// An expression, which is any piece of code that has a value.

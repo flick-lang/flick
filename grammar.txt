@@ -11,10 +11,12 @@ while_loop  := 'while' condition body
 
 return_stmt := 'ret' expr
 
-if_stmt := 'if' condition body
+if_stmt     := 'if' condition body [else_stmt]
 
-condition := expr
-body      := '{' [statement]+ '}'
+else_stmt   := 'else' body | 'else' if_stmt
+
+condition   := expr
+body        := '{' [statement]+ '}'
 
 assigment   := IDENTIFIER = expr
 

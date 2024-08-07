@@ -84,10 +84,7 @@ impl Typer {
             self.scope_manager.set(param_name, param_type);
         }
 
-        let mut func_body = Vec::with_capacity(func_def.body.len());
-        for statement in func_def.body.iter() {
-            func_body.push(self.type_statement(statement, &func_def.proto.return_type));
-        }
+        let mut func_body = self.type_body(&func_def.body, &func_def.proto.return_type);
 
         // Implicitly return void at end of functions with void return type
         if Type::Void == func_def.proto.return_type {
@@ -147,21 +144,28 @@ impl Typer {
         }
     }
 
+    /// This method confirms that a given body (consisting of one or more [Statement][a]) 
+    /// is well-typed.
+    /// 
+    /// [a]: crate::ast::Statement
+    fn type_body(&mut self, body: &[Statement], function_return_type: &Type) -> Vec<TypedStatement> {
+        self.scope_manager.enter_scope();
+        let typed_body: Vec<_> = body
+            .iter()
+            .map(|s| self.type_statement(s, function_return_type))
+            .collect();
+        self.scope_manager.exit_scope();
+        typed_body
+    }
+
     /// This method checks that an if statement has a *boolean* condition and a collection of body
     /// statements that are well-typed.
     fn type_if_statement(&mut self, if_statement: &If, function_return_type: &Type) -> TypedIf {
         let bool_type = Type::Int(IntType { width: 1 });
         let condition = self.type_expr(&if_statement.condition, Some(&bool_type));
-
-        self.scope_manager.enter_scope();
-        let body: Vec<_> = if_statement
-            .body
-            .iter()
-            .map(|s| self.type_statement(s, function_return_type))
-            .collect();
-        self.scope_manager.exit_scope();
-
-        TypedIf { condition, body }
+        let then_body = self.type_body(&if_statement.then_body, function_return_type);
+        let else_body = if_statement.else_body.as_ref().map(|body| self.type_body(body, function_return_type));
+        TypedIf { condition, then_body, else_body }
     }
 
     /// This method checks that a while loop has a *boolean* condition and a collection of body
@@ -173,15 +177,7 @@ impl Typer {
     ) -> TypedWhileLoop {
         let bool_type = Type::Int(IntType { width: 1 });
         let condition = self.type_expr(&while_loop.condition, Some(&bool_type));
-
-        self.scope_manager.enter_scope();
-        let body: Vec<_> = while_loop
-            .body
-            .iter()
-            .map(|s| self.type_statement(s, function_return_type))
-            .collect();
-        self.scope_manager.exit_scope();
-
+        let body = self.type_body(&while_loop.body, function_return_type);
         TypedWhileLoop { condition, body }
     }
 
