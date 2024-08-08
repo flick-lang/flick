@@ -278,7 +278,6 @@ impl Compiler {
             let param_name = param.param_name.as_str();
             let param_type = &param.param_type;
             let param_value_ref = LLVMGetParam(func, i as c_uint);
-            // let alloca = self.create_entry_block_alloca(func, param_name, param_type);
             let alloca = self.create_alloca(param_name, param_type);
 
             LLVMBuildStore(self.builder, param_value_ref, alloca);
@@ -343,8 +342,10 @@ impl Compiler {
         // Start insertion in loop_block.
         LLVMAppendExistingBasicBlock(cur_func, loop_block);
         LLVMPositionBuilderAtEnd(self.builder, loop_block);
-        self.compile_body(&while_loop.body);
-        LLVMBuildBr(self.builder, cond_block);
+        
+        if !self.compile_body(&while_loop.body) {
+            LLVMBuildBr(self.builder, cond_block);
+        }
         
         LLVMAppendExistingBasicBlock(cur_func, after_block);
         LLVMPositionBuilderAtEnd(self.builder, after_block);
@@ -379,12 +380,22 @@ impl Compiler {
         };
     }
 
-    unsafe fn compile_body(&mut self, body: &[TypedStatement], ) {
+    /// Compiles a function body, assuming the LLVM builder is building inside a function body.
+    /// 
+    /// Returns `true` if the body returns (contains a return statement), `false` otherwise.
+    unsafe fn compile_body(&mut self, body: &[TypedStatement]) -> bool {
+        let mut body_returns = false;
         self.scope_manager.enter_scope();
         for statement in body {
             self.compile_statement(statement);
+            // If we have a termination instruction, stop compiling statements
+            if let TypedStatement::Return(_) = statement { 
+                body_returns = true;
+                break;
+             }
         }
         self.scope_manager.exit_scope();
+        return body_returns
     }
 
     /// This method compiles an typed if statementi.
@@ -411,23 +422,29 @@ impl Compiler {
 
         let condition = self.compile_expr(&if_statement.condition);
 
-        LLVMBuildCondBr(self.builder, condition, then_block, else_block);
+        let target_else_block = match &if_statement.else_body {
+            Some(_) => else_block,
+            None => merge_block,
+        };
+        LLVMBuildCondBr(self.builder, condition, then_block, target_else_block);
 
         // ------------------------ THEN BLOCK ------------------------------
         // Start insertion in then_block.
         LLVMAppendExistingBasicBlock(cur_func, then_block);
         LLVMPositionBuilderAtEnd(self.builder, then_block);
-        self.compile_body(&if_statement.then_body);
-        // Build branch to merge_block after if statement
-        LLVMBuildBr(self.builder, merge_block);
+        if !self.compile_body(&if_statement.then_body) {
+            // Build branch to merge_block after if statement 
+            LLVMBuildBr(self.builder, merge_block);
+        }
 
         // ------------------------ ELSE BLOCK ------------------------------
-        LLVMAppendExistingBasicBlock(cur_func, else_block); // start building else block
-        LLVMPositionBuilderAtEnd(self.builder, else_block);
         if let Some(else_body) = &if_statement.else_body {
-            self.compile_body(else_body);
+            LLVMAppendExistingBasicBlock(cur_func, else_block); // start building else block
+            LLVMPositionBuilderAtEnd(self.builder, else_block);
+            if !self.compile_body(else_body) {
+                LLVMBuildBr(self.builder, merge_block);
+            }
         }
-        LLVMBuildBr(self.builder, merge_block);
 
         // ------------------------ MERGE BLOCK ------------------------------
 
