@@ -282,6 +282,8 @@ impl Typer {
             panic!("Expected unsigned integer type '{}', but got negative int_literal '{}'", int_type, int_literal);
         }
 
+        // TODO: Ensure that the int_literal.value fits within the desired width
+
         TypedIntLiteral {
             negative: int_literal.negative,
             int_value: int_literal.value.clone(),
