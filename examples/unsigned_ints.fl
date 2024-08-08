@@ -1,0 +1,10 @@
+pub fn main() i8 {
+    i8 a = 130
+    i8 b = 120
+    if a < b {
+        ret 1
+    } else {
+        ret -1
+    }
+    ret 0
+}

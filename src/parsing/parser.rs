@@ -604,14 +604,14 @@ mod tests {
     #[test]
     fn var_declaration() {
         let tokens = vec![
-            Token::Type(Type::Int(IntType { width: 64 })),
+            Token::Type(Type::Int(IntType { width: 64, signed: true })),
             Token::Identifier("x".to_string()),
             Token::AssignmentSymbol(Eq),
             Token::IntLiteral("5".to_string()),
         ];
         let expected = Some(Statement::VarDeclaration(VarDeclaration {
             var_name: "x".to_string(),
-            var_type: Type::Int(IntType { width: 64 }),
+            var_type: Type::Int(IntType { width: 64, signed: true }),
             var_value: Expr::IntLiteral(IntLiteral { negative: false, value: "5".to_string() }),
         }));
 
@@ -799,10 +799,10 @@ mod tests {
             Token::Fn,
             Token::Identifier("test".to_string()),
             Token::LParen,
-            Token::Type(Type::Int(IntType { width: 64 })),
+            Token::Type(Type::Int(IntType { width: 64, signed: true })),
             Token::Identifier("a".to_string()),
             Token::RParen,
-            Token::Type(Type::Int(IntType { width: 64 })),
+            Token::Type(Type::Int(IntType { width: 64, signed: true })),
             Token::LSquirly,
             Token::RSquirly,
         ];
@@ -812,10 +812,10 @@ mod tests {
                     func_visibility: FuncVisibility::Public,
                     name: "test".to_string(),
                     params: vec![FuncParam {
-                        param_type: Type::Int(IntType { width: 64 }),
+                        param_type: Type::Int(IntType { width: 64, signed: true }),
                         param_name: "a".to_string(),
                     }],
-                    return_type: Type::Int(IntType { width: 64 }),
+                    return_type: Type::Int(IntType { width: 64, signed: true }),
                 },
                 body: vec![],
             })],

@@ -170,7 +170,7 @@ impl Typer {
     /// This method checks that an if statement has a *boolean* condition and a collection of body
     /// statements that are well-typed.
     fn type_if_statement(&mut self, if_statement: &If, function_return_type: &Type) -> TypedIf {
-        let bool_type = Type::Int(IntType { width: 1 });
+        let bool_type = Type::Int(IntType { width: 1, signed: false });
         let condition = self.type_expr(&if_statement.condition, Some(&bool_type));
         let then_body = self.type_body(&if_statement.then_body, function_return_type);
         let else_body = if_statement.else_body.as_ref().map(|body| self.type_body(body, function_return_type));
@@ -184,7 +184,7 @@ impl Typer {
         while_loop: &WhileLoop,
         function_return_type: &Type,
     ) -> TypedWhileLoop {
-        let bool_type = Type::Int(IntType { width: 1 });
+        let bool_type = Type::Int(IntType { width: 1, signed: false });
         let condition = self.type_expr(&while_loop.condition, Some(&bool_type));
         let body = self.type_body(&while_loop.body, function_return_type);
         TypedWhileLoop { condition, body }
@@ -271,12 +271,16 @@ impl Typer {
             Some(Type::Int(int_type)) => *int_type,
             Some(t) => {
                 panic!(
-                    "expected integer type for literal '{}', but the desired type is '{}'",
+                    "Expected integer type for literal '{}', but the desired type is '{}'",
                     int_literal, t
                 )
             }
-            None => IntType { width: 64 },
+            None => IntType { width: 64, signed: false },
         };
+
+        if int_literal.negative && !int_type.signed {
+            panic!("Expected unsigned integer type '{}', but got negative int_literal '{}'", int_type, int_literal);
+        }
 
         TypedIntLiteral {
             negative: int_literal.negative,
@@ -314,9 +318,9 @@ impl Typer {
         comparison: &Comparison,
         desired_type: Option<&Type>,
     ) -> TypedComparison {
-        if desired_type.is_some() && desired_type != Some(&Type::Int(IntType { width: 1 })) {
+        if desired_type.is_some() && desired_type != Some(&Type::Int(IntType { width: 1, signed: false })) {
             panic!(
-                "Comparison returns an i1 but expected '{}'",
+                "Comparison expressions return an i1 but expected '{}'",
                 desired_type.unwrap()
             );
         }
@@ -340,6 +344,7 @@ impl Typer {
             left: Box::new(left),
             operator,
             right: Box::new(right),
+            result_type: left_type, // since both types must be equal
         }
     }
 
@@ -398,7 +403,7 @@ impl Typer {
             TypedExpr::Identifier(id) => id.id_type.clone(),
             TypedExpr::IntLiteral(int) => Type::Int(int.int_type),
             TypedExpr::Binary(binary) => binary.result_type.clone(),
-            TypedExpr::Comparison(_) => Type::Int(IntType { width: 1 }),
+            TypedExpr::Comparison(_) => Type::Int(IntType { width: 1, signed: false }),
             TypedExpr::Call(call) => Type::Func(call.function_type.clone()),
         }
     }
@@ -434,23 +439,23 @@ mod tests {
                     func_visibility: FuncVisibility::Public,
                     name: "main".to_string(),
                     params: vec![],
-                    return_type: Type::Int(IntType { width: 32 }),
+                    return_type: Type::Int(IntType { width: 32, signed: true }),
                 },
                 body: vec![
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "a".to_string(),
                         var_value: Expr::IntLiteral(IntLiteral { negative: false, value: "3".to_string() }),
-                        var_type: Type::Int(IntType { width: 64 }),
+                        var_type: Type::Int(IntType { width: 64, signed: true }),
                     }),
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "b".to_string(),
                         var_value: Expr::Identifier("a".to_string()),
-                        var_type: Type::Int(IntType { width: 64 }),
+                        var_type: Type::Int(IntType { width: 64, signed: true }),
                     }),
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "c".to_string(),
                         var_value: Expr::Identifier("b".to_string()), // this should panic, since b (i64) can't be in c (i32)
-                        var_type: Type::Int(IntType { width: 32 }),
+                        var_type: Type::Int(IntType { width: 32, signed: true }),
                     }),
                 ],
             })],
@@ -474,18 +479,18 @@ mod tests {
                     func_visibility: FuncVisibility::Public,
                     name: "main".to_string(),
                     params: vec![],
-                    return_type: Type::Int(IntType { width: 32 }),
+                    return_type: Type::Int(IntType { width: 32, signed: true }),
                 },
                 body: vec![
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "a".to_string(),
                         var_value: Expr::IntLiteral(IntLiteral { negative: false, value: "3".to_string() }),
-                        var_type: Type::Int(IntType { width: 32 }),
+                        var_type: Type::Int(IntType { width: 32, signed: true }),
                     }),
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "b".to_string(),
                         var_value: Expr::Identifier("a".to_string()),
-                        var_type: Type::Int(IntType { width: 32 }),
+                        var_type: Type::Int(IntType { width: 32, signed: true }),
                     }),
                     Statement::Return(Some(Expr::Identifier("b".to_string()))),
                 ],
@@ -498,7 +503,7 @@ mod tests {
                     func_visibility: FuncVisibility::Public,
                     name: "main".to_string(),
                     params: vec![],
-                    return_type: Type::Int(IntType { width: 32 }),
+                    return_type: Type::Int(IntType { width: 32, signed: true }),
                 },
                 body: vec![
                     TypedStatement::VarDeclaration(TypedVarDeclaration {
@@ -506,21 +511,21 @@ mod tests {
                         var_value: TypedExpr::IntLiteral(TypedIntLiteral {
                             negative: false,
                             int_value: "3".to_string(),
-                            int_type: IntType { width: 32 },
+                            int_type: IntType { width: 32, signed: true },
                         }),
-                        var_type: Type::Int(IntType { width: 32 }),
+                        var_type: Type::Int(IntType { width: 32, signed: true }),
                     }),
                     TypedStatement::VarDeclaration(TypedVarDeclaration {
                         var_name: "b".to_string(),
-                        var_type: Type::Int(IntType { width: 32 }),
+                        var_type: Type::Int(IntType { width: 32, signed: true }),
                         var_value: TypedExpr::Identifier(TypedIdentifier {
                             name: "a".to_string(),
-                            id_type: Type::Int(IntType { width: 32 }),
+                            id_type: Type::Int(IntType { width: 32, signed: true }),
                         }),
                     }),
                     TypedStatement::Return(Some(TypedExpr::Identifier(TypedIdentifier {
                         name: "b".to_string(),
-                        id_type: Type::Int(IntType { width: 32 }),
+                        id_type: Type::Int(IntType { width: 32, signed: true }),
                     }))),
                 ],
             })],
