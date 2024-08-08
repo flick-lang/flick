@@ -1,5 +1,5 @@
 use crate::ast::{
-    Assignment, Binary, Call, Comparison, Expr, FuncDef, FuncProto, GlobalStatement, If, Program, Statement, VarDeclaration, WhileLoop
+    Assignment, Binary, Call, Comparison, Expr, FuncDef, FuncProto, GlobalStatement, If, IntLiteral, Program, Statement, VarDeclaration, WhileLoop
 };
 use crate::scope_manager::ScopeManager;
 use crate::typed_ast::{
@@ -266,7 +266,7 @@ impl Typer {
 
     /// Checks that `desired_type` is a valid type (namely, an integer type) and wraps the
     /// `int_literal` as a `TypedIntLiteral`.
-    fn type_int_literal(&self, int_literal: &str, desired_type: Option<&Type>) -> TypedIntLiteral {
+    fn type_int_literal(&self, int_literal: &IntLiteral, desired_type: Option<&Type>) -> TypedIntLiteral {
         let int_type = match desired_type {
             Some(Type::Int(int_type)) => *int_type,
             Some(t) => {
@@ -279,7 +279,8 @@ impl Typer {
         };
 
         TypedIntLiteral {
-            int_value: int_literal.to_string(),
+            negative: int_literal.negative,
+            int_value: int_literal.value.clone(),
             int_type,
         }
     }
@@ -438,12 +439,12 @@ mod tests {
                 body: vec![
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "a".to_string(),
-                        var_value: Expr::IntLiteral("3".to_string()),
+                        var_value: Expr::IntLiteral(IntLiteral { negative: false, value: "3".to_string() }),
                         var_type: Type::Int(IntType { width: 64 }),
                     }),
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "b".to_string(),
-                        var_value: Expr::IntLiteral("a".to_string()),
+                        var_value: Expr::Identifier("a".to_string()),
                         var_type: Type::Int(IntType { width: 64 }),
                     }),
                     Statement::VarDeclaration(VarDeclaration {
@@ -478,12 +479,12 @@ mod tests {
                 body: vec![
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "a".to_string(),
-                        var_value: Expr::IntLiteral("3".to_string()),
+                        var_value: Expr::IntLiteral(IntLiteral { negative: false, value: "3".to_string() }),
                         var_type: Type::Int(IntType { width: 32 }),
                     }),
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "b".to_string(),
-                        var_value: Expr::IntLiteral("a".to_string()),
+                        var_value: Expr::Identifier("a".to_string()),
                         var_type: Type::Int(IntType { width: 32 }),
                     }),
                     Statement::Return(Some(Expr::Identifier("b".to_string()))),
@@ -503,6 +504,7 @@ mod tests {
                     TypedStatement::VarDeclaration(TypedVarDeclaration {
                         var_name: "a".to_string(),
                         var_value: TypedExpr::IntLiteral(TypedIntLiteral {
+                            negative: false,
                             int_value: "3".to_string(),
                             int_type: IntType { width: 32 },
                         }),
@@ -510,11 +512,11 @@ mod tests {
                     }),
                     TypedStatement::VarDeclaration(TypedVarDeclaration {
                         var_name: "b".to_string(),
-                        var_value: TypedExpr::IntLiteral(TypedIntLiteral {
-                            int_value: "a".to_string(),
-                            int_type: IntType { width: 32 },
-                        }),
                         var_type: Type::Int(IntType { width: 32 }),
+                        var_value: TypedExpr::Identifier(TypedIdentifier {
+                            name: "a".to_string(),
+                            id_type: Type::Int(IntType { width: 32 }),
+                        }),
                     }),
                     TypedStatement::Return(Some(TypedExpr::Identifier(TypedIdentifier {
                         name: "b".to_string(),

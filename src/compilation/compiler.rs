@@ -462,9 +462,16 @@ impl Compiler {
     }
 
     /// Compiles an integer literal expression.
+    /// 
+    /// This function converts a `TypedIntLiteral` into an LLVM constant integer value.
+    /// If `int_literal.negative` is true, the value is negated.
     unsafe fn compile_int_literal(&self, int_literal: &TypedIntLiteral) -> LLVMValueRef {
         let int_type = self.to_llvm_type(&Type::Int(int_literal.int_type));
-        let value_cstr = CString::new(int_literal.int_value.as_str()).unwrap();
+        let value_str = match int_literal.negative {
+            true => format!("-{}", int_literal.int_value),
+            false => int_literal.int_value.clone(),
+        };
+        let value_cstr = CString::new(value_str).unwrap();
         LLVMConstIntOfString(int_type, value_cstr.as_ptr(), 10)
     }
 
