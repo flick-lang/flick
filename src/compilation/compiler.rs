@@ -510,7 +510,7 @@ impl Compiler {
             Divide => match bin_expr.result_type {
                 Type::Int(IntType { signed: true, .. }) => LLVMBuildSDiv(self.builder, lhs, rhs, cstr!("sdiv")),
                 Type::Int(IntType { signed: false, .. }) => LLVMBuildUDiv(self.builder, lhs, rhs, cstr!("udiv")),
-                _ => panic!("Division should've been handled by Typer"),
+                _ => panic!("We can't divide non-integers"),
             },
         }
     }
