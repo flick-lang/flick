@@ -502,15 +502,19 @@ impl Compiler {
             panic!("Binary expr: type(LHS) != type(RHS) should've been handled by Typer")
         }
 
+        let int_type = match bin_expr.result_type {
+            Type::Int(int_type) => int_type,
+            _ => panic!("Unsupported lhs and rhs types for binary expr; can only handle integers"),
+        };
+
         match bin_expr.operator {
             Add => LLVMBuildAdd(self.builder, lhs, rhs, cstr!("add")),
             Subtract => LLVMBuildSub(self.builder, lhs, rhs, cstr!("sub")),
             Multiply => LLVMBuildMul(self.builder, lhs, rhs, cstr!("mul")),
             // TODO: signed-ints: Signed vs unsigned division
-            Divide => match bin_expr.result_type {
-                Type::Int(IntType { signed: true, .. }) => LLVMBuildSDiv(self.builder, lhs, rhs, cstr!("sdiv")),
-                Type::Int(IntType { signed: false, .. }) => LLVMBuildUDiv(self.builder, lhs, rhs, cstr!("udiv")),
-                _ => panic!("We can't divide non-integers"),
+            Divide => match int_type {
+                IntType { signed: true, .. } => LLVMBuildSDiv(self.builder, lhs, rhs, cstr!("sdiv")),
+                IntType { signed: false, .. } => LLVMBuildUDiv(self.builder, lhs, rhs, cstr!("udiv")),
             },
         }
     }
