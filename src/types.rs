@@ -22,12 +22,16 @@ impl fmt::Display for Type {
 /// An enum to store the built-in int type
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct IntType {
+    pub signed: bool,
     pub width: u32,
 }
 
 impl fmt::Display for IntType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "i{}", self.width)
+        match self.signed {
+            true => write!(f, "i{}", self.width),
+            false => write!(f, "u{}", self.width),
+        }
     }
 }
 

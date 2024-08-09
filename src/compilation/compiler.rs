@@ -5,6 +5,7 @@ use std::mem::MaybeUninit;
 use std::path::Path;
 
 use llvm_sys::core::*;
+use llvm_sys::LLVMIntPredicate;
 use llvm_sys::error::LLVMGetErrorMessage;
 use llvm_sys::prelude::*;
 use llvm_sys::target::{
@@ -21,12 +22,11 @@ use llvm_sys::target_machine::{
     LLVMTargetMachineRef,
 };
 use llvm_sys::transforms::pass_builder::*;
-use llvm_sys::LLVMIntPredicate::*;
 use llvm_sys::LLVMLinkage::{LLVMExternalLinkage, LLVMInternalLinkage};
 
 use crate::ast::*;
 use crate::typed_ast::*;
-use crate::types::FuncType;
+use crate::types::{FuncType, IntType};
 use crate::ScopeManager;
 use crate::Type;
 
@@ -503,37 +503,62 @@ impl Compiler {
             panic!("Binary expr: type(LHS) != type(RHS) should've been handled by Typer")
         }
 
+        let int_type = match bin_expr.result_type {
+            Type::Int(int_type) => int_type,
+            _ => panic!("Unsupported lhs and rhs types for binary expr; can only handle integers"),
+        };
+
         match bin_expr.operator {
             Add => LLVMBuildAdd(self.builder, lhs, rhs, cstr!("add")),
             Subtract => LLVMBuildSub(self.builder, lhs, rhs, cstr!("sub")),
             Multiply => LLVMBuildMul(self.builder, lhs, rhs, cstr!("mul")),
             // TODO: signed-ints: Signed vs unsigned division
-            Divide => LLVMBuildSDiv(self.builder, lhs, rhs, cstr!("sdiv")),
+            Divide => match int_type {
+                IntType { signed: true, .. } => LLVMBuildSDiv(self.builder, lhs, rhs, cstr!("sdiv")),
+                IntType { signed: false, .. } => LLVMBuildUDiv(self.builder, lhs, rhs, cstr!("udiv")),
+            },
         }
     }
 
     /// Compiles a comparison expression.
-    ///
-    /// Note that this function accept an `expected_type`, only to confirm that it is `i1` (boolean),
-    /// since comparison expressions.
     unsafe fn compile_comparison_expr(&mut self, comparison: &TypedComparison) -> LLVMValueRef {
-        use ComparisonOperator::*;
-
         let lhs = self.compile_expr(&comparison.left);
         let rhs = self.compile_expr(&comparison.right);
+
 
         if LLVMTypeOf(lhs) != LLVMTypeOf(rhs) {
             panic!("Comparison: type(LHS) != type(RHS) should've been handled by Typer")
         }
 
-        // TODO: Signed comparisons
-        match comparison.operator {
-            NotEqualTo => LLVMBuildICmp(self.builder, LLVMIntNE, lhs, rhs, cstr!("neq")),
-            EqualTo => LLVMBuildICmp(self.builder, LLVMIntEQ, lhs, rhs, cstr!("eq")),
-            LessThan => LLVMBuildICmp(self.builder, LLVMIntSLT, lhs, rhs, cstr!("slt")),
-            GreaterThan => LLVMBuildICmp(self.builder, LLVMIntSGT, lhs, rhs, cstr!("sgt")),
-            LessOrEqualTo => LLVMBuildICmp(self.builder, LLVMIntSLE, lhs, rhs, cstr!("sle")),
-            GreaterOrEqualTo => LLVMBuildICmp(self.builder, LLVMIntSGE, lhs, rhs, cstr!("sge")),
+        match comparison.operand_type {
+            Type::Int(int_type) => LLVMBuildICmp(self.builder, self.comparison_int_op(comparison.operator, int_type), lhs, rhs, cstr!("")),
+            _ => panic!("Unsupported lhs and rhs types for comparison; can only handle integers"),
+        }
+        
+    }
+
+    unsafe fn comparison_int_op(&mut self, operator: ComparisonOperator, result_type: IntType) -> LLVMIntPredicate {
+        use LLVMIntPredicate::*;
+        
+        match operator {
+            ComparisonOperator::NotEqualTo => LLVMIntNE,
+            ComparisonOperator::EqualTo => LLVMIntEQ,
+            ComparisonOperator::LessThan => match result_type {
+                IntType { signed: true, .. } => LLVMIntSLT,
+                IntType { signed: false, .. } => LLVMIntULT,
+            },
+            ComparisonOperator::GreaterThan => match result_type {
+                IntType { signed: true, .. } => LLVMIntSGT,
+                IntType { signed: false, .. } => LLVMIntUGT,
+            },
+            ComparisonOperator::LessOrEqualTo => match result_type {
+                IntType { signed: true, .. } => LLVMIntSLE,
+                IntType { signed: false, .. } => LLVMIntULE,
+            },
+            ComparisonOperator::GreaterOrEqualTo => match result_type {
+                IntType { signed: true, .. } => LLVMIntSGE,
+                IntType { signed: false, .. } => LLVMIntUGE,
+            },
         }
     }
 

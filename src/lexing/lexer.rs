@@ -168,10 +168,14 @@ impl<'a> Lexer<'a> {
     fn read_word(&mut self) -> Token {
         let s = self.take_chars_while(|&c| c.is_ascii_alphanumeric() || c == '_');
 
-        if s.starts_with('i') && s.len() > 1 && s.chars().skip(1).all(|c| c.is_ascii_digit()) {
+        if (s.starts_with('u') || s.starts_with('i')) && s.len() > 1 && s.chars().skip(1).all(|c| c.is_ascii_digit()) {
             let num: String = s.chars().skip(1).collect();
             let width: u32 = num.parse().unwrap();
-            return Token::Type(Type::Int(IntType { width }));
+            match s.chars().next().unwrap() {
+                'u' => return Token::Type(Type::Int(IntType { width, signed: false })),
+                'i' => return Token::Type(Type::Int(IntType { width, signed: true })),
+                _ => unreachable!(),
+            }
         }
 
         match s.as_str() {
@@ -245,12 +249,12 @@ mod tests {
     fn variables() {
         let source_code = "i64 this_is_a_LONG_VARIABLE_NAME = 5\ni64 shortInt = 5";
         let expected_tokens = vec![
-            Token::Type(Type::Int(IntType { width: 64 })),
+            Token::Type(Type::Int(IntType { signed: true, width: 64 })),
             Token::Identifier("this_is_a_LONG_VARIABLE_NAME".to_string()),
             Token::AssignmentSymbol(Eq),
             Token::IntLiteral("5".to_string()),
             Token::Newline,
-            Token::Type(Type::Int(IntType { width: 64 })),
+            Token::Type(Type::Int(IntType { signed: true, width: 64 })),
             Token::Identifier("shortInt".to_string()),
             Token::AssignmentSymbol(Eq),
             Token::IntLiteral("5".to_string()),
