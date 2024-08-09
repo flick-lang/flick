@@ -108,7 +108,7 @@ pub struct TypedComparison {
     pub left: Box<TypedExpr>,
     pub operator: ComparisonOperator,
     pub right: Box<TypedExpr>,
-    pub result_type: Type,
+    pub operand_type: Type,
 }
 
 /// A call expression (the name of the function to call and the arguments to pass).

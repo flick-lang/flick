@@ -346,7 +346,7 @@ impl Typer {
             left: Box::new(left),
             operator,
             right: Box::new(right),
-            result_type: left_type, // since both types must be equal
+            operand_type: left_type, // since both types must be equal
         }
     }
 

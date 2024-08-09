@@ -5,7 +5,7 @@ use std::mem::MaybeUninit;
 use std::path::Path;
 
 use llvm_sys::core::*;
-use llvm_sys::core::LLVMIntPredicate;
+use llvm_sys::LLVMIntPredicate;
 use llvm_sys::error::LLVMGetErrorMessage;
 use llvm_sys::prelude::*;
 use llvm_sys::target::{
@@ -530,7 +530,7 @@ impl Compiler {
             panic!("Comparison: type(LHS) != type(RHS) should've been handled by Typer")
         }
 
-        match comparison.result_type {
+        match comparison.operand_type {
             Type::Int(int_type) => LLVMBuildICmp(self.builder, self.comparison_int_op(comparison.operator, int_type), lhs, rhs, cstr!("")),
             _ => panic!("Unsupported lhs and rhs types for comparison; can only handle integers"),
         }
