@@ -4,7 +4,8 @@ use std::ffi::{c_char, c_uint, CStr, CString};
 use std::mem::MaybeUninit;
 use std::path::Path;
 
-use llvm_sys::{core::*, LLVMIntPredicate};
+use llvm_sys::core::*;
+use llvm_sys::core::LLVMIntPredicate;
 use llvm_sys::error::LLVMGetErrorMessage;
 use llvm_sys::prelude::*;
 use llvm_sys::target::{
