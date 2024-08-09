@@ -275,7 +275,7 @@ impl Typer {
                     int_literal, t
                 )
             }
-            None => IntType { width: 64, signed: false },
+            None => IntType { signed: false, width: 64 },
         };
 
         if int_literal.negative && !int_type.signed {
@@ -447,12 +447,12 @@ mod tests {
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "a".to_string(),
                         var_value: Expr::IntLiteral(IntLiteral { negative: false, value: "3".to_string() }),
-                        var_type: Type::Int(IntType { width: 64, signed: true }),
+                        var_type: Type::Int(IntType { signed: true, width: 64 }),
                     }),
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "b".to_string(),
                         var_value: Expr::Identifier("a".to_string()),
-                        var_type: Type::Int(IntType { width: 64, signed: true }),
+                        var_type: Type::Int(IntType { signed: true, width: 64 }),
                     }),
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "c".to_string(),

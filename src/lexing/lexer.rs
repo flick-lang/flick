@@ -249,12 +249,12 @@ mod tests {
     fn variables() {
         let source_code = "i64 this_is_a_LONG_VARIABLE_NAME = 5\ni64 shortInt = 5";
         let expected_tokens = vec![
-            Token::Type(Type::Int(IntType { width: 64, signed: true })),
+            Token::Type(Type::Int(IntType { signed: true, width: 64 })),
             Token::Identifier("this_is_a_LONG_VARIABLE_NAME".to_string()),
             Token::AssignmentSymbol(Eq),
             Token::IntLiteral("5".to_string()),
             Token::Newline,
-            Token::Type(Type::Int(IntType { width: 64, signed: true })),
+            Token::Type(Type::Int(IntType { signed: true, width: 64 })),
             Token::Identifier("shortInt".to_string()),
             Token::AssignmentSymbol(Eq),
             Token::IntLiteral("5".to_string()),
