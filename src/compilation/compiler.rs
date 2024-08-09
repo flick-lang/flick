@@ -22,7 +22,7 @@ use llvm_sys::target_machine::{
     LLVMTargetMachineRef,
 };
 use llvm_sys::transforms::pass_builder::*;
-use llvm_sys::LLVMLinkage::{LLVMExternalLinkage, LLVMInternalLinkage, LLVMAvailableExternallyLinkage};
+use llvm_sys::LLVMLinkage::{LLVMExternalLinkage, LLVMInternalLinkage};
 
 use crate::ast::*;
 use crate::typed_ast::*;
@@ -248,7 +248,7 @@ impl Compiler {
         match func_proto.func_visibility {
             FuncVisibility::Public => LLVMSetLinkage(func, LLVMExternalLinkage),
             FuncVisibility::Private => LLVMSetLinkage(func, LLVMInternalLinkage),
-            FuncVisibility::Extern => LLVMSetLinkage(func, LLVMAvailableExternallyLinkage),
+            FuncVisibility::Extern => LLVMSetLinkage(func, LLVMExternalLinkage),
         }
 
         // TODO: Design: Remove variable shadowing
