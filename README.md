@@ -1,6 +1,9 @@
 # The Flick Programming Language
 
-We wrote Flick to explore compiler design. Keep reading to see how the compiler works.
+We wrote Flick to explore compiler design. Keep reading to learn how our compiler works, or
+try writing Flick code in our [sandbox](https://github.com/flick-lang/flick-sandbox).
+
+<!-- TODO: change the link above to be https://flick-lang.com -->
 
 ## Table of Contents
 
