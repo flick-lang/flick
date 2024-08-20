@@ -112,7 +112,7 @@ fn main() -> Result<()> {
     let object_output_path = cli.get_object_output_path();
     compiler.to_file(&object_output_path);
 
-    if cli.just_compile {
+    if cli.no_link {
         return Ok(());
     }
 
