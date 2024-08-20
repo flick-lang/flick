@@ -65,9 +65,9 @@ impl Cli {
         }
     }
 
-    /// Retrieves the provided object output path (returns a default if none provided)
+    /// Retrieves the provided linker path (returns a default if none provided)
     ///
-    /// Note that the default object output path for a file like `test.fl` is `test.o`.
+    /// Note that the default linker path is `gcc`.
     fn get_linker_path(&self) -> PathBuf {
         match &self.linker_path {
             Some(path) => path.clone(),
