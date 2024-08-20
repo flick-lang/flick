@@ -95,7 +95,7 @@ fn main() -> Result<()> {
     compiler.to_file(&object_output_path);
 
     let executable_output_path = cli.get_executable_output_path();
-    Command::new("clang")
+    Command::new("gcc")
         .arg(&object_output_path)
         .arg("-o")
         .arg(&executable_output_path)
