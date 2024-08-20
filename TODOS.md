@@ -1,12 +1,9 @@
-## Roadmap to working demo!!!
+## Roadmap to working web demo!!!
 
 - [x] Support for calling void functions
     - [ ] should we let non void functions also be called w value ignored
-- [ ] Implement if statements so that our language is Turing-complete
-- [ ] Implement importing of other files
-- [ ] Implement standard library as a different file so that it can be imported
-    - [ ] stdout
-    - [ ] strings (array of char; implemented as obj in std library)
+- [x] Implement if statements so that our language is Turing-complete
+- [ ] Pointers / arrays
 - [ ] Make a playground for the programming language (with python backend first?)
     - https://ace.c9.io is what rust uses
 - [ ] Deploy the docs and attach link to README.md
@@ -14,10 +11,18 @@
 - [ ] Document how to use Flick itself
 - [x] Add tests for typer
 
+## Roadmap to a better langauge
+
+- [ ] Implement importing of other files
+- [ ] Implement standard library as a different file so that it can be imported
+    - [ ] stdout
+    - [ ] strings (array of char; implemented as obj in std library)
+
 ## Other
 
 ### Quick Todos
 
+- [ ] Implement a simple BigInteger function to ensure that the int_value given fits inside the width of the int type provided in typer
 - [ ] Make `Typer` take the program in its `new()`
 - [ ] Make all module and crate level docstrings start with `//!` instead of `///` and
 - [ ] Move `types.rs` into `typing` module and fix the ignored example in `typing/mod.rs` docstring
@@ -29,6 +34,7 @@
 
 ### Longer Todos
 
+- [ ] Make a proper website for flick-lang
 - [ ] Test suite like Tsoding's where we can test many .fl files
 - [ ] Embed LLD linker so not calling clang
 - [ ] Think about what an identifier is... is it always a variable name? because callexpr is separate...
