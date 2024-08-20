@@ -33,7 +33,7 @@ struct Cli {
 
     /// Whether to just compile without running the linker to generate an executable
     #[arg(long)]
-    just_compile: bool,
+    no_link: bool,
 }
 
 impl Cli {
