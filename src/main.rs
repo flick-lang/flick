@@ -26,6 +26,14 @@ struct Cli {
     /// Output path for the object file
     #[arg(long)]
     object_output_path: Option<PathBuf>,
+
+    /// Path to linker (default: 'gcc')
+    #[arg(long)]
+    linker_path: Option<PathBuf>,
+
+    /// Whether to just compile without running the linker to generate an executable
+    #[arg(long)]
+    just_compile: bool,
 }
 
 impl Cli {
@@ -54,6 +62,16 @@ impl Cli {
                 path.set_extension("o");
                 path
             }
+        }
+    }
+
+    /// Retrieves the provided object output path (returns a default if none provided)
+    ///
+    /// Note that the default object output path for a file like `test.fl` is `test.o`.
+    fn get_linker_path(&self) -> PathBuf {
+        match &self.linker_path {
+            Some(path) => path.clone(),
+            None => PathBuf::from("gcc"),
         }
     }
 }
@@ -94,8 +112,13 @@ fn main() -> Result<()> {
     let object_output_path = cli.get_object_output_path();
     compiler.to_file(&object_output_path);
 
+    if cli.just_compile {
+        return Ok(());
+    }
+
     let executable_output_path = cli.get_executable_output_path();
-    Command::new("gcc")
+    let linker_path = cli.get_linker_path();
+    Command::new(linker_path)
         .arg(&object_output_path)
         .arg("-o")
         .arg(&executable_output_path)
