@@ -106,6 +106,7 @@ impl<'a> Lexer<'a> {
 
             ('>', _) => Token::ComparatorSymbol(GreaterThan),
             ('<', _) => Token::ComparatorSymbol(LessThan),
+            ('%', _) => Token::OperatorSymbol(Modulo),
             ('*', _) => Token::OperatorSymbol(Asterisk),
             ('/', _) => Token::OperatorSymbol(Slash),
             ('-', _) => Token::OperatorSymbol(Minus),
@@ -277,6 +278,37 @@ mod tests {
             Token::IntLiteral("5".to_string()),
             Token::LSquirly,
             Token::RSquirly,
+        ];
+
+        let source_code_chars: Vec<_> = source_code.chars().collect();
+        let lexer = Lexer::new(&source_code_chars);
+        let received_tokens: Vec<_> = lexer.collect();
+
+        assert_eq!(received_tokens, expected_tokens);
+    }
+
+    #[test]
+    fn arithmetic() {
+        let source_code = "(a +3) /4 * 5 % 3*(-2) -2";
+        let expected_tokens = vec![
+            Token::LParen,
+            Token::Identifier("a".to_string()),
+            Token::OperatorSymbol(Plus),
+            Token::IntLiteral("3".to_string()),
+            Token::RParen,
+            Token::OperatorSymbol(Slash),
+            Token::IntLiteral("4".to_string()),
+            Token::OperatorSymbol(Asterisk),
+            Token::IntLiteral("5".to_string()),
+            Token::OperatorSymbol(Modulo),
+            Token::IntLiteral("3".to_string()),
+            Token::OperatorSymbol(Asterisk),
+            Token::LParen,
+            Token::OperatorSymbol(Minus),
+            Token::IntLiteral("2".to_string()),
+            Token::RParen,
+            Token::OperatorSymbol(Minus),
+            Token::IntLiteral("2".to_string()),
         ];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
