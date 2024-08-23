@@ -165,6 +165,7 @@ pub enum BinaryOperator {
     Subtract,
     Multiply,
     Divide,
+    Remainder,
 }
 
 impl fmt::Display for BinaryOperator {
@@ -174,6 +175,7 @@ impl fmt::Display for BinaryOperator {
             Self::Subtract => write!(f, "-"),
             Self::Multiply => write!(f, "*"),
             Self::Divide => write!(f, "/"),
+            Self::Remainder => write!(f, "%"),
         }
     }
 }
@@ -185,6 +187,7 @@ impl From<OperatorSymbol> for BinaryOperator {
             Minus => Self::Subtract,
             Asterisk => Self::Multiply,
             Slash => Self::Divide,
+            Modulo => Self::Remainder,
         }
     }
 }

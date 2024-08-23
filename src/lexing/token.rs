@@ -92,6 +92,7 @@ pub enum OperatorSymbol {
     Minus,
     Asterisk,
     Slash,
+    Modulo,
 }
 
 impl fmt::Display for OperatorSymbol {
@@ -101,6 +102,7 @@ impl fmt::Display for OperatorSymbol {
             Self::Minus => write!(f, "-"),
             Self::Asterisk => write!(f, "*"),
             Self::Slash => write!(f, "/"),
+            Self::Modulo => write!(f, "%"),
         }
     }
 }

@@ -454,12 +454,12 @@ impl<'a> Parser<'a> {
     /// Parses expressions like `A - B + C`;
     /// see [Parser::parse_expr] for expression-parsing details.
     fn parse_add_sub_expr(&mut self) -> Expr {
-        let mut left_expr_so_far = self.parse_mul_div_expr();
+        let mut left_expr_so_far = self.parse_mul_div_rem_expr();
 
         while let Some(Token::OperatorSymbol(s @ (Plus | Minus))) = self.peek_token(1) {
             let operator = BinaryOperator::from(*s);
             self.skip_token();
-            let right = self.parse_mul_div_expr();
+            let right = self.parse_mul_div_rem_expr();
 
             left_expr_so_far = Expr::Binary(Binary {
                 left: Box::new(left_expr_so_far),
@@ -473,10 +473,10 @@ impl<'a> Parser<'a> {
 
     /// Parses expressions like `A / B * C`;
     /// see [Parser::parse_expr] for expression-parsing details.
-    fn parse_mul_div_expr(&mut self) -> Expr {
+    fn parse_mul_div_rem_expr(&mut self) -> Expr {
         let mut left_expr_so_far = self.parse_primary_expr();
 
-        while let Some(Token::OperatorSymbol(s @ (Asterisk | Slash))) = self.peek_token(1) {
+        while let Some(Token::OperatorSymbol(s @ (Asterisk | Slash | Modulo))) = self.peek_token(1) {
             let operator = BinaryOperator::from(*s);
             self.skip_token();
             let right = self.parse_primary_expr();

@@ -517,6 +517,10 @@ impl Compiler {
                 IntType { signed: true, .. } => LLVMBuildSDiv(self.builder, lhs, rhs, cstr!("sdiv")),
                 IntType { signed: false, .. } => LLVMBuildUDiv(self.builder, lhs, rhs, cstr!("udiv")),
             },
+            Remainder => match int_type {
+                IntType { signed: true, .. } => LLVMBuildSRem(self.builder, lhs, rhs, cstr!("srem")),
+                IntType { signed: false, .. } => LLVMBuildURem(self.builder, lhs, rhs, cstr!("urem")),
+            }
         }
     }
 

@@ -106,6 +106,7 @@ impl<'a> Lexer<'a> {
 
             ('>', _) => Token::ComparatorSymbol(GreaterThan),
             ('<', _) => Token::ComparatorSymbol(LessThan),
+            ('%', _) => Token::OperatorSymbol(Modulo),
             ('*', _) => Token::OperatorSymbol(Asterisk),
             ('/', _) => Token::OperatorSymbol(Slash),
             ('-', _) => Token::OperatorSymbol(Minus),
