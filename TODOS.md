@@ -22,6 +22,8 @@
 
 ### Quick Todos
 
+- [ ] Modulus (%)
+- [ ] Panic if 'main' not defined
 - [ ] Implement a simple BigInteger function to ensure that the int_value given fits inside the width of the int type provided in typer
 - [ ] Make `Typer` take the program in its `new()`
 - [ ] Make all module and crate level docstrings start with `//!` instead of `///` and
