@@ -920,4 +920,83 @@ mod tests {
 
         assert_eq!(expected, ast);
     }
+
+    #[test]
+    fn arithmetic() {
+        // x=(a+3)/4*5%3*(-2)-2
+        let tokens = vec![
+            Token::Identifier("x".to_string()),
+            Token::AssignmentSymbol(Eq),
+            Token::LParen,
+            Token::Identifier("a".to_string()),
+            Token::OperatorSymbol(Plus),
+            Token::IntLiteral("3".to_string()),
+            Token::RParen,
+            Token::OperatorSymbol(Slash),
+            Token::IntLiteral("4".to_string()),
+            Token::OperatorSymbol(Asterisk),
+            Token::IntLiteral("5".to_string()),
+            Token::OperatorSymbol(Modulo),
+            Token::IntLiteral("3".to_string()),
+            Token::OperatorSymbol(Asterisk),
+            Token::LParen,
+            Token::OperatorSymbol(Minus),
+            Token::IntLiteral("2".to_string()),
+            Token::RParen,
+            Token::OperatorSymbol(Minus),
+            Token::IntLiteral("2".to_string()),
+        ];
+
+        let expected = Some(Statement::Assignment(Assignment {
+            name: "x".to_string(),
+            value: Box::new(Expr::Binary(Binary { 
+                left: Box::new(Expr::Binary(Binary { 
+                    left: Box::new(Expr::Binary(Binary { 
+                        left: Box::new(Expr::Binary(Binary { 
+                            left: Box::new(Expr::Binary(Binary { 
+                                left: Box::new(Expr::Binary(Binary { 
+                                    left: Box::new(Expr::Identifier("a".to_string())), 
+                                    operator: BinaryOperator::Add, 
+                                    right: Box::new(Expr::IntLiteral(IntLiteral { 
+                                        negative: false, 
+                                        value: "3".to_string() 
+                                    })) 
+                                })), 
+                                operator: BinaryOperator::Divide, 
+                                right: Box::new(Expr::IntLiteral(IntLiteral { 
+                                    negative: false, 
+                                    value: "4".to_string() 
+                                })) 
+                            })), 
+                            operator: BinaryOperator::Multiply, 
+                            right: Box::new(Expr::IntLiteral(IntLiteral { 
+                                negative: false, 
+                                value: "5".to_string() 
+                            })) 
+                        })), 
+                        operator: BinaryOperator::Remainder, 
+                        right: Box::new(Expr::IntLiteral(IntLiteral { 
+                            negative: false, 
+                            value: "3".to_string() 
+                        })) 
+                    })), 
+                    operator: BinaryOperator::Multiply, 
+                    right: Box::new(Expr::IntLiteral(IntLiteral { 
+                        negative: true, 
+                        value: "2".to_string() 
+                    }))
+                })), 
+                operator: BinaryOperator::Subtract, 
+                right: Box::new(Expr::IntLiteral(IntLiteral { 
+                    negative: false, 
+                    value: "2".to_string() 
+                }))
+            }))
+        }));
+
+        let mut parser = Parser::new(&tokens);
+        let ast = parser.parse_statement();
+
+        assert_eq!(expected, ast);
+    }
 }
