@@ -68,6 +68,7 @@ pub struct TypedIf {
 pub enum TypedExpr {
     Identifier(TypedIdentifier),
     IntLiteral(TypedIntLiteral),
+    BoolLiteral(bool),
     Binary(TypedBinary),
     Comparison(TypedComparison),
     Call(TypedCall),

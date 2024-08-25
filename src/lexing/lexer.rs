@@ -180,6 +180,7 @@ impl<'a> Lexer<'a> {
         }
 
         match s.as_str() {
+            "bool" => Token::Type(Type::Bool),
             "void" => Token::Type(Type::Void),
             "while" => Token::While,
             "pub" => Token::Pub,
@@ -188,6 +189,8 @@ impl<'a> Lexer<'a> {
             "if" => Token::If,
             "extern" => Token::Extern,
             "else" => Token::Else,
+            "true" => Token::True,
+            "false" => Token::False,
             _ => Token::Identifier(s),
         }
     }

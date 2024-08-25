@@ -560,10 +560,15 @@ impl<'a> Parser<'a> {
     fn parse_atom(&mut self) -> Expr {
         match (self.peek_token(1), self.peek_token(2)) {
             (Some(Token::Identifier(_)), _) => Expr::Identifier(self.parse_identifier()),
+
             (Some(Token::IntLiteral(_)), _) => Expr::IntLiteral(self.parse_int_literal()),
             (Some(Token::OperatorSymbol(Minus)), Some(Token::IntLiteral(_))) => Expr::IntLiteral(self.parse_int_literal()),
+
+            (Some(Token::True | Token::False), _) => Expr::BoolLiteral(self.parse_bool_literal()),
+
             // todo Some(Token::StrLiteral())
-            (Some(token), _) => panic!("Expected identifier or literal but received {:?}", token),
+
+            (Some(token), _) => panic!("Expected identifier or literal but received '{}'", token),
             (None, _) => panic!("Expected identifier or literal but file ended"),
         }
     }
@@ -588,8 +593,15 @@ impl<'a> Parser<'a> {
                 negative,
                 value: n.clone(), // Use the value from the token
             },
-            Some(token) => panic!("Expected integer literal but received {:?}", token),
-            None => panic!("Expected integer literal but file ended"),
+            _ => unreachable!("This function is called from parse_atom, which already checks the next token")
+        }
+    }
+
+    fn parse_bool_literal(&mut self) -> bool {
+        match self.next_token() {
+            Some(Token::True) => true,
+            Some(Token::False) => false,
+            _ => unreachable!("This function is called from parse_atom, which already checks the next token")
         }
     }
 }

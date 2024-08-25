@@ -186,8 +186,7 @@ impl Typer {
     /// This method checks that an if statement has a *boolean* condition and a collection of body
     /// statements that are well-typed.
     fn type_if_statement(&mut self, if_statement: &If, function_return_type: &Type) -> TypedIf {
-        let bool_type = Type::Int(IntType { width: 1, signed: false });
-        let condition = self.type_expr(&if_statement.condition, Some(&bool_type));
+        let condition = self.type_expr(&if_statement.condition, Some(&Type::Bool));
         let then_body = self.type_body(&if_statement.then_body, function_return_type);
         let else_body = if_statement.else_body.as_ref().map(|body| self.type_body(body, function_return_type));
         TypedIf { condition, then_body, else_body }
@@ -200,8 +199,7 @@ impl Typer {
         while_loop: &WhileLoop,
         function_return_type: &Type,
     ) -> TypedWhileLoop {
-        let bool_type = Type::Int(IntType { width: 1, signed: false });
-        let condition = self.type_expr(&while_loop.condition, Some(&bool_type));
+        let condition = self.type_expr(&while_loop.condition, Some(&Type::Bool));
         let body = self.type_body(&while_loop.body, function_return_type);
         TypedWhileLoop { condition, body }
     }
@@ -248,6 +246,7 @@ impl Typer {
             Expr::IntLiteral(int) => {
                 TypedExpr::IntLiteral(self.type_int_literal(int, desired_type))
             }
+            Expr::BoolLiteral(b) => TypedExpr::BoolLiteral(*b),
             Expr::Binary(b) => TypedExpr::Binary(self.type_bin_expr(b, desired_type)),
             Expr::Comparison(c) => {
                 TypedExpr::Comparison(self.type_comparison_expr(c, desired_type))
@@ -322,6 +321,11 @@ impl Typer {
             );
         }
 
+        match left_type {
+            Type::Int(_) => {}
+            _ => panic!("Unsupported lhs and rhs types for binary expr; expected integer but got '{}'", left_type)
+        }
+
         TypedBinary {
             left: Box::new(left),
             operator,
@@ -336,7 +340,7 @@ impl Typer {
         comparison: &Comparison,
         desired_type: Option<&Type>,
     ) -> TypedComparison {
-        if desired_type.is_some() && desired_type != Some(&Type::Int(IntType { width: 1, signed: false })) {
+        if desired_type.is_some() && desired_type != Some(&Type::Bool) {
             panic!(
                 "Comparison expressions return an i1 but expected '{}'",
                 desired_type.unwrap()
@@ -420,8 +424,9 @@ impl Typer {
         match typed_expr {
             TypedExpr::Identifier(id) => id.id_type.clone(),
             TypedExpr::IntLiteral(int) => Type::Int(int.int_type),
+            TypedExpr::BoolLiteral(_) => Type::Bool,
             TypedExpr::Binary(binary) => binary.result_type.clone(),
-            TypedExpr::Comparison(_) => Type::Int(IntType { width: 1, signed: false }),
+            TypedExpr::Comparison(_) => Type::Bool,
             TypedExpr::Call(call) => Type::Func(call.function_proto.clone()),
         }
     }

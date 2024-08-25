@@ -450,6 +450,7 @@ impl Compiler {
         match expr {
             TypedExpr::Identifier(id) => self.compile_identifier(id),
             TypedExpr::IntLiteral(int_literal) => self.compile_int_literal(int_literal),
+            TypedExpr::BoolLiteral(bool_literal) => self.compile_bool_literal(*bool_literal),
             TypedExpr::Binary(bin_expr) => self.compile_bin_expr(bin_expr),
             TypedExpr::Comparison(comparison) => self.compile_comparison_expr(comparison),
             TypedExpr::Call(call) => self.compile_call(call),
@@ -480,6 +481,12 @@ impl Compiler {
         };
         let value_cstr = CString::new(value_str).unwrap();
         LLVMConstIntOfString(int_type, value_cstr.as_ptr(), 10)
+    }
+
+    /// Compiles an bool literal expression (true/false, also known as 1/0).
+    unsafe fn compile_bool_literal(&self, bool_literal: bool) -> LLVMValueRef {
+        let bool_type = self.to_llvm_type(&Type::Bool);
+        LLVMConstInt(bool_type, bool_literal as u64, 0)
     }
 
     /// Compiles a binary expression (recursively compiling left- and right-hand sides).
@@ -519,7 +526,6 @@ impl Compiler {
         let lhs = self.compile_expr(&comparison.left);
         let rhs = self.compile_expr(&comparison.right);
 
-
         if LLVMTypeOf(lhs) != LLVMTypeOf(rhs) {
             panic!("Comparison: type(LHS) != type(RHS) should've been handled by Typer")
         }
@@ -528,7 +534,6 @@ impl Compiler {
             Type::Int(int_type) => LLVMBuildICmp(self.builder, self.comparison_int_op(comparison.operator, int_type), lhs, rhs, cstr!("")),
             _ => panic!("Unsupported lhs and rhs types for comparison; can only handle integers"),
         }
-        
     }
 
     unsafe fn comparison_int_op(&mut self, operator: ComparisonOperator, result_type: IntType) -> LLVMIntPredicate {
@@ -596,6 +601,7 @@ impl Compiler {
     unsafe fn to_llvm_type(&self, t: &Type) -> LLVMTypeRef {
         match t {
             Type::Int(int_type) => LLVMIntTypeInContext(self.context, int_type.width),
+            Type::Bool => LLVMInt1TypeInContext(self.context),
             Type::Void => LLVMVoidTypeInContext(self.context),
             Type::Func(func_proto) => {
                 let return_type = self.to_llvm_type(func_proto.return_type.as_ref());

@@ -1,14 +1,14 @@
 ## Roadmap to working web demo!!!
 
-- [ ] Booleans "bool"
-- [ ] Auto casting int types?
-- [ ] And/or?
 - [ ] Manually casting types?
+- [ ] And/or?
+- [x] Booleans "bool"
 - [x] Panic if 'main' not defined
 - [x] Allow functions that return something (but not an error type) to be called
         without that return value getting processed.
 
 
+- [ ] Slightly nicer errors (line number and no word "panic")
 - [ ] Arrays?
 - [ ] Strings (in std library using arrays? rope data struct?)/ pointers? 
 - [ ] Deploy the docs and attach link to README.md
@@ -22,6 +22,9 @@
 
 ## Roadmap to a better langauge
 
+- [ ] _Auto_ casting int types / escalating them
+- [ ] Think deeper about how we want to handle u8 and i8 common type
+- [ ] Fully nice error message (maybe look into anyhow or thiserror?)
 - [ ] Implement importing of other files
 - [ ] Implement standard library as a different file so that it can be imported
     - [ ] stdout

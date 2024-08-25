@@ -32,4 +32,4 @@ primary_expr     := atom | call | '(' expr ')'
 // call_and_index_expr  := IDENTIFIER { [ '(' [args] ')' ] { '[' [index]  ']' } }
 call        := IDENTIFIER [ '(' [args] ')' ]
 args        := {atom,} atom
-atom        := IDENTIFIER | INT_LITERAL | STR_LITERAL
+atom        := IDENTIFIER | INT_LITERAL | STR_LITERAL | true | false

@@ -24,6 +24,8 @@ pub enum Token {
     While,
     If,
     Else,
+    True,
+    False,
 
     /// The built-in Flick types, like `void`
     Type(Type),
@@ -68,6 +70,8 @@ impl fmt::Display for Token {
             Self::Ret => write!(f, "ret"),
             Self::If => write!(f, "if"),
             Self::Else => write!(f, "else"),
+            Self::True => write!(f, "true"),
+            Self::False => write!(f, "false"),
 
             Self::Type(var_type) => write!(f, "{}", var_type),
 

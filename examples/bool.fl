@@ -1,0 +1,9 @@
+pub fn main() u8 {
+    bool a = false 
+    bool b = true 
+    bool value = 3 < 5
+    if b {
+        ret 0
+    } 
+    ret 1
+}

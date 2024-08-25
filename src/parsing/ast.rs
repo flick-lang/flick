@@ -137,6 +137,7 @@ pub struct WhileLoop {
 pub enum Expr {
     Identifier(String),
     IntLiteral(IntLiteral),
+    BoolLiteral(bool),
     Binary(Binary),
     Comparison(Comparison),
     Call(Call),

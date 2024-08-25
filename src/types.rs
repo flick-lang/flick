@@ -6,6 +6,7 @@ use crate::ast::FuncProto;
 pub enum Type {
     /// Variable-size int type, with `width` bits.
     Int(IntType),
+    Bool,
     Void,
     Func(FuncProto),
 }
@@ -14,6 +15,7 @@ impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Int(int_type) => write!(f, "{}", int_type),
+            Self::Bool => write!(f, "bool"),
             Self::Void => write!(f, "void"),
             Self::Func(func_type) => write!(f, "{}", func_type),
         }
