@@ -1,4 +1,5 @@
 use std::fmt;
+use crate::ast::FuncProto;
 
 /// An enum to store the built-in Flick types, like `void`
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -6,7 +7,7 @@ pub enum Type {
     /// Variable-size int type, with `width` bits.
     Int(IntType),
     Void,
-    Func(FuncType),
+    Func(FuncProto),
 }
 
 impl fmt::Display for Type {
@@ -35,21 +36,4 @@ impl fmt::Display for IntType {
     }
 }
 
-/// An enum to store the built-in function type
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct FuncType {
-    pub param_types: Vec<Type>,
-    pub return_type: Box<Type>,
-}
 
-impl fmt::Display for FuncType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let comma_seperated = self
-            .param_types
-            .iter()
-            .map(|t| t.to_string())
-            .collect::<Vec<String>>()
-            .join(", ");
-        write!(f, "fn ({}) {}", comma_seperated, self.return_type)
-    }
-}

@@ -7,7 +7,7 @@ use crate::typed_ast::{
     TypedIdentifier, TypedIf, TypedIntLiteral, TypedProgram, TypedStatement, TypedVarDeclaration,
     TypedWhileLoop, TypedGlobalStatement
 };
-use crate::types::{FuncType, IntType};
+use crate::types::IntType;
 use crate::Type;
 
 /// This struct handles the conversion from a regular [abstract syntax tree](crate::ast) to a
@@ -64,16 +64,7 @@ impl Typer {
             None => {}
         }
 
-        let param_types: Vec<_> = func_proto
-            .params
-            .iter()
-            .map(|p| p.param_type.clone())
-            .collect();
-        let return_type = Box::new(func_proto.return_type.clone());
-        let func_type = Type::Func(FuncType {
-            param_types,
-            return_type,
-        });
+        let func_type = Type::Func(func_proto.clone());
         self.scope_manager.set(func_name, func_type);
     }
 
@@ -98,7 +89,7 @@ impl Typer {
         let mut func_body = self.type_body(&func_def.body, &func_def.proto.return_type);
 
         // Implicitly return void at end of functions with void return type
-        if Type::Void == func_def.proto.return_type {
+        if Type::Void == *func_def.proto.return_type {
             match func_body.last() {
                 Some(TypedStatement::Return(_)) => {}
                 _ => func_body.push(TypedStatement::Return(None)),
@@ -359,7 +350,7 @@ impl Typer {
     fn type_call(&mut self, call_expr: &Call, desired_type: Option<&Type>) -> TypedCall {
         let function_name = call_expr.function_name.clone();
 
-        let function_type = match self.scope_manager.get(&function_name) {
+        let function_proto = match self.scope_manager.get(&function_name) {
             Some(Type::Func(f)) => f.clone(),
             Some(_) => panic!("Variable '{}' is not a function", function_name),
             None => panic!(
@@ -368,20 +359,20 @@ impl Typer {
             ),
         };
 
-        if desired_type.is_some() && Some(function_type.return_type.as_ref()) != desired_type {
+        if desired_type.is_some() && Some(function_proto.return_type.as_ref()) != desired_type {
             panic!(
                 "Expected function '{}' to return '{}' but it has return type '{}'",
                 function_name,
                 desired_type.unwrap(),
-                function_type.return_type
+                function_proto.return_type
             )
         }
 
-        let num_params = function_type.param_types.len();
+        let num_params = function_proto.params.len();
         if num_params != call_expr.args.len() {
             panic!(
                 "Expected {} argument(s) to function '{}'; got {} argument(s)",
-                function_type.param_types.len(),
+                num_params,
                 call_expr.function_name,
                 call_expr.args.len()
             );
@@ -390,13 +381,13 @@ impl Typer {
         let args: Vec<_> = call_expr
             .args
             .iter()
-            .zip(function_type.param_types.iter())
-            .map(|(e, desired)| self.type_expr(e, Some(desired)))
+            .zip(function_proto.params.iter())
+            .map(|(e, p)| self.type_expr(e, Some(&p.param_type)))
             .collect();
 
         TypedCall {
             function_name,
-            function_type,
+            function_proto,
             args,
         }
     }
@@ -408,7 +399,7 @@ impl Typer {
             TypedExpr::IntLiteral(int) => Type::Int(int.int_type),
             TypedExpr::Binary(binary) => binary.result_type.clone(),
             TypedExpr::Comparison(_) => Type::Int(IntType { width: 1, signed: false }),
-            TypedExpr::Call(call) => Type::Func(call.function_type.clone()),
+            TypedExpr::Call(call) => Type::Func(call.function_proto.clone()),
         }
     }
 }
@@ -443,7 +434,7 @@ mod tests {
                     func_visibility: FuncVisibility::Public,
                     name: "main".to_string(),
                     params: vec![],
-                    return_type: Type::Int(IntType { width: 32, signed: true }),
+                    return_type: Box::new(Type::Int(IntType { width: 32, signed: true })),
                 },
                 body: vec![
                     Statement::VarDeclaration(VarDeclaration {
@@ -483,7 +474,7 @@ mod tests {
                     func_visibility: FuncVisibility::Public,
                     name: "main".to_string(),
                     params: vec![],
-                    return_type: Type::Int(IntType { width: 32, signed: true }),
+                    return_type: Box::new(Type::Int(IntType { width: 32, signed: true })),
                 },
                 body: vec![
                     Statement::VarDeclaration(VarDeclaration {
@@ -507,7 +498,7 @@ mod tests {
                     func_visibility: FuncVisibility::Public,
                     name: "main".to_string(),
                     params: vec![],
-                    return_type: Type::Int(IntType { width: 32, signed: true }),
+                    return_type: Box::new(Type::Int(IntType { width: 32, signed: true })),
                 },
                 body: vec![
                     TypedStatement::VarDeclaration(TypedVarDeclaration {

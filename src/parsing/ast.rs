@@ -32,7 +32,19 @@ pub struct FuncProto {
     pub func_visibility: FuncVisibility,
     pub name: String,
     pub params: Vec<FuncParam>,
-    pub return_type: Type,
+    pub return_type: Box<Type>,
+}
+
+impl fmt::Display for FuncProto {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let params = self
+            .params
+            .iter()
+            .map(|p| format!("{} {}", p.param_type, p.param_name))
+            .collect::<Vec<String>>()
+            .join(", ");
+        write!(f, "{} {}({}) {}", self.func_visibility, self.name, params, self.return_type)
+    }
 }
 
 
@@ -41,6 +53,16 @@ pub enum FuncVisibility {
     Public,
     Private,
     Extern
+}
+
+impl fmt::Display for FuncVisibility {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Public => write!(f, "pub fn"),
+            Self::Private => write!(f, "fn"),
+            Self::Extern => write!(f, "extern fn")
+        }
+    }
 }
 
 /// A function parameter (its name and its data type).

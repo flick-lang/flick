@@ -117,7 +117,7 @@ impl<'a> Parser<'a> {
             func_visibility,
             name,
             params,
-            return_type,
+            return_type: Box::new(return_type),
         }
     }
 
@@ -815,7 +815,7 @@ mod tests {
                         param_type: Type::Int(IntType { signed: true, width: 64 }),
                         param_name: "a".to_string(),
                     }],
-                    return_type: Type::Int(IntType { signed: true, width: 64 }),
+                    return_type: Box::new(Type::Int(IntType { signed: true, width: 64 })),
                 },
                 body: vec![],
             })],

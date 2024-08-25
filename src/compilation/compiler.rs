@@ -26,7 +26,7 @@ use llvm_sys::LLVMLinkage::{LLVMExternalLinkage, LLVMInternalLinkage};
 
 use crate::ast::*;
 use crate::typed_ast::*;
-use crate::types::{FuncType, IntType};
+use crate::types::IntType;
 use crate::ScopeManager;
 use crate::Type;
 
@@ -219,19 +219,7 @@ impl Compiler {
             panic!("Cannot redefine '{}'", func_proto.name);
         }
 
-        // TODO: Remove creating new box?
-        let return_type = Box::new(func_proto.return_type.clone());
-        let param_types: Vec<_> = func_proto
-            .params
-            .iter()
-            .map(|p| p.param_type.clone())
-            .collect();
-
-        let func_type = Type::Func(FuncType {
-            param_types,
-            return_type,
-        });
-
+        let func_type = Type::Func(func_proto.clone());
         let func_llvm_type = self.to_llvm_type(&func_type);
         let func_name = CString::new(func_proto.name.as_str()).unwrap();
         let func = LLVMAddFunction(self.module, func_name.as_ptr(), func_llvm_type);
@@ -397,14 +385,14 @@ impl Compiler {
              }
         }
         self.scope_manager.exit_scope();
-        return body_returns
+        body_returns
     }
 
     /// This method compiles an typed if statementi.
     /// 
     /// # Notes
     /// - If `if_statement` has no else block, this method will still produce an empty else block;
-    /// it will be optimized away during LLVM's optimization passes anyway.
+    ///   it will be optimized away during LLVM's optimization passes anyway.
     unsafe fn compile_if_statement(&mut self, if_statement: &TypedIf) {
         let cur_func = match self.get_cur_function() {
             Some(func) => func,
@@ -581,7 +569,7 @@ impl Compiler {
             )
         }
 
-        let num_params = call_expr.function_type.param_types.len();
+        let num_params = call_expr.function_proto.params.len();
         if num_params != call_expr.args.len() {
             panic!("Number of arguments should be handled by typer");
         }
@@ -593,7 +581,7 @@ impl Compiler {
             arg_values.push(value);
         }
 
-        let func_type = self.to_llvm_type(&Type::Func(call_expr.function_type.clone()));
+        let func_type = self.to_llvm_type(&Type::Func(call_expr.function_proto.clone()));
         LLVMBuildCall2(
             self.builder,
             func_type,
@@ -609,13 +597,13 @@ impl Compiler {
         match t {
             Type::Int(int_type) => LLVMIntTypeInContext(self.context, int_type.width),
             Type::Void => LLVMVoidTypeInContext(self.context),
-            Type::Func(func_type) => {
-                let return_type = self.to_llvm_type(func_type.return_type.as_ref());
-                let num_params = func_type.param_types.len() as c_uint;
-                let mut param_types: Vec<_> = func_type
-                    .param_types
+            Type::Func(func_proto) => {
+                let return_type = self.to_llvm_type(func_proto.return_type.as_ref());
+                let num_params = func_proto.params.len() as c_uint;
+                let mut param_types: Vec<_> = func_proto
+                    .params
                     .iter()
-                    .map(|p| self.to_llvm_type(p))
+                    .map(|p| self.to_llvm_type(&p.param_type))
                     .collect();
 
                 LLVMFunctionType(return_type, param_types.as_mut_ptr(), num_params, 0)
