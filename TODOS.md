@@ -1,15 +1,24 @@
 ## Roadmap to working web demo!!!
 
-- [x] Support for calling void functions
-    - [ ] should we let non void functions also be called w value ignored
-- [x] Implement if statements so that our language is Turing-complete
-- [ ] Pointers / arrays
-- [ ] Make a playground for the programming language (with python backend first?)
-    - https://ace.c9.io is what rust uses
+- [ ] Panic if 'main' not defined
+- [ ] Allow functions that return something (but not an error type) to be called
+        without that return value getting processed.
+- [ ] Booleans "bool"
+- [ ] Auto casting int types?
+- [ ] And/or?
+- [ ] Manually casting types?
+
+
+- [ ] Arrays?
+- [ ] Strings (in std library using arrays? rope data struct?)/ pointers? 
 - [ ] Deploy the docs and attach link to README.md
 - [ ] Give an overview of how the compiler works in README
 - [ ] Document how to use Flick itself
 - [x] Add tests for typer
+- [x] Make a playground for the programming language (with python backend first?)
+    - https://ace.c9.io is what rust uses
+- [x] Implement if statements so that our language is Turing-complete
+- [x] Support for calling void functions
 
 ## Roadmap to a better langauge
 
@@ -22,17 +31,16 @@
 
 ### Quick Todos
 
-- [ ] Modulus (%)
-- [ ] Panic if 'main' not defined
 - [ ] Implement a simple BigInteger function to ensure that the int_value given fits inside the width of the int type provided in typer
 - [ ] Make `Typer` take the program in its `new()`
 - [ ] Make all module and crate level docstrings start with `//!` instead of `///` and
 - [ ] Move `types.rs` into `typing` module and fix the ignored example in `typing/mod.rs` docstring
-- [ ] Document functions in Typer
 - [ ] Maybe define flick build and flick run subcommands (mimicking cargo)
 - [ ] Once typer is done, remove redundant checks in compiler and mark them as `unreachable`
+- [x] Modulus (%)
 - [x] Add tests to parser for spacing and newlines in body and program
 - [x] Don't call skip newlines twice in parse_body and parse_program
+- [x] Document functions in Typer
 
 ### Longer Todos
 
