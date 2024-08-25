@@ -191,6 +191,7 @@ impl Compiler {
     /// [c]: Compiler::to_file
     pub fn compile(&mut self, program: &TypedProgram) {
         unsafe {
+            self.scope_manager.enter_scope();
             for global_statement in program.global_statements.iter() {
                 // TODO: In the future when we have additional global statements, maybe move this into a new function called 'preprocess_global_statement' or something like that
                 match global_statement {
@@ -201,6 +202,7 @@ impl Compiler {
             for global_statement in program.global_statements.iter() {
                 self.compile_global_statement(global_statement);
             }
+            self.scope_manager.exit_scope()
         }
     }
 

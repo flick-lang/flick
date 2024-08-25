@@ -36,6 +36,7 @@ impl Typer {
     pub fn type_program(&mut self, program: &Program) -> TypedProgram {
         let mut global_statements = Vec::with_capacity(program.global_statements.len());
 
+        self.scope_manager.enter_scope();
         for global_statement in program.global_statements.iter() {
             match global_statement {
                 GlobalStatement::Extern(proto) => self.register_func_proto(proto),
@@ -45,6 +46,7 @@ impl Typer {
         for global_statement in program.global_statements.iter() {
             global_statements.push(self.type_global_statement(global_statement))
         }
+        self.scope_manager.exit_scope();
 
         TypedProgram { global_statements }
     }
