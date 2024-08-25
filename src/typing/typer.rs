@@ -64,12 +64,11 @@ impl Typer {
         }
         
         if func_proto.params.len() > 0 {
-            panic!("The 'main' function should not accept any parameters")
+            panic!("The 'main' function should not accept any parameters");
         }
 
-        match *func_proto.return_type {
-            Type::Int(IntType { width: 8, signed: false }) | Type::Void => {},
-            _ => panic!("The 'main' function should either return u8 or void"), 
+        if *func_proto.return_type != Type::Int(IntType { width: 8, signed: false }) {
+            panic!("The 'main' function should either return u8 or void");
         }
     }
 
