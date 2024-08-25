@@ -452,7 +452,7 @@ impl Compiler {
             TypedExpr::IntLiteral(int_literal) => self.compile_int_literal(int_literal),
             TypedExpr::Binary(bin_expr) => self.compile_bin_expr(bin_expr),
             TypedExpr::Comparison(comparison) => self.compile_comparison_expr(comparison),
-            TypedExpr::Call(call_expr) => self.compile_call(call_expr),
+            TypedExpr::Call(call) => self.compile_call(call),
         }
     }
 
@@ -557,8 +557,8 @@ impl Compiler {
     }
 
     /// Compiles a typed function call
-    unsafe fn compile_call(&mut self, call_expr: &TypedCall) -> LLVMValueRef {
-        let func = match self.scope_manager.get(&call_expr.function_name) {
+    unsafe fn compile_call(&mut self, call: &TypedCall) -> LLVMValueRef {
+        let func = match self.scope_manager.get(&call.function_name) {
             Some(v) => *v,
             None => panic!("Undefined functions should be handled by typer"),
         };
@@ -569,19 +569,19 @@ impl Compiler {
             )
         }
 
-        let num_params = call_expr.function_proto.params.len();
-        if num_params != call_expr.args.len() {
+        let num_params = call.function_proto.params.len();
+        if num_params != call.args.len() {
             panic!("Number of arguments should be handled by typer");
         }
 
-        let mut arg_values = Vec::with_capacity(call_expr.args.len());
+        let mut arg_values = Vec::with_capacity(call.args.len());
         for i in 0..num_params {
-            let arg = call_expr.args.get(i).unwrap();
+            let arg = call.args.get(i).unwrap();
             let value = self.compile_expr(arg);
             arg_values.push(value);
         }
 
-        let func_type = self.to_llvm_type(&Type::Func(call_expr.function_proto.clone()));
+        let func_type = self.to_llvm_type(&Type::Func(call.function_proto.clone()));
         LLVMBuildCall2(
             self.builder,
             func_type,

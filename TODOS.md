@@ -1,12 +1,12 @@
 ## Roadmap to working web demo!!!
 
-- [ ] Allow functions that return something (but not an error type) to be called
-        without that return value getting processed.
 - [ ] Booleans "bool"
 - [ ] Auto casting int types?
 - [ ] And/or?
 - [ ] Manually casting types?
 - [x] Panic if 'main' not defined
+- [x] Allow functions that return something (but not an error type) to be called
+        without that return value getting processed.
 
 
 - [ ] Arrays?
@@ -31,6 +31,7 @@
 
 ### Quick Todos
 
+- [ ] Edit `hooks/pre-commit-msg` to also _run_ the compiled Flick programs and ensure they exit with 0 exit status
 - [ ] Implement a simple BigInteger function to ensure that the int_value given fits inside the width of the int type provided in typer
 - [ ] Make `Typer` take the program in its `new()`
 - [ ] Make all module and crate level docstrings start with `//!` instead of `///` and

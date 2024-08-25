@@ -148,7 +148,8 @@ impl Typer {
             Statement::Return(r) => {
                 TypedStatement::Return(self.type_return(r.as_ref(), function_return_type))
             }
-            Statement::Call(c) => TypedStatement::Call(self.type_call(c, Some(&Type::Void))),
+            // Below, the desired_type of the call is None because the value returned by the call is never used
+            Statement::Call(c) => TypedStatement::Call(self.type_call(c, None)),
             Statement::If(i) => TypedStatement::If(self.type_if_statement(i, function_return_type)),
         }
     }
@@ -369,8 +370,8 @@ impl Typer {
     /// return type matches the `desired_type`.[^note]
     ///
     /// [^note]: See also [Typer::type_expr] for details about `desired_type`.
-    fn type_call(&mut self, call_expr: &Call, desired_type: Option<&Type>) -> TypedCall {
-        let function_name = call_expr.function_name.clone();
+    fn type_call(&mut self, call: &Call, desired_type: Option<&Type>) -> TypedCall {
+        let function_name = call.function_name.clone();
 
         let function_proto = match self.scope_manager.get(&function_name) {
             Some(Type::Func(f)) => f.clone(),
@@ -391,16 +392,16 @@ impl Typer {
         }
 
         let num_params = function_proto.params.len();
-        if num_params != call_expr.args.len() {
+        if num_params != call.args.len() {
             panic!(
                 "Expected {} argument(s) to function '{}'; got {} argument(s)",
                 num_params,
-                call_expr.function_name,
-                call_expr.args.len()
+                call.function_name,
+                call.args.len()
             );
         }
 
-        let args: Vec<_> = call_expr
+        let args: Vec<_> = call
             .args
             .iter()
             .zip(function_proto.params.iter())
