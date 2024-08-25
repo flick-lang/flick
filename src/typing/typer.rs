@@ -1,5 +1,5 @@
 use crate::ast::{
-    Assignment, Binary, Call, Comparison, Expr, FuncDef, FuncProto, GlobalStatement, If, IntLiteral, Program, Statement, VarDeclaration, WhileLoop
+    Assignment, Binary, Call, Comparison, Expr, FuncDef, FuncProto, GlobalStatement, If, IntLiteral, Program, Statement, VarDeclaration, WhileLoop, FuncVisibility
 };
 use crate::scope_manager::ScopeManager;
 use crate::typed_ast::{
@@ -46,9 +46,31 @@ impl Typer {
         for global_statement in program.global_statements.iter() {
             global_statements.push(self.type_global_statement(global_statement))
         }
+        self.check_valid_main_func();
         self.scope_manager.exit_scope();
 
         TypedProgram { global_statements }
+    }
+
+    fn check_valid_main_func(&self) {
+        let func_proto = match self.scope_manager.get("main") {
+            Some(Type::Func(proto)) => proto,
+            Some(t) => panic!("Expected 'main' to be a function; found 'main' to be of type {}", t),
+            None => panic!("No main function defined")
+        };
+
+        if func_proto.func_visibility != FuncVisibility::Public {
+            panic!("The 'main' function should be public");
+        }
+        
+        if func_proto.params.len() > 0 {
+            panic!("The 'main' function should not accept any parameters")
+        }
+
+        match *func_proto.return_type {
+            Type::Int(IntType { width: 8, signed: false }) | Type::Void => {},
+            _ => panic!("The 'main' function should either return u8 or void"), 
+        }
     }
 
     /// This method processes the prototype of a function, updating the internal scope manager
@@ -420,7 +442,78 @@ mod tests {
     use crate::ast::*;
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "No main function defined")]
+    fn missing_main_function() {
+        // pub fn not_main() i32 {
+        // }
+
+        let program = Program {
+            global_statements: vec![GlobalStatement::FuncDef(FuncDef {
+                proto: FuncProto {
+                    func_visibility: FuncVisibility::Public,
+                    name: "not_main".to_string(),
+                    params: vec![],
+                    return_type: Box::new(Type::Int(IntType { width: 32, signed: true })),
+                },
+                body: vec![],
+            })],
+        };
+
+        let mut typer = Typer::new();
+        let _ = typer.type_program(&program);
+    }
+
+    #[test]
+    #[should_panic(expected = "The 'main' function should either return u8 or void")]
+    fn invalid_main_ret_type() {
+        // pub fn main() i32 {
+        // }
+
+        let program = Program {
+            global_statements: vec![GlobalStatement::FuncDef(FuncDef {
+                proto: FuncProto {
+                    func_visibility: FuncVisibility::Public,
+                    name: "main".to_string(),
+                    params: vec![],
+                    return_type: Box::new(Type::Int(IntType { width: 32, signed: true })),
+                },
+                body: vec![],
+            })],
+        };
+
+        let mut typer = Typer::new();
+        let _ = typer.type_program(&program);
+    }
+
+    #[test]
+    #[should_panic(expected = "The 'main' function should not accept any parameters")]
+    fn invalid_main_params() {
+        // pub fn main(i32 a) i32 {
+        // }
+
+        let program = Program {
+            global_statements: vec![GlobalStatement::FuncDef(FuncDef {
+                proto: FuncProto {
+                    func_visibility: FuncVisibility::Public,
+                    name: "main".to_string(),
+                    params: vec![
+                        FuncParam {
+                            param_type: Type::Int(IntType { width: 32, signed: true }),
+                            param_name: "a".to_string()
+                        }
+                    ],
+                    return_type: Box::new(Type::Int(IntType { width: 32, signed: true })),
+                },
+                body: vec![],
+            })],
+        };
+
+        let mut typer = Typer::new();
+        let _ = typer.type_program(&program);
+    }
+
+    #[test]
+    #[should_panic(expected = "Identifier 'b' of type 'i64' cannot be used as type 'i32'")]
     fn assignment_with_mismatched_types() {
         // pub fn main() i32 {
         //     i64 a = 3
@@ -462,9 +555,9 @@ mod tests {
 
     #[test]
     fn valid_assignments() {
-        // pub fn main() i32 {
-        //     i32 a = 3
-        //     i32 b = a
+        // pub fn main() u8 {
+        //     u8 a = 3
+        //     u8 b = a
         //     ret b
         // }
 
@@ -474,18 +567,18 @@ mod tests {
                     func_visibility: FuncVisibility::Public,
                     name: "main".to_string(),
                     params: vec![],
-                    return_type: Box::new(Type::Int(IntType { width: 32, signed: true })),
+                    return_type: Box::new(Type::Int(IntType { width: 8, signed: false })),
                 },
                 body: vec![
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "a".to_string(),
                         var_value: Expr::IntLiteral(IntLiteral { negative: false, value: "3".to_string() }),
-                        var_type: Type::Int(IntType { width: 32, signed: true }),
+                        var_type: Type::Int(IntType { width: 8, signed: false }),
                     }),
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "b".to_string(),
                         var_value: Expr::Identifier("a".to_string()),
-                        var_type: Type::Int(IntType { width: 32, signed: true }),
+                        var_type: Type::Int(IntType { width: 8, signed: false }),
                     }),
                     Statement::Return(Some(Expr::Identifier("b".to_string()))),
                 ],
@@ -498,7 +591,7 @@ mod tests {
                     func_visibility: FuncVisibility::Public,
                     name: "main".to_string(),
                     params: vec![],
-                    return_type: Box::new(Type::Int(IntType { width: 32, signed: true })),
+                    return_type: Box::new(Type::Int(IntType { width: 8, signed: false })),
                 },
                 body: vec![
                     TypedStatement::VarDeclaration(TypedVarDeclaration {
@@ -506,21 +599,21 @@ mod tests {
                         var_value: TypedExpr::IntLiteral(TypedIntLiteral {
                             negative: false,
                             int_value: "3".to_string(),
-                            int_type: IntType { width: 32, signed: true },
+                            int_type: IntType { width: 8, signed: false },
                         }),
-                        var_type: Type::Int(IntType { width: 32, signed: true }),
+                        var_type: Type::Int(IntType { width: 8, signed: false }),
                     }),
                     TypedStatement::VarDeclaration(TypedVarDeclaration {
                         var_name: "b".to_string(),
-                        var_type: Type::Int(IntType { width: 32, signed: true }),
+                        var_type: Type::Int(IntType { width: 8, signed: false }),
                         var_value: TypedExpr::Identifier(TypedIdentifier {
                             name: "a".to_string(),
-                            id_type: Type::Int(IntType { width: 32, signed: true }),
+                            id_type: Type::Int(IntType { width: 8, signed: false }),
                         }),
                     }),
                     TypedStatement::Return(Some(TypedExpr::Identifier(TypedIdentifier {
                         name: "b".to_string(),
-                        id_type: Type::Int(IntType { width: 32, signed: true }),
+                        id_type: Type::Int(IntType { width: 8, signed: false }),
                     }))),
                 ],
             })],

@@ -1,12 +1,12 @@
 ## Roadmap to working web demo!!!
 
-- [ ] Panic if 'main' not defined
 - [ ] Allow functions that return something (but not an error type) to be called
         without that return value getting processed.
 - [ ] Booleans "bool"
 - [ ] Auto casting int types?
 - [ ] And/or?
 - [ ] Manually casting types?
+- [x] Panic if 'main' not defined
 
 
 - [ ] Arrays?

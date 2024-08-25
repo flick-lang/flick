@@ -1,6 +1,7 @@
-pub fn main() u64 {
-    u64 i = 1
-    while i < 10 {
+pub fn main() u8 {
+    u8 i = 1
+    u8 limit = 10
+    while i < limit {
         i += 1
     }
     ret i

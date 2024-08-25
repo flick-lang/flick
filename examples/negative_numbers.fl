@@ -1,5 +1,9 @@
-pub fn main() i32 {
-    i32 a = -1
-    i32 b = 5 -2 - a
-    ret b
+pub fn main() u8 {
+    i8 a = -1
+    i8 b = 5 -2 - a
+    i8 limit = 0
+    if b < limit {
+        ret 0
+    }
+    ret 1
 }

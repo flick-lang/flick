@@ -1,10 +1,9 @@
-pub fn main() i64 {
-    i64 N = 5
+pub fn main() u8 {
+    u8 N = 5
 
     // todo: introduce inferred ('auto') types
-    i64 answer = 1
-    // todo: parse negative numbers
-    i64 i = 1
+    u8 answer = 1
+    u8 i = 1
 
     while i <= N {
         answer = answer * i

@@ -2,11 +2,11 @@ pub fn test() {
     i64 i = 2
 }
 
-pub fn main() i11 {
+pub fn main() u8 {
     test()
     ret sum(2, sum(3, 4))
 }
 
-fn sum(i11 x, i11 y) i11 {
+fn sum(u8 x, u8 y) u8 {
     ret x+y
 }
