@@ -68,7 +68,7 @@ impl Typer {
         }
 
         if *func_proto.return_type != Type::Int(IntType { width: 8, signed: false }) {
-            panic!("The 'main' function should either return u8 or void");
+            panic!("The 'main' function should return a u8");
         }
     }
 
@@ -469,7 +469,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "The 'main' function should either return u8 or void")]
+    #[should_panic(expected = "The 'main' function should return a u8")]
     fn invalid_main_ret_type() {
         // pub fn main() i32 {
         // }
