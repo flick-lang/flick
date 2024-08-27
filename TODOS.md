@@ -1,6 +1,6 @@
 ## Roadmap to working web demo!!!
 
-- [ ] Manually casting types?
+- [x] Manually casting types?
 - [ ] And/or?
 - [x] Booleans "bool"
 - [x] Panic if 'main' not defined
