@@ -273,7 +273,7 @@ impl Typer {
                 )
             }
 
-            (UnaryOperator::Negate, None) => None,
+            (UnaryOperator::Negate, None) => Some(&Type::Int(IntType { signed: true, width: 64 })),
             (UnaryOperator::Negate, Some(t @ Type::Int(IntType { signed: false, .. }))) => {
                panic!("Expected an unsigned expression of type '{}', but found a negation", t)
             },
