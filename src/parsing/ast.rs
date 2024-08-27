@@ -43,11 +43,7 @@ impl fmt::Display for FuncProto {
             .map(|p| format!("{} {}", p.param_type, p.param_name))
             .collect::<Vec<String>>()
             .join(", ");
-        write!(
-            f,
-            "{} {}({}) {}",
-            self.func_visibility, self.name, params, self.return_type
-        )
+        write!(f, "{} {}({}) {}", self.func_visibility, self.name, params, self.return_type)
     }
 }
 

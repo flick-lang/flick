@@ -1039,10 +1039,7 @@ mod tests {
     fn unary_cast_of_call() {
         let tokens = vec![
             Token::LParen,
-            Token::Type(Type::Int(IntType {
-                signed: true,
-                width: 64,
-            })),
+            Token::Type(Type::Int(IntType { width: 64, signed: true })),
             Token::RParen,
             Token::Identifier("foo".to_string()),
             Token::LParen,
@@ -1051,10 +1048,7 @@ mod tests {
         ];
 
         let expected = Expr::Unary(Unary {
-            operator: UnaryOperator::Cast(Type::Int(IntType {
-                signed: true,
-                width: 64,
-            })),
+            operator: UnaryOperator::Cast(Type::Int(IntType { width: 64, signed: true })),
             operand: Box::new(Expr::Call(Call {
                 function_name: "foo".to_string(),
                 args: vec![Expr::IntLiteral(IntLiteral {

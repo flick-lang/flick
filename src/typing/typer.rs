@@ -661,36 +661,21 @@ mod tests {
                         var_value: TypedExpr::IntLiteral(TypedIntLiteral {
                             negative: false,
                             int_value: "3".to_string(),
-                            int_type: IntType {
-                                width: 8,
-                                signed: false,
-                            },
+                            int_type: IntType { width: 8, signed: false },
                         }),
-                        var_type: Type::Int(IntType {
-                            width: 8,
-                            signed: false,
-                        }),
+                        var_type: Type::Int(IntType { width: 8, signed: false }),
                     }),
                     TypedStatement::VarDeclaration(TypedVarDeclaration {
                         var_name: "b".to_string(),
-                        var_type: Type::Int(IntType {
-                            width: 8,
-                            signed: false,
-                        }),
+                        var_type: Type::Int(IntType { width: 8, signed: false }),
                         var_value: TypedExpr::Identifier(TypedIdentifier {
                             name: "a".to_string(),
-                            id_type: Type::Int(IntType {
-                                width: 8,
-                                signed: false,
-                            }),
+                            id_type: Type::Int(IntType { width: 8, signed: false }),
                         }),
                     }),
                     TypedStatement::Return(Some(TypedExpr::Identifier(TypedIdentifier {
                         name: "b".to_string(),
-                        id_type: Type::Int(IntType {
-                            width: 8,
-                            signed: false,
-                        }),
+                        id_type: Type::Int(IntType { width: 8, signed: false }),
                     }))),
                 ],
             })],
@@ -715,10 +700,7 @@ mod tests {
                     func_visibility: FuncVisibility::Public,
                     name: "main".to_string(),
                     params: vec![],
-                    return_type: Box::new(Type::Int(IntType {
-                        width: 8,
-                        signed: false,
-                    })),
+                    return_type: Box::new(Type::Int(IntType { width: 8, signed: false })),
                 },
                 body: vec![
                     Statement::VarDeclaration(VarDeclaration {
@@ -727,16 +709,10 @@ mod tests {
                             negative: false,
                             value: "3".to_string(),
                         }),
-                        var_type: Type::Int(IntType {
-                            width: 32,
-                            signed: true,
-                        }),
+                        var_type: Type::Int(IntType { width: 32, signed: true }),
                     }),
                     Statement::Return(Some(Expr::Unary(Unary {
-                        operator: UnaryOperator::Cast(Type::Int(IntType {
-                            width: 8,
-                            signed: false,
-                        })),
+                        operator: UnaryOperator::Cast(Type::Int(IntType { width: 8, signed: false })),
                         operand: Box::new(Expr::Identifier("a".to_string())),
                     }))),
                 ],
@@ -760,10 +736,7 @@ mod tests {
                     func_visibility: FuncVisibility::Public,
                     name: "main".to_string(),
                     params: vec![],
-                    return_type: Box::new(Type::Int(IntType {
-                        width: 8,
-                        signed: false,
-                    })),
+                    return_type: Box::new(Type::Int(IntType { width: 8, signed: false })),
                 },
                 body: vec![
                     Statement::VarDeclaration(VarDeclaration {
@@ -772,16 +745,10 @@ mod tests {
                             negative: false,
                             value: "3".to_string(),
                         }),
-                        var_type: Type::Int(IntType {
-                            width: 32,
-                            signed: false,
-                        }),
+                        var_type: Type::Int(IntType { width: 32, signed: false }),
                     }),
                     Statement::Return(Some(Expr::Unary(Unary {
-                        operator: UnaryOperator::Cast(Type::Int(IntType {
-                            width: 8,
-                            signed: false,
-                        })),
+                        operator: UnaryOperator::Cast(Type::Int(IntType { width: 8, signed: false })),
                         operand: Box::new(Expr::Identifier("a".to_string())),
                     }))),
                 ],
@@ -794,10 +761,7 @@ mod tests {
                     func_visibility: FuncVisibility::Public,
                     name: "main".to_string(),
                     params: vec![],
-                    return_type: Box::new(Type::Int(IntType {
-                        width: 8,
-                        signed: false,
-                    })),
+                    return_type: Box::new(Type::Int(IntType { width: 8, signed: false })),
                 },
                 body: vec![
                     TypedStatement::VarDeclaration(TypedVarDeclaration {
@@ -805,32 +769,17 @@ mod tests {
                         var_value: TypedExpr::IntLiteral(TypedIntLiteral {
                             negative: false,
                             int_value: "3".to_string(),
-                            int_type: IntType {
-                                width: 32,
-                                signed: false,
-                            },
+                            int_type: IntType { width: 32, signed: false },
                         }),
-                        var_type: Type::Int(IntType {
-                            width: 32,
-                            signed: false,
-                        }),
+                        var_type: Type::Int(IntType { width: 32, signed: false }),
                     }),
                     TypedStatement::Return(Some(TypedExpr::Unary(TypedUnary {
-                        operator: UnaryOperator::Cast(Type::Int(IntType {
-                            width: 8,
-                            signed: false,
-                        })),
+                        operator: UnaryOperator::Cast(Type::Int(IntType { width: 8, signed: false })),
                         operand: Box::new(TypedExpr::Identifier(TypedIdentifier {
                             name: "a".to_string(),
-                            id_type: Type::Int(IntType {
-                                width: 32,
-                                signed: false,
-                            }),
+                            id_type: Type::Int(IntType { width: 32, signed: false }),
                         })),
-                        result_type: Type::Int(IntType {
-                            width: 8,
-                            signed: false,
-                        }),
+                        result_type: Type::Int(IntType { width: 8, signed: false }),
                     }))),
                 ],
             })],
