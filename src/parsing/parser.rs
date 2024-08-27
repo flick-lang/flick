@@ -69,7 +69,6 @@ impl<'a> Parser<'a> {
     /// Advances the cursor past all newline, comment, and docstring tokens.
     fn skip_newlines_comments_and_docstrings(&mut self) {
         // todo take into account the fact that docstring CAN appear in parse tree
-        // enjoy this beautiful formatting <3
         while let Some(Token::Newline | Token::Comment(_) | Token::Docstring(_)) = self.peek_token(1) {
             self.skip_token();
         }
