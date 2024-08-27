@@ -1,8 +1,8 @@
 pub fn main() u8 {
     i8 a = -1
     i8 b = 5 -2 - a
-    i8 limit = 0
-    if b < limit {
+    i8 limit = 4
+    if b == limit {
         ret 0
     }
     ret 1

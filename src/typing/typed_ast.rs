@@ -109,7 +109,6 @@ pub struct TypedBinary {
 /// A typed version of [IntLiteral](crate::ast::Expr::IntLiteral)
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TypedIntLiteral {
-    pub negative: bool,
     pub int_value: String,
     pub int_type: IntType,
 }

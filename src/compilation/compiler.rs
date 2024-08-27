@@ -476,10 +476,7 @@ impl Compiler {
     /// If `int_literal.negative` is true, the value is negated.
     unsafe fn compile_int_literal(&self, int_literal: &TypedIntLiteral) -> LLVMValueRef {
         let int_type = self.to_llvm_type(&Type::Int(int_literal.int_type));
-        let value_str = match int_literal.negative {
-            true => format!("-{}", int_literal.int_value),
-            false => int_literal.int_value.clone(),
-        };
+        let value_str = int_literal.int_value.clone();
         let value_cstr = CString::new(value_str).unwrap();
         LLVMConstIntOfString(int_type, value_cstr.as_ptr(), 10)
     }
@@ -528,6 +525,7 @@ impl Compiler {
         let source_type = &unary.operand.get_type();
         match &unary.operator {
             UnaryOperator::Cast(cast_type) => self.compile_cast(operand, cast_type, source_type),
+            UnaryOperator::Negate => self.compile_negation(operand, source_type),
         }
     }
 
@@ -552,6 +550,14 @@ impl Compiler {
             // Width is the same. No need to cast.
             // (Note: Typer ensures source_int_type.signed == cast_int_type.signed)
             operand
+        }
+    }
+
+    /// Compiles a negation expression.
+    unsafe fn compile_negation(&mut self, operand: LLVMValueRef, source_type: &Type) -> LLVMValueRef {
+        match source_type {
+            Type::Int(_) => LLVMBuildNeg(self.builder, operand, cstr!("neg")),
+            _ => panic!("Unsupported type for negation, can only handle integers; this should have been handled by typer"),
         }
     }
 
