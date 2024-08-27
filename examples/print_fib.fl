@@ -1,0 +1,33 @@
+extern fn putchar(u8 c) u8
+
+fn fib(u64 n) u64 {
+    if n == 0 {
+        ret 0
+    } else if n == 1 {
+        ret 1
+    }
+    
+    ret fib(n-1) + fib(n-2)
+}
+
+fn printnum(u64 n) {
+    u64 reversed = 0
+    while n > 0 {
+        reversed *= 10
+        reversed += n % 10
+        n /= 10
+    }
+    while reversed > 0 {
+        u8 digit = (u8) (reversed % 10)
+        u8 _ = putchar(48 + digit)
+        reversed /= 10
+    }
+}
+
+pub fn main() u8 {
+    u64 n = fib(10)
+    printnum(n)
+    putchar(10) // newline
+    ret 0
+}
+

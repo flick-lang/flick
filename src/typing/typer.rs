@@ -363,16 +363,17 @@ impl Typer {
             );
         }
 
-        match left_type {
-            Type::Int(_) => {}
+        let result_type = match left_type {
+            t @ Type::Int(_) => t,
+            Type::Func(f) => *f.return_type,
             _ => panic!("Unsupported lhs and rhs types for binary expr; expected integer but got '{}'", left_type)
-        }
+        };
 
         TypedBinary {
             left: Box::new(left),
             operator,
             right: Box::new(right),
-            result_type: left_type, // since both types must be equal
+            result_type,
         }
     }
 
