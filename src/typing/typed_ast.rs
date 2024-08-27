@@ -1,4 +1,4 @@
-use crate::ast::{BinaryOperator, ComparisonOperator, FuncProto};
+use crate::ast::{BinaryOperator, ComparisonOperator, FuncProto, UnaryOperator};
 use crate::types::IntType;
 use crate::Type;
 
@@ -72,6 +72,7 @@ pub enum TypedExpr {
     Binary(TypedBinary),
     Comparison(TypedComparison),
     Call(TypedCall),
+    Unary(TypedUnary),
 }
 
 /// A typed version of [Assignment](crate::ast::Assignment).
@@ -127,4 +128,13 @@ pub struct TypedCall {
 pub struct TypedIdentifier {
     pub name: String,
     pub id_type: Type,
+}
+
+
+/// A typed version of [Unary](crate::ast::Unary).
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct TypedUnary {
+    pub operator: UnaryOperator,
+    pub operand: Box<TypedExpr>,
+    pub result_type: Type,
 }

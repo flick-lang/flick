@@ -454,6 +454,7 @@ impl Compiler {
             TypedExpr::Binary(bin_expr) => self.compile_bin_expr(bin_expr),
             TypedExpr::Comparison(comparison) => self.compile_comparison_expr(comparison),
             TypedExpr::Call(call) => self.compile_call(call),
+            TypedExpr::Unary(_) => todo!(),
         }
     }
 
