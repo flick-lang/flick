@@ -7,7 +7,7 @@ use std::fmt;
 /// A program consisting of at least one [GlobalStatement].
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Program {
-    pub global_statements: Vec<GlobalStatement>
+    pub global_statements: Vec<GlobalStatement>,
 }
 
 /// A global statement is something that can be written in the "global" scope, as opposed
@@ -43,16 +43,19 @@ impl fmt::Display for FuncProto {
             .map(|p| format!("{} {}", p.param_type, p.param_name))
             .collect::<Vec<String>>()
             .join(", ");
-        write!(f, "{} {}({}) {}", self.func_visibility, self.name, params, self.return_type)
+        write!(
+            f,
+            "{} {}({}) {}",
+            self.func_visibility, self.name, params, self.return_type
+        )
     }
 }
-
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FuncVisibility {
     Public,
     Private,
-    Extern
+    Extern,
 }
 
 impl fmt::Display for FuncVisibility {
@@ -60,7 +63,7 @@ impl fmt::Display for FuncVisibility {
         match self {
             Self::Public => write!(f, "pub fn"),
             Self::Private => write!(f, "fn"),
-            Self::Extern => write!(f, "extern fn")
+            Self::Extern => write!(f, "extern fn"),
         }
     }
 }
@@ -99,11 +102,10 @@ pub enum Statement {
     If(If),
 }
 
-/// A variable declaration and, optionally, variable definition as well.
+/// A variable declaration.
 ///
 /// This struct stores the name and type of the declared variable, as well as its
-/// value (if the variable declaration comes with an assignment, like `int a = 7;` instead of
-/// `int a;`).
+/// initial value.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct VarDeclaration {
     pub var_name: String,
@@ -111,8 +113,8 @@ pub struct VarDeclaration {
     pub var_value: Expr,
 }
 
-/// A if statement.
-/// 
+/// An if statement.
+///
 /// Note, `then_body` corresponds to the statements to be executed if the condition is true,
 /// and `else_body` (optional) corresponds to the "else" block of the if statement.
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -121,7 +123,6 @@ pub struct If {
     pub then_body: Vec<Statement>,
     pub else_body: Option<Vec<Statement>>,
 }
-
 
 /// A while loop (its 'while condition' and its body).
 #[derive(Debug, PartialEq, Eq, Clone)]
