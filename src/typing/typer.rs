@@ -484,7 +484,9 @@ impl Typer {
         }
     }
 
-    /// Panics if the cast is invalid, like casting from an unsigned type to a signed type.
+    /// Panics if the operand type cannot be negated
+    ///
+    /// For example, unsigned integers cannot be negated
     fn check_valid_negation(operand_type: &Type) {
         match operand_type {
             Type::Int(IntType { signed: true, .. }) => (),
