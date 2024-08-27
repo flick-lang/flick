@@ -60,7 +60,8 @@ impl<'a> Parser<'a> {
     fn parse_global_statement(&mut self) -> Option<GlobalStatement> {
         match self.peek_token(1) {
             Some(Token::Extern) => Some(GlobalStatement::Extern(self.parse_func_proto())),
-            Some(_) => Some(GlobalStatement::FuncDef(self.parse_func_def())),
+            Some(Token::Fn | Token::Pub) => Some(GlobalStatement::FuncDef(self.parse_func_def())),
+            Some(t) => panic!("Unknown global statement starting with token '{}'", t),
             None => None,
         }
     }
@@ -68,10 +69,7 @@ impl<'a> Parser<'a> {
     /// Advances the cursor past all newline, comment, and docstring tokens.
     fn skip_newlines_comments_and_docstrings(&mut self) {
         // todo take into account the fact that docstring CAN appear in parse tree
-        // enjoy this beautiful formatting <3
-        while let Some(Token::Newline | Token::Comment(_) | Token::Docstring(_)) =
-            self.peek_token(1)
-        {
+        while let Some(Token::Newline | Token::Comment(_) | Token::Docstring(_)) = self.peek_token(1) {
             self.skip_token();
         }
     }
@@ -205,7 +203,7 @@ impl<'a> Parser<'a> {
         };
 
         match self.next_token() {
-            Some(Token::Newline) | None => Some(statement),
+            Some(Token::Newline | Token::Comment(_) | Token::Docstring(_)) | None => Some(statement),
             Some(token) => panic!("Expected newline or EOF but received {}", token),
         }
     }
