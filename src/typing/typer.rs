@@ -1,11 +1,13 @@
 use crate::ast::{
-    Assignment, Binary, Call, Comparison, Expr, FuncDef, FuncProto, GlobalStatement, If, IntLiteral, Program, Statement, VarDeclaration, WhileLoop, FuncVisibility
+    Assignment, Binary, Call, Comparison, Expr, FuncDef, FuncProto, FuncVisibility,
+    GlobalStatement, If, IntLiteral, Program, Statement, Unary, UnaryOperator, VarDeclaration,
+    WhileLoop,
 };
 use crate::scope_manager::ScopeManager;
 use crate::typed_ast::{
     TypedAssignment, TypedBinary, TypedCall, TypedComparison, TypedExpr, TypedFuncDef,
-    TypedIdentifier, TypedIf, TypedIntLiteral, TypedProgram, TypedStatement, TypedVarDeclaration,
-    TypedWhileLoop, TypedGlobalStatement
+    TypedGlobalStatement, TypedIdentifier, TypedIf, TypedIntLiteral, TypedProgram, TypedStatement,
+    TypedUnary, TypedVarDeclaration, TypedWhileLoop,
 };
 use crate::types::IntType;
 use crate::Type;
@@ -62,8 +64,8 @@ impl Typer {
         if func_proto.func_visibility != FuncVisibility::Public {
             panic!("The 'main' function should be public");
         }
-        
-        if func_proto.params.len() > 0 {
+
+        if !func_proto.params.is_empty() {
             panic!("The 'main' function should not accept any parameters");
         }
 
@@ -231,7 +233,6 @@ impl Typer {
         ret.map(|e| self.type_expr(e, Some(function_return_type)))
     }
 
-    // desired type is optional because, for example, 17 doesn't have a desired type
     /// Recursively type-checks the provided expression, confirming that it is of type
     /// `desired_type`.
     ///
@@ -246,11 +247,56 @@ impl Typer {
                 TypedExpr::IntLiteral(self.type_int_literal(int, desired_type))
             }
             Expr::BoolLiteral(b) => TypedExpr::BoolLiteral(*b),
-            Expr::Binary(b) => TypedExpr::Binary(self.type_bin_expr(b, desired_type)),
+            Expr::Binary(b) => TypedExpr::Binary(self.type_binary_expr(b, desired_type)),
             Expr::Comparison(c) => {
                 TypedExpr::Comparison(self.type_comparison_expr(c, desired_type))
             }
             Expr::Call(c) => TypedExpr::Call(self.type_call(c, desired_type)),
+            Expr::Unary(u) => TypedExpr::Unary(self.type_unary_expr(u, desired_type)),
+        }
+    }
+
+    /// Checks that the unary expression is of the correct type, and wraps it as a `TypedUnary`.
+    /// 
+    /// For example, if the unary operator is a cast, then the operand must be castable to the
+    /// desired type.
+    fn type_unary_expr(&mut self, unary: &Unary, desired_type: Option<&Type>) -> TypedUnary {
+        // desired_operand_type will be used as the desired type when typing the operand
+        let desired_operand_type = match (&unary.operator, desired_type) {
+            (UnaryOperator::Cast(_), None) => None,
+            (UnaryOperator::Cast(cast_type), Some(desired)) if cast_type == desired => None,
+            (UnaryOperator::Cast(cast_type), Some(desired)) => {
+                panic!(
+                    "Expected expression of type '{}', but found a cast to type '{}'",
+                    desired,
+                    cast_type
+                )
+            }
+
+            // (UnaryOperator::Negate(_), Some(t @ Type::Int(IntType { signed: false, .. }))) => {
+            //    panic!("Expected an unsigned expression of type '{}', but found a negation", t)
+            // },
+            // (UnaryOperator::Negate(_), Some(t @ Type::Int(_))) => t,
+            // (UnaryOperator::Negate(_), Some(t )) => panic!("Cannot negate a non-integer type '{}'", t),
+        };
+
+        let typed_operand = self.type_expr(&unary.operand, desired_operand_type);
+        let operand_type = typed_operand.get_type();
+
+        // Now that we know the type of the operand, we can check if the unary operator is valid
+        match &unary.operator {
+            UnaryOperator::Cast(cast_type) => Self::check_valid_cast(&cast_type, &operand_type),
+        }
+
+        let result_type = match &unary.operator {
+            UnaryOperator::Cast(cast_type) => cast_type.clone(),
+            // UnaryOperator::Negate(_) => operand_type,
+        };
+
+        TypedUnary {
+            operator: unary.operator.clone(),
+            operand: Box::new(typed_operand),
+            result_type,
         }
     }
 
@@ -306,13 +352,13 @@ impl Typer {
     }
 
     /// Types a binary expression; see [Typer::type_expr] for details.
-    fn type_bin_expr(&mut self, bin_expr: &Binary, desired_type: Option<&Type>) -> TypedBinary {
-        let left = self.type_expr(&bin_expr.left, desired_type);
-        let operator = bin_expr.operator;
-        let right = self.type_expr(&bin_expr.right, desired_type);
+    fn type_binary_expr(&mut self, binary_expr: &Binary, desired_type: Option<&Type>) -> TypedBinary {
+        let left = self.type_expr(&binary_expr.left, desired_type);
+        let operator = binary_expr.operator;
+        let right = self.type_expr(&binary_expr.right, desired_type);
 
-        let left_type = self.find_type(&left);
-        let right_type = self.find_type(&right);
+        let left_type = left.get_type();
+        let right_type = right.get_type();
         if left_type != right_type {
             panic!(
                 "Operator '{}' needs left-hand-side ({}) and right-hand-side ({}) to be the same type",
@@ -351,8 +397,8 @@ impl Typer {
         let operator = comparison.operator;
         let right = self.type_expr(&comparison.right, None);
 
-        let left_type = self.find_type(&left);
-        let right_type = self.find_type(&right);
+        let left_type = left.get_type();
+        let right_type = right.get_type();
 
         if left_type != right_type {
             panic!(
@@ -418,15 +464,26 @@ impl Typer {
         }
     }
 
-    /// Extracts the type from a typed expression.
-    fn find_type(&mut self, typed_expr: &TypedExpr) -> Type {
-        match typed_expr {
-            TypedExpr::Identifier(id) => id.id_type.clone(),
-            TypedExpr::IntLiteral(int) => Type::Int(int.int_type),
-            TypedExpr::BoolLiteral(_) => Type::Bool,
-            TypedExpr::Binary(binary) => binary.result_type.clone(),
-            TypedExpr::Comparison(_) => Type::Bool,
-            TypedExpr::Call(call) => Type::Func(call.function_proto.clone()),
+    /// Panics if the cast is invalid, like casting from an unsigned type to a signed type.
+    fn check_valid_cast(cast_type: &Type, operand_type: &Type) {
+        match (cast_type, operand_type) {
+            (Type::Int(IntType { signed: true, .. }), Type::Int(IntType { signed: false, .. })) => {
+                panic!(
+                    "Cannot cast from unsigned type '{}' to signed type '{}'",
+                    operand_type, cast_type
+                )
+            }
+            (Type::Int(IntType { signed: false, .. }), Type::Int(IntType { signed: true, .. })) => {
+                panic!(
+                    "Cannot cast from signed type '{}' to unsigned type '{}'",
+                    operand_type, cast_type
+                )
+            }
+            (Type::Int(_), Type::Int(_)) => (), // valid cast
+            _ => panic!(
+                "Cannot cast from type '{}' to type '{}'",
+                operand_type, cast_type
+            ),
         }
     }
 }
@@ -619,6 +676,110 @@ mod tests {
                     TypedStatement::Return(Some(TypedExpr::Identifier(TypedIdentifier {
                         name: "b".to_string(),
                         id_type: Type::Int(IntType { width: 8, signed: false }),
+                    }))),
+                ],
+            })],
+        };
+
+        let mut typer = Typer::new();
+        let actual_typed_program = typer.type_program(&program);
+        assert_eq!(expected_typed_program, actual_typed_program);
+    }
+
+    #[test]
+    #[should_panic(expected = "Cannot cast from signed type 'i32' to unsigned type 'u8'")]
+    fn cast_signed_to_unsigned() {
+        // pub fn main() u8 {
+        //     i32 a = 3
+        //     ret (u8) a
+        // }
+
+        let program = Program {
+            global_statements: vec![GlobalStatement::FuncDef(FuncDef {
+                proto: FuncProto {
+                    func_visibility: FuncVisibility::Public,
+                    name: "main".to_string(),
+                    params: vec![],
+                    return_type: Box::new(Type::Int(IntType { width: 8, signed: false })),
+                },
+                body: vec![
+                    Statement::VarDeclaration(VarDeclaration {
+                        var_name: "a".to_string(),
+                        var_value: Expr::IntLiteral(IntLiteral {
+                            negative: false,
+                            value: "3".to_string(),
+                        }),
+                        var_type: Type::Int(IntType { width: 32, signed: true }),
+                    }),
+                    Statement::Return(Some(Expr::Unary(Unary {
+                        operator: UnaryOperator::Cast(Type::Int(IntType { width: 8, signed: false })),
+                        operand: Box::new(Expr::Identifier("a".to_string())),
+                    }))),
+                ],
+            })],
+        };
+
+        let mut typer = Typer::new();
+        let _ = typer.type_program(&program);  // should panic
+    }
+
+    #[test]
+    fn cast_u32_to_u8() {
+        // pub fn main() u8 {
+        //     u32 a = 3
+        //     ret (u8) a
+        // }
+
+        let program = Program {
+            global_statements: vec![GlobalStatement::FuncDef(FuncDef {
+                proto: FuncProto {
+                    func_visibility: FuncVisibility::Public,
+                    name: "main".to_string(),
+                    params: vec![],
+                    return_type: Box::new(Type::Int(IntType { width: 8, signed: false })),
+                },
+                body: vec![
+                    Statement::VarDeclaration(VarDeclaration {
+                        var_name: "a".to_string(),
+                        var_value: Expr::IntLiteral(IntLiteral {
+                            negative: false,
+                            value: "3".to_string(),
+                        }),
+                        var_type: Type::Int(IntType { width: 32, signed: false }),
+                    }),
+                    Statement::Return(Some(Expr::Unary(Unary {
+                        operator: UnaryOperator::Cast(Type::Int(IntType { width: 8, signed: false })),
+                        operand: Box::new(Expr::Identifier("a".to_string())),
+                    }))),
+                ],
+            })],
+        };
+
+        let expected_typed_program = TypedProgram {
+            global_statements: vec![TypedGlobalStatement::FuncDef(TypedFuncDef {
+                proto: FuncProto {
+                    func_visibility: FuncVisibility::Public,
+                    name: "main".to_string(),
+                    params: vec![],
+                    return_type: Box::new(Type::Int(IntType { width: 8, signed: false })),
+                },
+                body: vec![
+                    TypedStatement::VarDeclaration(TypedVarDeclaration {
+                        var_name: "a".to_string(),
+                        var_value: TypedExpr::IntLiteral(TypedIntLiteral {
+                            negative: false,
+                            int_value: "3".to_string(),
+                            int_type: IntType { width: 32, signed: false },
+                        }),
+                        var_type: Type::Int(IntType { width: 32, signed: false }),
+                    }),
+                    TypedStatement::Return(Some(TypedExpr::Unary(TypedUnary {
+                        operator: UnaryOperator::Cast(Type::Int(IntType { width: 8, signed: false })),
+                        operand: Box::new(TypedExpr::Identifier(TypedIdentifier {
+                            name: "a".to_string(),
+                            id_type: Type::Int(IntType { width: 32, signed: false }),
+                        })),
+                        result_type: Type::Int(IntType { width: 8, signed: false }),
                     }))),
                 ],
             })],

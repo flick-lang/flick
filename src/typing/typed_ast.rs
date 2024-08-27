@@ -1,4 +1,4 @@
-use crate::ast::{BinaryOperator, ComparisonOperator, FuncProto};
+use crate::ast::{BinaryOperator, ComparisonOperator, FuncProto, UnaryOperator};
 use crate::types::IntType;
 use crate::Type;
 
@@ -72,6 +72,22 @@ pub enum TypedExpr {
     Binary(TypedBinary),
     Comparison(TypedComparison),
     Call(TypedCall),
+    Unary(TypedUnary),
+}
+
+impl TypedExpr {
+    /// Extracts the type of this typed expression
+    pub fn get_type(&self) -> Type {
+        match self {
+            Self::Identifier(id) => id.id_type.clone(),
+            Self::IntLiteral(int) => Type::Int(int.int_type),
+            Self::BoolLiteral(_) => Type::Bool,
+            Self::Binary(binary) => binary.result_type.clone(),
+            Self::Comparison(_) => Type::Bool,
+            Self::Call(call) => Type::Func(call.function_proto.clone()),
+            Self::Unary(unary) => unary.result_type.clone(),
+        }
+    }
 }
 
 /// A typed version of [Assignment](crate::ast::Assignment).
@@ -127,4 +143,13 @@ pub struct TypedCall {
 pub struct TypedIdentifier {
     pub name: String,
     pub id_type: Type,
+}
+
+
+/// A typed version of [Unary](crate::ast::Unary).
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct TypedUnary {
+    pub operator: UnaryOperator,
+    pub operand: Box<TypedExpr>,
+    pub result_type: Type,
 }

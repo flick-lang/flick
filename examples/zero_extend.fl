@@ -1,0 +1,5 @@
+pub fn main() u8 {
+    u2 smaller = 1
+    u4 bigger = 3 + (u4) smaller
+    ret (u8) (u6) (u4) bigger
+}

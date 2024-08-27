@@ -5,12 +5,12 @@
 - [x] Booleans "bool"
 - [x] Panic if 'main' not defined
 - [x] Allow functions that return something (but not an error type) to be called
-        without that return value getting processed.
+  without that return value getting processed.
 
 
 - [ ] Slightly nicer errors (line number and no word "panic")
 - [ ] Arrays?
-- [ ] Strings (in std library using arrays? rope data struct?)/ pointers? 
+- [ ] Strings (in std library using arrays? rope data struct?)/ pointers?
 - [ ] Deploy the docs and attach link to README.md
 - [ ] Give an overview of how the compiler works in README
 - [ ] Document how to use Flick itself
@@ -34,8 +34,14 @@
 
 ### Quick Todos
 
+- [ ] Comments at the end of a line???
+- [ ] Add rustfmt.toml file for fmt and also add warn = ["clippy::unnecessary_mut_passed"] (and other warnings, like docs?)
+- [ ] Implement the '-' unary operator and use it to parse negative literals.
+    - [ ] THEN, optionally, type-check to make sure that '-' applied to an unsigned int gets stored in signed int.
+- [ ] Change comparison_expr to separate < <= > >= from == != (which have lower precedence). Update grammar and parsing.
 - [ ] Edit `hooks/pre-commit-msg` to also _run_ the compiled Flick programs and ensure they exit with 0 exit status
-- [ ] Implement a simple BigInteger function to ensure that the int_value given fits inside the width of the int type provided in typer
+- [ ] Implement a simple BigInteger function to ensure that the int_value given fits inside the width of the int type
+  provided in typer
 - [ ] Make `Typer` take the program in its `new()`
 - [ ] Make all module and crate level docstrings start with `//!` instead of `///` and
 - [ ] Move `types.rs` into `typing` module and fix the ignored example in `typing/mod.rs` docstring
@@ -76,3 +82,7 @@
 
 - [ ] Write a syntax highlighting extension for code editors
 - [ ] Support importing other flick source files (by compiling multiple programs in LLVM)
+
+## Documentation todos
+
+- [ ] Document how casting works
