@@ -493,9 +493,20 @@ impl<'a> Parser<'a> {
     /// Parses expressions like `-A` or `(u32) B`
     fn parse_unary_expr(&mut self) -> Expr {
         match (self.peek_token(1), self.peek_token(2)) {
-            // (Some(Token::OperatorSymbol(Minus)), _) => todo!("parse unary minus"),
+            (Some(Token::OperatorSymbol(Minus)), _) => Expr::Unary(self.parse_negation()),
             (Some(Token::LParen), Some(Token::Type(_))) => Expr::Unary(self.parse_cast()),
             _ => self.parse_primary_expr(),
+        }
+    }
+
+    /// Parses negation expressions like `-A`.
+    fn parse_negation(&mut self) -> Unary {
+        self.assert_next_token(Token::OperatorSymbol(Minus));
+        let operand = self.parse_unary_expr();
+
+        Unary {
+            operator: UnaryOperator::Negate,
+            operand: Box::new(operand),
         }
     }
 
@@ -581,10 +592,7 @@ impl<'a> Parser<'a> {
     fn parse_atom(&mut self) -> Expr {
         match (self.peek_token(1), self.peek_token(2)) {
             (Some(Token::Identifier(_)), _) => Expr::Identifier(self.parse_identifier()),
-
             (Some(Token::IntLiteral(_)), _) => Expr::IntLiteral(self.parse_int_literal()),
-            (Some(Token::OperatorSymbol(Minus)), Some(Token::IntLiteral(_))) => Expr::IntLiteral(self.parse_int_literal()),
-
             (Some(Token::True | Token::False), _) => Expr::BoolLiteral(self.parse_bool_literal()),
 
             // todo Some(Token::StrLiteral())
@@ -599,21 +607,10 @@ impl<'a> Parser<'a> {
     /// # Flick example code
     /// - `42`
     /// - `-42`
-    fn parse_int_literal(&mut self) -> IntLiteral {
-        let mut negative = false;
-
-        // Check if the next token is a minus sign.
-        if let Some(Token::OperatorSymbol(Minus)) = self.peek_token(1) {
-            negative = true;
-            self.skip_token(); // Skip the minus sign
-        }
-
+    fn parse_int_literal(&mut self) -> String {
         // The next token should be an integer literal.
         match self.next_token() {
-            Some(Token::IntLiteral(n)) => IntLiteral {
-                negative,
-                value: n.clone(), // Use the value from the token
-            },
+            Some(Token::IntLiteral(n)) => n.clone(),
             _ => unreachable!("This function is called from parse_atom, which already checks the next token")
         }
     }
@@ -645,7 +642,7 @@ mod tests {
         let expected = Some(Statement::VarDeclaration(VarDeclaration {
             var_name: "x".to_string(),
             var_type: Type::Int(IntType { signed: true, width: 64 }),
-            var_value: Expr::IntLiteral(IntLiteral { negative: false, value: "5".to_string() }),
+            var_value: Expr::IntLiteral("5".to_string()),
         }));
 
         let mut parser = Parser::new(&tokens);
@@ -663,7 +660,7 @@ mod tests {
         ];
         let expected = Some(Statement::Assignment(Assignment {
             name: "num".to_string(),
-            value: Box::new(Expr::IntLiteral(IntLiteral { negative: false, value: "10".to_string() })),
+            value: Box::new(Expr::IntLiteral("10".to_string())),
         }));
 
         let mut parser = Parser::new(&tokens);
@@ -715,23 +712,23 @@ mod tests {
         let expected = Expr::Binary(Binary {
             left: Box::new(Expr::Binary(Binary {
                 left: Box::new(Expr::Binary(Binary {
-                    left: Box::new(Expr::IntLiteral(IntLiteral { negative: false, value: "10".to_string() })),
+                    left: Box::new(Expr::IntLiteral("10".to_string())),
                     operator: BinaryOperator::Add,
                     right: Box::new(Expr::Binary(Binary {
                         left: Box::new(Expr::Binary(Binary {
-                            left: Box::new(Expr::IntLiteral(IntLiteral { negative: false, value: "3".to_string() })),
+                            left: Box::new(Expr::IntLiteral("3".to_string())),
                             operator: BinaryOperator::Multiply,
-                            right: Box::new(Expr::IntLiteral(IntLiteral { negative: false, value: "8".to_string() })),
+                            right: Box::new(Expr::IntLiteral("8".to_string())),
                         })),
                         operator: BinaryOperator::Divide,
-                        right: Box::new(Expr::IntLiteral(IntLiteral { negative: false, value: "4".to_string() })),
+                        right: Box::new(Expr::IntLiteral("4".to_string())),
                     })),
                 })),
                 operator: BinaryOperator::Subtract,
-                right: Box::new(Expr::IntLiteral(IntLiteral { negative: false, value: "13".to_string() })),
+                right: Box::new(Expr::IntLiteral("13".to_string())),
             })),
             operator: BinaryOperator::Add,
-            right: Box::new(Expr::IntLiteral(IntLiteral { negative: false, value: "5".to_string() })),
+            right: Box::new(Expr::IntLiteral("5".to_string())),
         });
 
         let mut parser = Parser::new(&tokens);
@@ -752,12 +749,12 @@ mod tests {
             Token::RParen,
         ];
         let expected = Expr::Binary(Binary {
-            left: Box::new(Expr::IntLiteral(IntLiteral { negative: false, value: "9".to_string() })),
+            left: Box::new(Expr::IntLiteral("9".to_string())),
             operator: BinaryOperator::Multiply,
             right: Box::new(Expr::Binary(Binary {
-                left: Box::new(Expr::IntLiteral(IntLiteral { negative: false, value: "2".to_string() })),
+                left: Box::new(Expr::IntLiteral("2".to_string())),
                 operator: BinaryOperator::Add,
-                right: Box::new(Expr::IntLiteral(IntLiteral { negative: false, value: "3".to_string() })),
+                right: Box::new(Expr::IntLiteral("3".to_string())),
             })),
         });
 
@@ -783,7 +780,7 @@ mod tests {
         ];
         let expected = vec![Statement::Assignment(Assignment {
             name: "a".to_string(),
-            value: Box::new(Expr::IntLiteral(IntLiteral { negative: false, value: "2".to_string() })),
+            value: Box::new(Expr::IntLiteral("2".to_string())),
         })];
 
         let mut parser = Parser::new(&tokens);
@@ -812,10 +809,10 @@ mod tests {
             args: vec![
                 Expr::Call(Call {
                     function_name: "f".to_string(),
-                    args: vec![Expr::IntLiteral(IntLiteral { negative: false, value: "1".to_string() })],
+                    args: vec![Expr::IntLiteral("1".to_string())],
                 }),
-                Expr::IntLiteral(IntLiteral { negative: false, value: "10".to_string() }),
-                Expr::IntLiteral(IntLiteral { negative: false, value: "20".to_string() }),
+                Expr::IntLiteral("10".to_string()),
+                Expr::IntLiteral("20".to_string()),
             ],
         });
 
@@ -890,7 +887,7 @@ mod tests {
             condition: Expr::Comparison(Comparison { 
                 left: Box::new(Expr::Identifier("x".to_string())), 
                 operator: ComparisonOperator::LessOrEqualTo, 
-                right: Box::new(Expr::IntLiteral(IntLiteral { negative: false, value: "5".to_string() })) ,
+                right: Box::new(Expr::IntLiteral("5".to_string())) ,
             }), 
             then_body: vec![Statement::Return(None)], 
             else_body: Some(vec![
@@ -898,7 +895,7 @@ mod tests {
                     condition: Expr::Comparison(Comparison { 
                         left: Box::new(Expr::Identifier("x".to_string())), 
                         operator: ComparisonOperator::LessOrEqualTo, 
-                        right: Box::new(Expr::IntLiteral(IntLiteral { negative: false, value: "10".to_string() })) ,
+                        right: Box::new(Expr::IntLiteral("10".to_string())) ,
                     }),
                     then_body: vec![Statement::Return(None)],
                     else_body: Some(vec![Statement::Return(None)]),
@@ -923,7 +920,7 @@ mod tests {
         let expected = Some(Statement::Return(Some(Expr::Binary(Binary {
             left: Box::new(Expr::Identifier("x".to_string())),
             operator: BinaryOperator::Add,
-            right: Box::new(Expr::IntLiteral(IntLiteral { negative: false, value: "5".to_string() })),
+            right: Box::new(Expr::IntLiteral("5".to_string())),
         }))));
 
         let mut parser = Parser::new(&tokens);
@@ -944,7 +941,7 @@ mod tests {
             value: Box::new(Expr::Binary(Binary {
                 left: Box::new(Expr::Identifier("x".to_string())),
                 operator: BinaryOperator::Add,
-                right: Box::new(Expr::IntLiteral(IntLiteral { negative: false, value: "5".to_string() })),
+                right: Box::new(Expr::IntLiteral("5".to_string())),
             })),
         }));
 
@@ -990,40 +987,25 @@ mod tests {
                                 left: Box::new(Expr::Binary(Binary { 
                                     left: Box::new(Expr::Identifier("a".to_string())), 
                                     operator: BinaryOperator::Add, 
-                                    right: Box::new(Expr::IntLiteral(IntLiteral { 
-                                        negative: false, 
-                                        value: "3".to_string() 
-                                    })) 
+                                    right: Box::new(Expr::IntLiteral("3".to_string())) 
                                 })), 
                                 operator: BinaryOperator::Divide, 
-                                right: Box::new(Expr::IntLiteral(IntLiteral { 
-                                    negative: false, 
-                                    value: "4".to_string() 
-                                })) 
+                                right: Box::new(Expr::IntLiteral("4".to_string())) 
                             })), 
                             operator: BinaryOperator::Multiply, 
-                            right: Box::new(Expr::IntLiteral(IntLiteral { 
-                                negative: false, 
-                                value: "5".to_string() 
-                            })) 
+                            right: Box::new(Expr::IntLiteral("5".to_string())) 
                         })), 
                         operator: BinaryOperator::Remainder, 
-                        right: Box::new(Expr::IntLiteral(IntLiteral { 
-                            negative: false, 
-                            value: "3".to_string() 
-                        })) 
+                        right: Box::new(Expr::IntLiteral("3".to_string())) 
                     })), 
                     operator: BinaryOperator::Multiply, 
-                    right: Box::new(Expr::IntLiteral(IntLiteral { 
-                        negative: true, 
-                        value: "2".to_string() 
+                    right: Box::new(Expr::Unary(Unary {
+                        operator: UnaryOperator::Negate, 
+                        operand: Box::new(Expr::IntLiteral("2".to_string()))
                     }))
                 })), 
                 operator: BinaryOperator::Subtract, 
-                right: Box::new(Expr::IntLiteral(IntLiteral { 
-                    negative: false, 
-                    value: "2".to_string() 
-                }))
+                right: Box::new(Expr::IntLiteral("2".to_string()))
             }))
         }));
 
@@ -1049,10 +1031,7 @@ mod tests {
             operator: UnaryOperator::Cast(Type::Int(IntType { width: 64, signed: true })),
             operand: Box::new(Expr::Call(Call {
                 function_name: "foo".to_string(),
-                args: vec![Expr::IntLiteral(IntLiteral {
-                    negative: false,
-                    value: "1".to_string(),
-                })],
+                args: vec![Expr::IntLiteral("1".to_string())],
             })),
         });
 

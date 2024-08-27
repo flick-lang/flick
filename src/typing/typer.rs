@@ -1,6 +1,6 @@
 use crate::ast::{
     Assignment, Binary, Call, Comparison, Expr, FuncDef, FuncProto, FuncVisibility,
-    GlobalStatement, If, IntLiteral, Program, Statement, Unary, UnaryOperator, VarDeclaration,
+    GlobalStatement, If, Program, Statement, Unary, UnaryOperator, VarDeclaration,
     WhileLoop,
 };
 use crate::scope_manager::ScopeManager;
@@ -273,11 +273,12 @@ impl Typer {
                 )
             }
 
-            // (UnaryOperator::Negate(_), Some(t @ Type::Int(IntType { signed: false, .. }))) => {
-            //    panic!("Expected an unsigned expression of type '{}', but found a negation", t)
-            // },
-            // (UnaryOperator::Negate(_), Some(t @ Type::Int(_))) => t,
-            // (UnaryOperator::Negate(_), Some(t )) => panic!("Cannot negate a non-integer type '{}'", t),
+            (UnaryOperator::Negate, None) => Some(&Type::Int(IntType { signed: true, width: 64 })),
+            (UnaryOperator::Negate, Some(t @ Type::Int(IntType { signed: false, .. }))) => {
+               panic!("Expected an unsigned expression of type '{}', but found a negation", t)
+            },
+            (UnaryOperator::Negate, Some(t @ Type::Int(_))) => Some(t),
+            (UnaryOperator::Negate, Some(t )) => panic!("Cannot negate a non-integer type '{}'", t),
         };
 
         let typed_operand = self.type_expr(&unary.operand, desired_operand_type);
@@ -286,11 +287,12 @@ impl Typer {
         // Now that we know the type of the operand, we can check if the unary operator is valid
         match &unary.operator {
             UnaryOperator::Cast(cast_type) => Self::check_valid_cast(&cast_type, &operand_type),
+            UnaryOperator::Negate => Self::check_valid_negation(&operand_type)
         }
 
         let result_type = match &unary.operator {
             UnaryOperator::Cast(cast_type) => cast_type.clone(),
-            // UnaryOperator::Negate(_) => operand_type,
+            UnaryOperator::Negate => operand_type,
         };
 
         TypedUnary {
@@ -326,7 +328,7 @@ impl Typer {
 
     /// Checks that `desired_type` is a valid type (namely, an integer type) and wraps the
     /// `int_literal` as a `TypedIntLiteral`.
-    fn type_int_literal(&self, int_literal: &IntLiteral, desired_type: Option<&Type>) -> TypedIntLiteral {
+    fn type_int_literal(&self, int_literal: &str, desired_type: Option<&Type>) -> TypedIntLiteral {
         let int_type = match desired_type {
             Some(Type::Int(int_type)) => *int_type,
             Some(t) => {
@@ -338,15 +340,10 @@ impl Typer {
             None => IntType { signed: false, width: 64 },
         };
 
-        if int_literal.negative && !int_type.signed {
-            panic!("Expected unsigned integer type '{}', but got negative int_literal '{}'", int_type, int_literal);
-        }
-
         // TODO: Ensure that the int_literal.value fits within the desired width
 
         TypedIntLiteral {
-            negative: int_literal.negative,
-            int_value: int_literal.value.clone(),
+            int_value: int_literal.to_string(),
             int_type,
         }
     }
@@ -486,6 +483,17 @@ impl Typer {
             ),
         }
     }
+
+    /// Panics if the operand type cannot be negated
+    ///
+    /// For example, unsigned integers cannot be negated
+    fn check_valid_negation(operand_type: &Type) {
+        match operand_type {
+            Type::Int(IntType { signed: true, .. }) => (),
+            Type::Int(IntType { signed: false, .. }) => panic!("Cannot negate an unsigned type: '{}'", operand_type),
+            t => panic!("Cannot negate a non-integer type '{}'", t)
+        }
+    }
 }
 
 /// As suggested by Clippy's [new_without_default][a], since [Typer::new()] doesn't
@@ -594,7 +602,7 @@ mod tests {
                 body: vec![
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "a".to_string(),
-                        var_value: Expr::IntLiteral(IntLiteral { negative: false, value: "3".to_string() }),
+                        var_value: Expr::IntLiteral("3".to_string()),
                         var_type: Type::Int(IntType { signed: true, width: 64 }),
                     }),
                     Statement::VarDeclaration(VarDeclaration {
@@ -634,7 +642,7 @@ mod tests {
                 body: vec![
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "a".to_string(),
-                        var_value: Expr::IntLiteral(IntLiteral { negative: false, value: "3".to_string() }),
+                        var_value: Expr::IntLiteral("3".to_string()),
                         var_type: Type::Int(IntType { width: 8, signed: false }),
                     }),
                     Statement::VarDeclaration(VarDeclaration {
@@ -659,7 +667,6 @@ mod tests {
                     TypedStatement::VarDeclaration(TypedVarDeclaration {
                         var_name: "a".to_string(),
                         var_value: TypedExpr::IntLiteral(TypedIntLiteral {
-                            negative: false,
                             int_value: "3".to_string(),
                             int_type: IntType { width: 8, signed: false },
                         }),
@@ -705,10 +712,7 @@ mod tests {
                 body: vec![
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "a".to_string(),
-                        var_value: Expr::IntLiteral(IntLiteral {
-                            negative: false,
-                            value: "3".to_string(),
-                        }),
+                        var_value: Expr::IntLiteral("3".to_string()),
                         var_type: Type::Int(IntType { width: 32, signed: true }),
                     }),
                     Statement::Return(Some(Expr::Unary(Unary {
@@ -741,10 +745,7 @@ mod tests {
                 body: vec![
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "a".to_string(),
-                        var_value: Expr::IntLiteral(IntLiteral {
-                            negative: false,
-                            value: "3".to_string(),
-                        }),
+                        var_value: Expr::IntLiteral("3".to_string()),
                         var_type: Type::Int(IntType { width: 32, signed: false }),
                     }),
                     Statement::Return(Some(Expr::Unary(Unary {
@@ -767,7 +768,6 @@ mod tests {
                     TypedStatement::VarDeclaration(TypedVarDeclaration {
                         var_name: "a".to_string(),
                         var_value: TypedExpr::IntLiteral(TypedIntLiteral {
-                            negative: false,
                             int_value: "3".to_string(),
                             int_type: IntType { width: 32, signed: false },
                         }),

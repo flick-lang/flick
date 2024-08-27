@@ -1,0 +1,8 @@
+pub fn main() u8 {
+    i8 a = 2
+    i8 b = -a
+    if b == (i8) -2 {
+        ret 0
+    }
+    ret 1
+}

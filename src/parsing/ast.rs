@@ -133,7 +133,7 @@ pub struct WhileLoop {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expr {
     Identifier(String),
-    IntLiteral(IntLiteral),
+    IntLiteral(String),
     BoolLiteral(bool),
     Binary(Binary),
     Comparison(Comparison),
@@ -146,24 +146,6 @@ pub enum Expr {
 pub struct Assignment {
     pub name: String,
     pub value: Box<Expr>,
-}
-
-/// An integer literal, which represents a constant integer value in the source code.
-///
-/// For example, `42` or `-42` are integer literals.
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct IntLiteral {
-    pub negative: bool,
-    pub value: String,
-}
-
-impl fmt::Display for IntLiteral {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.negative {
-            write!(f, "-")?;
-        }
-        write!(f, "{}", self.value)
-    }
 }
 
 /// A binary expression (the operator and the left/right-hand sides).
@@ -284,4 +266,6 @@ pub struct Unary {
 pub enum UnaryOperator {
     /// A cast converts its operand into the specified destination [Type].
     Cast(Type),
+    /// Logical negation.
+    Negate
 }
