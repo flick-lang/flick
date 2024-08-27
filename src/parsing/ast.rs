@@ -142,6 +142,7 @@ pub enum Expr {
     Binary(Binary),
     Comparison(Comparison),
     Call(Call),
+    Unary(Unary),
 }
 
 /// An assignment statement (the variable name and the new value).
@@ -273,4 +274,18 @@ impl From<ComparatorSymbol> for ComparisonOperator {
 pub struct Call {
     pub function_name: String,
     pub args: Vec<Expr>,
+}
+
+/// A unary expression, which consists of an operator (e.g. "cast to u32") and a value.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Unary {
+    pub operator: UnaryOperator,
+    pub expr: Box<Expr>,
+}
+
+/// A unary operator, like "cast to u32" or "not".
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum UnaryOperator {
+    /// A cast converts its operand into the specified destination [Type].
+    Cast(Type),
 }

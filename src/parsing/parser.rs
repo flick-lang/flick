@@ -471,15 +471,16 @@ impl<'a> Parser<'a> {
         left_expr_so_far
     }
 
-    /// Parses expressions like `A / B * C`;
-    /// see [Parser::parse_expr] for expression-parsing details.
+    /// Parses expressions like `A / B * C`.
+    ///
+    /// See [Parser::parse_expr] for expression-parsing details.
     fn parse_mul_div_rem_expr(&mut self) -> Expr {
-        let mut left_expr_so_far = self.parse_primary_expr();
+        let mut left_expr_so_far = self.parse_unary_expr();
 
         while let Some(Token::OperatorSymbol(s @ (Asterisk | Slash | Modulo))) = self.peek_token(1) {
             let operator = BinaryOperator::from(*s);
             self.skip_token();
-            let right = self.parse_primary_expr();
+            let right = self.parse_unary_expr();
 
             left_expr_so_far = Expr::Binary(Binary {
                 left: Box::new(left_expr_so_far),
@@ -489,6 +490,28 @@ impl<'a> Parser<'a> {
         }
 
         left_expr_so_far
+    }
+
+    /// Parses expressions like `-A` or `(u32) B`
+    fn parse_unary_expr(&mut self) -> Expr {
+        match (self.peek_token(1), self.peek_token(2)) {
+            // (Some(Token::OperatorSymbol(Minus)), _) => todo!("parse unary minus"),
+            (Some(Token::LParen), Some(Token::Type(_))) => Expr::Unary(self.parse_cast()),
+            _ => self.parse_primary_expr(),
+        }
+    }
+
+    /// Parses cast expressions like `(u32) A`.
+    fn parse_cast(&mut self) -> Unary {
+        self.assert_next_token(Token::LParen);
+        let cast_type = self.parse_type();
+        self.assert_next_token(Token::RParen);
+        let expr = self.parse_primary_expr();
+
+        Unary {
+            operator: UnaryOperator::Cast(cast_type),
+            expr: Box::new(expr),
+        }
     }
 
     /// Parses expressions like `(A + B)` or `foo()` or `x`;
@@ -1008,6 +1031,41 @@ mod tests {
 
         let mut parser = Parser::new(&tokens);
         let ast = parser.parse_statement();
+
+        assert_eq!(expected, ast);
+    }
+
+    #[test]
+    fn unary_cast_of_call() {
+        let tokens = vec![
+            Token::LParen,
+            Token::Type(Type::Int(IntType {
+                signed: true,
+                width: 64,
+            })),
+            Token::RParen,
+            Token::Identifier("foo".to_string()),
+            Token::LParen,
+            Token::IntLiteral("1".to_string()),
+            Token::RParen,
+        ];
+
+        let expected = Expr::Unary(Unary {
+            operator: UnaryOperator::Cast(Type::Int(IntType {
+                signed: true,
+                width: 64,
+            })),
+            expr: Box::new(Expr::Call(Call {
+                function_name: "foo".to_string(),
+                args: vec![Expr::IntLiteral(IntLiteral {
+                    negative: false,
+                    value: "1".to_string(),
+                })],
+            })),
+        });
+
+        let mut parser = Parser::new(&tokens);
+        let ast = parser.parse_expr();
 
         assert_eq!(expected, ast);
     }

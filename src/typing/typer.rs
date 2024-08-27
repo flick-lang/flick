@@ -1,11 +1,12 @@
 use crate::ast::{
-    Assignment, Binary, Call, Comparison, Expr, FuncDef, FuncProto, GlobalStatement, If, IntLiteral, Program, Statement, VarDeclaration, WhileLoop, FuncVisibility
+    Assignment, Binary, Call, Comparison, Expr, FuncDef, FuncProto, FuncVisibility,
+    GlobalStatement, If, IntLiteral, Program, Statement, VarDeclaration, WhileLoop,
 };
 use crate::scope_manager::ScopeManager;
 use crate::typed_ast::{
     TypedAssignment, TypedBinary, TypedCall, TypedComparison, TypedExpr, TypedFuncDef,
-    TypedIdentifier, TypedIf, TypedIntLiteral, TypedProgram, TypedStatement, TypedVarDeclaration,
-    TypedWhileLoop, TypedGlobalStatement
+    TypedGlobalStatement, TypedIdentifier, TypedIf, TypedIntLiteral, TypedProgram, TypedStatement,
+    TypedVarDeclaration, TypedWhileLoop,
 };
 use crate::types::IntType;
 use crate::Type;
@@ -62,8 +63,8 @@ impl Typer {
         if func_proto.func_visibility != FuncVisibility::Public {
             panic!("The 'main' function should be public");
         }
-        
-        if func_proto.params.len() > 0 {
+
+        if !func_proto.params.is_empty() {
             panic!("The 'main' function should not accept any parameters");
         }
 
@@ -251,6 +252,7 @@ impl Typer {
                 TypedExpr::Comparison(self.type_comparison_expr(c, desired_type))
             }
             Expr::Call(c) => TypedExpr::Call(self.type_call(c, desired_type)),
+            Expr::Unary(_) => todo!(),
         }
     }
 

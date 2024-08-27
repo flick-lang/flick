@@ -25,9 +25,13 @@ logical_or       := {logical_and or} logical_and
 logical_and      := {eq_neq_expr and} eq_neq_expr
 comparison_expr  := {add_sub_expr !=,==} add_sub_expr
 add_sub_expr     := {mul_div_rem_expr (+-)} mul_div_rem_expr
-mul_div_rem_expr := {primary_expr (*/%)} primary_expr
+mul_div_rem_expr := {unary_expr (*/%)} unary_expr
+unary_expr       := unary_op unary_expr | primary_expr
 primary_expr     := atom | call | '(' expr ')'
-                          ^^^^ will become call_and_index_expr
+                           ^^^^ will become call_and_index_expr
+
+unary_op     := cast          # In the future, this will include things like !
+cast         := '(' VARTYPE ')'
 
 // call_and_index_expr  := IDENTIFIER { [ '(' [args] ')' ] { '[' [index]  ']' } }
 call        := IDENTIFIER [ '(' [args] ')' ]
