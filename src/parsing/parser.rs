@@ -506,7 +506,7 @@ impl<'a> Parser<'a> {
         self.assert_next_token(Token::LParen);
         let cast_type = self.parse_type();
         self.assert_next_token(Token::RParen);
-        let operand = self.parse_primary_expr();
+        let operand = self.parse_unary_expr();
 
         Unary {
             operator: UnaryOperator::Cast(cast_type),
