@@ -556,7 +556,7 @@ impl Compiler {
     /// Compiles a negation expression.
     unsafe fn compile_negation(&mut self, operand: LLVMValueRef, source_type: &Type) -> LLVMValueRef {
         match source_type {
-            Type::Int(_) => LLVMBuildNeg(self.builder, operand, cstr!("neg")),
+            Type::Int(IntType { signed: true, .. }) => LLVMBuildNeg(self.builder, operand, cstr!("neg")),
             _ => panic!("Unsupported type for negation, can only handle integers; this should have been handled by typer"),
         }
     }
