@@ -232,7 +232,6 @@ impl Typer {
         ret.map(|e| self.type_expr(e, Some(function_return_type)))
     }
 
-    // desired type is optional because, for example, 17 doesn't have a desired type
     /// Recursively type-checks the provided expression, confirming that it is of type
     /// `desired_type`.
     ///
@@ -247,7 +246,7 @@ impl Typer {
                 TypedExpr::IntLiteral(self.type_int_literal(int, desired_type))
             }
             Expr::BoolLiteral(b) => TypedExpr::BoolLiteral(*b),
-            Expr::Binary(b) => TypedExpr::Binary(self.type_bin_expr(b, desired_type)),
+            Expr::Binary(b) => TypedExpr::Binary(self.type_binary_expr(b, desired_type)),
             Expr::Comparison(c) => {
                 TypedExpr::Comparison(self.type_comparison_expr(c, desired_type))
             }
@@ -308,10 +307,10 @@ impl Typer {
     }
 
     /// Types a binary expression; see [Typer::type_expr] for details.
-    fn type_bin_expr(&mut self, bin_expr: &Binary, desired_type: Option<&Type>) -> TypedBinary {
-        let left = self.type_expr(&bin_expr.left, desired_type);
-        let operator = bin_expr.operator;
-        let right = self.type_expr(&bin_expr.right, desired_type);
+    fn type_binary_expr(&mut self, binary_expr: &Binary, desired_type: Option<&Type>) -> TypedBinary {
+        let left = self.type_expr(&binary_expr.left, desired_type);
+        let operator = binary_expr.operator;
+        let right = self.type_expr(&binary_expr.right, desired_type);
 
         let left_type = self.find_type(&left);
         let right_type = self.find_type(&right);

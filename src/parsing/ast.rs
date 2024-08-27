@@ -280,7 +280,7 @@ pub struct Call {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Unary {
     pub operator: UnaryOperator,
-    pub expr: Box<Expr>,
+    pub operand: Box<Expr>,
 }
 
 /// A unary operator, like "cast to u32" or "not".

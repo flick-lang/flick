@@ -506,11 +506,11 @@ impl<'a> Parser<'a> {
         self.assert_next_token(Token::LParen);
         let cast_type = self.parse_type();
         self.assert_next_token(Token::RParen);
-        let expr = self.parse_primary_expr();
+        let operand = self.parse_primary_expr();
 
         Unary {
             operator: UnaryOperator::Cast(cast_type),
-            expr: Box::new(expr),
+            operand: Box::new(operand),
         }
     }
 
@@ -1055,7 +1055,7 @@ mod tests {
                 signed: true,
                 width: 64,
             })),
-            expr: Box::new(Expr::Call(Call {
+            operand: Box::new(Expr::Call(Call {
                 function_name: "foo".to_string(),
                 args: vec![Expr::IntLiteral(IntLiteral {
                     negative: false,
