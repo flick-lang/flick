@@ -366,7 +366,7 @@ impl Typer {
         let result_type = match left_type {
             t @ Type::Int(_) => t,
             Type::Func(f) => *f.return_type,
-            _ => panic!("Unsupported lhs and rhs types for binary expr; expected integer but got '{}'", left_type)
+            Type::Bool | Type::Void => panic!("Unsupported lhs and rhs types for binary expr; expected integer but got '{}'", left_type)
         };
 
         TypedBinary {
