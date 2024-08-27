@@ -34,6 +34,7 @@
 
 ### Quick Todos
 
+- [ ] Add rustfmt.toml file for fmt and also add warn = ["clippy::unnecessary_mut_passed"] (and other warnings, like docs?)
 - [ ] Implement the '-' unary operator and use it to parse negative literals.
     - [ ] THEN, optionally, type-check to make sure that '-' applied to an unsigned int gets stored in signed int.
 - [ ] Change comparison_expr to separate < <= > >= from == != (which have lower precedence). Update grammar and parsing.

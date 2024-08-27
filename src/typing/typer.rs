@@ -281,7 +281,7 @@ impl Typer {
         };
 
         let typed_operand = self.type_expr(&unary.operand, desired_operand_type);
-        let operand_type = self.find_type(&typed_operand);
+        let operand_type = typed_operand.get_type();
 
         // Now that we know the type of the operand, we can check if the unary operator is valid
         match &unary.operator {
@@ -357,8 +357,8 @@ impl Typer {
         let operator = binary_expr.operator;
         let right = self.type_expr(&binary_expr.right, desired_type);
 
-        let left_type = self.find_type(&left);
-        let right_type = self.find_type(&right);
+        let left_type = left.get_type();
+        let right_type = right.get_type();
         if left_type != right_type {
             panic!(
                 "Operator '{}' needs left-hand-side ({}) and right-hand-side ({}) to be the same type",
@@ -397,8 +397,8 @@ impl Typer {
         let operator = comparison.operator;
         let right = self.type_expr(&comparison.right, None);
 
-        let left_type = self.find_type(&left);
-        let right_type = self.find_type(&right);
+        let left_type = left.get_type();
+        let right_type = right.get_type();
 
         if left_type != right_type {
             panic!(
@@ -464,19 +464,6 @@ impl Typer {
         }
     }
 
-    /// Extracts the type from a typed expression.
-    fn find_type(&mut self, typed_expr: &TypedExpr) -> Type {
-        match typed_expr {
-            TypedExpr::Identifier(id) => id.id_type.clone(),
-            TypedExpr::IntLiteral(int) => Type::Int(int.int_type),
-            TypedExpr::BoolLiteral(_) => Type::Bool,
-            TypedExpr::Binary(binary) => binary.result_type.clone(),
-            TypedExpr::Comparison(_) => Type::Bool,
-            TypedExpr::Call(call) => Type::Func(call.function_proto.clone()),
-            TypedExpr::Unary(unary) => unary.result_type.clone(),
-        }
-    }
-    
     /// Panics if the cast is invalid, like casting from an unsigned type to a signed type.
     fn check_valid_cast(cast_type: &Type, operand_type: &Type) {
         match (cast_type, operand_type) {
