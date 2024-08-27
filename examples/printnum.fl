@@ -1,0 +1,24 @@
+
+
+extern fn putchar(u8 c) u8
+
+pub fn printnum(u64 n) {
+    u64 reversed = 0
+    while n > 0 {
+        reversed *= 10
+        reversed += n % 10
+        n /= 10
+    }
+    while reversed > 0 {
+        u8 digit = (u8) (reversed % 10)
+        u8 _ = putchar(48 + digit)
+        reversed /= 10
+    }
+}
+
+pub fn main() u8 {
+    printnum(2468)
+    // newline
+    putchar(10) 
+    ret 0
+}

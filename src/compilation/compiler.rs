@@ -454,7 +454,7 @@ impl Compiler {
             TypedExpr::Binary(bin_expr) => self.compile_bin_expr(bin_expr),
             TypedExpr::Comparison(comparison) => self.compile_comparison_expr(comparison),
             TypedExpr::Call(call) => self.compile_call(call),
-            TypedExpr::Unary(_) => todo!(),
+            TypedExpr::Unary(unary) => self.compile_unary(unary),
         }
     }
 
@@ -519,6 +519,39 @@ impl Compiler {
                 IntType { signed: true, .. } => LLVMBuildSRem(self.builder, lhs, rhs, cstr!("srem")),
                 IntType { signed: false, .. } => LLVMBuildURem(self.builder, lhs, rhs, cstr!("urem")),
             }
+        }
+    }
+
+    /// Compiles a unary expression.
+    unsafe fn compile_unary(&mut self, unary: &TypedUnary) -> LLVMValueRef {
+        let operand = self.compile_expr(&unary.operand);
+        let source_type = &unary.operand.get_type();
+        match &unary.operator {
+            UnaryOperator::Cast(cast_type) => self.compile_cast(operand, cast_type, source_type),
+        }
+    }
+
+    /// Compiles a cast expression.
+    unsafe fn compile_cast(&mut self, operand: LLVMValueRef, cast_type: &Type, source_type: &Type) -> LLVMValueRef {
+        let (cast_int_type, source_int_type) = match (cast_type, source_type) {
+            (Type::Int(cast), Type::Int(source)) => (cast, source),
+            (cast, source) => {
+                panic!("Unsupported cast from {} to {} should've been handled by the typer", cast, source)
+            }
+        };
+
+        if cast_int_type.width < source_int_type.width {
+            LLVMBuildTrunc(self.builder, operand, self.to_llvm_type(cast_type), cstr!("trunc"))
+        } else if cast_int_type.width > source_int_type.width {
+            if cast_int_type.signed {
+                LLVMBuildSExt(self.builder, operand, self.to_llvm_type(cast_type), cstr!("sext"))
+            } else {
+                LLVMBuildZExt(self.builder, operand, self.to_llvm_type(cast_type), cstr!("zext"))
+            }
+        } else {
+            // Width is the same. No need to cast.
+            // (Note: Typer ensures source_int_type.signed == cast_int_type.signed)
+            operand
         }
     }
 
