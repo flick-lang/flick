@@ -23,6 +23,7 @@
 ## Roadmap to a better langauge
 
 - [ ] _Auto_ casting int types / escalating them
+- [ ] Add ".always_true()" to TypedExpr and use that inside of "always_returns()" to analyze loops and ifs
 - [ ] Think deeper about how we want to handle u8 and i8 common type
 - [ ] Fully nice error message (maybe look into anyhow or thiserror?)
 - [ ] Implement importing of other files
