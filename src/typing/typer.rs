@@ -235,7 +235,14 @@ impl Typer {
         ret: Option<&Expr>,
         function_return_type: &Type,
     ) -> Option<TypedExpr> {
-        ret.map(|e| self.type_expr(e, Some(function_return_type)))
+        match (ret, function_return_type) {
+            (Some(_), Type::Void) => panic!("Expected function to return nothing, but found 'ret' with a value"),
+            (Some(expr), desired) => Some(self.type_expr(expr, Some(desired))),
+            (None, Type::Void) => None,
+            (None, _) => panic!(
+                "Expected function to return a '{}', but found 'ret' without a value", function_return_type
+            )
+        }
     }
 
     /// Recursively type-checks the provided expression, confirming that it is of type
