@@ -60,7 +60,8 @@ impl TypedStatement {
             Self::VarDeclaration(_) | Self::Assignment(_) | Self::Call(_) => false,
             Self::Return(_) => true,
 
-            Self::WhileLoop(while_loop) => some_statement_always_returns(&while_loop.body),
+            // While loops can't always return; their condition might be false
+            Self::WhileLoop(_) => false,
 
             // Without an 'else' branch, an if statement doesn't always return
             Self::If(TypedIf { else_body: None, .. }) => false,
