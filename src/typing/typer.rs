@@ -123,10 +123,9 @@ impl Typer {
                 panic!("Function '{}' does not always return a value", func_def.proto.name);
             }
 
-            match func_body.last() {
-                Some(TypedStatement::Return(_)) => {}
-                _ => func_body.push(TypedStatement::Unreachable),
-            }
+           if !func_body.last().is_some_and(|s| s.always_returns()) {
+                func_body.push(TypedStatement::Unreachable)
+           }
         }
 
         self.scope_manager.exit_scope();
