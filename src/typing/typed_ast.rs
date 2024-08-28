@@ -1,6 +1,6 @@
 use crate::ast::{BinaryOperator, ComparisonOperator, FuncProto, UnaryOperator};
 use crate::types::IntType;
-use crate::Type;
+use crate::types::Type;
 
 /// A typed version of [Program](crate::ast::Program)
 #[derive(Debug, PartialEq, Eq, Clone)]

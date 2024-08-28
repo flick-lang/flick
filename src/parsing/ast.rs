@@ -1,7 +1,7 @@
 use crate::lexing::token::ComparatorSymbol::*;
 use crate::lexing::token::OperatorSymbol::*;
 use crate::lexing::token::{ComparatorSymbol, OperatorSymbol};
-use crate::Type;
+use crate::types::Type;
 use std::fmt;
 
 /// A program consisting of at least one [GlobalStatement].

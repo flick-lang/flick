@@ -2,7 +2,7 @@ use crate::lexing::token::AssignmentSymbol::*;
 use crate::lexing::token::OperatorSymbol::*;
 use crate::lexing::token::Token;
 use crate::parsing::ast::*;
-use crate::Type;
+use crate::types::Type;
 
 /// A struct that takes tokens and parses them into a [abstract syntax tree](crate::parsing::ast)
 pub struct Parser<'a> {

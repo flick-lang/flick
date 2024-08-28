@@ -35,7 +35,7 @@ use std::collections::HashMap;
 /// use llvm_sys::core::{LLVMConstInt, LLVMIntType};
 /// use llvm_sys::prelude::*;
 /// use flick::ScopeManager;
-/// use flick::Type;
+/// use flick::types::Type;
 ///
 /// let outer_val: LLVMValueRef = unsafe { LLVMConstInt(LLVMIntType(64), 20345, 1) };
 /// let inner_val: LLVMValueRef = unsafe { LLVMConstInt(LLVMIntType(64), 1999, 1) };

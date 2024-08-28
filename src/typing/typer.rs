@@ -10,7 +10,7 @@ use crate::typed_ast::{
     TypedUnary, TypedVarDeclaration, TypedWhileLoop, some_statement_always_returns,
 };
 use crate::types::IntType;
-use crate::Type;
+use crate::types::Type;
 
 /// This struct handles the conversion from a regular [abstract syntax tree](crate::ast) to a
 /// [typed abstract syntax tree](crate::typed_ast). See [Typer::type_program] for details.

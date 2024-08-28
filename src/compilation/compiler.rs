@@ -26,9 +26,8 @@ use llvm_sys::LLVMLinkage::{LLVMExternalLinkage, LLVMInternalLinkage};
 
 use crate::ast::*;
 use crate::typed_ast::*;
-use crate::types::IntType;
+use crate::types::{Type, IntType};
 use crate::ScopeManager;
-use crate::Type;
 
 /// Converts a `&str`, like `"hi"`, into a pointer to a null-terminated C-style str.
 macro_rules! cstr {

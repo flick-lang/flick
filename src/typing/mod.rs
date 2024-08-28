@@ -7,19 +7,22 @@
 /// [expressions](typed_ast::TypedExpr), which break down further into components.
 ///
 ///
-/// For example, `9 * (2 + 3);` corresponds to the following expression:
+/// For example, the typed version of `9 * (2 + 3)` corresponds to the following expression:
 ///
-/// ```ignore
+/// ```
 /// use flick::ast::BinaryOperator;
 /// use flick::typed_ast::*;
+/// use flick::types::{Type, IntType};
 /// let _ = TypedExpr::Binary(TypedBinary {
-///     left: Box::new(TypedExpr::IntLiteral(TypedIntLiteral { int_value: "9".to_string(), int_type: Type::Int(IntType { width: 32 })})),
+///     left: Box::new(TypedExpr::IntLiteral(TypedIntLiteral { int_value: "9".to_string(), int_type: IntType { signed: false, width: 64 }})),
 ///     operator: BinaryOperator::Multiply,
 ///     right: Box::new(TypedExpr::Binary(TypedBinary {
-///         left: Box::new(TypedExpr::IntLiteral(TypedIntLiteral { int_value: "2".to_string(), int_type: Type::Int(IntType { width: 32 })})),
+///         left: Box::new(TypedExpr::IntLiteral(TypedIntLiteral { int_value: "2".to_string(), int_type: IntType { signed: false, width: 64 }})),
 ///         operator: BinaryOperator::Add,
-///         right: Box::new(TypedExpr::IntLiteral(TypedIntLiteral { int_value: "3".to_string(), int_type: Type::Int(IntType { width: 32 })})),
+///         right: Box::new(TypedExpr::IntLiteral(TypedIntLiteral { int_value: "3".to_string(), int_type: IntType { signed: false, width: 64 }})),
+///         result_type: Type::Int(IntType { signed: false, width: 64 }),
 ///     })),
+///     result_type: Type::Int(IntType { signed: false, width: 64 }),
 /// });
 /// ```
 pub mod typed_ast;

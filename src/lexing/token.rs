@@ -1,4 +1,4 @@
-use crate::Type;
+use crate::types::Type;
 use std::fmt;
 
 /// An enum to represent any given non-whitespace token in a source code

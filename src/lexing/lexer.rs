@@ -3,7 +3,7 @@ use crate::lexing::token::ComparatorSymbol::*;
 use crate::lexing::token::OperatorSymbol::*;
 use crate::lexing::token::Token;
 use crate::types::IntType;
-use crate::Type;
+use crate::types::Type;
 
 /// A struct that takes source code and converts it tokens (see [Token])
 ///
