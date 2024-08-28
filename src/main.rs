@@ -1,12 +1,12 @@
 use std::fs::File;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use std::process::Command;
 
 use anyhow::Result;
 use clap::Parser as ClapParser;
 
-use flick::{Compiler, Lexer, Parser, Typer};
+use flick::{error::FlickError, Compiler, Lexer, Parser, Typer};
 
 /// A command line interface using [clap]
 #[derive(ClapParser)]
@@ -85,7 +85,13 @@ fn main() -> Result<()> {
     file.read_to_string(&mut file_contents)?;
     let file_chars: Vec<_> = file_contents.chars().collect();
 
-    let tokens = Lexer::lex(&file_chars)?;
+    let tokens = match Lexer::lex(&file_chars) {
+        Ok(tokens) => tokens,
+        Err(err) => {
+            print_error(&cli.source_path, &file_chars, err);
+            return Ok(());
+        }
+    };
 
     let program = Parser::parse_program(&tokens);
 
@@ -127,4 +133,38 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+
+fn print_error(source_path: impl AsRef<Path>, file_chars: &[char], error: FlickError) {
+    // TODO: Write to string then print string to stderr instead of printing to stderr directly
+
+    let line_start_index = file_chars
+        .iter()
+        .take(error.index)
+        .take_while(|c: &&char| **c != '\n')
+        .count() + 1;
+    let line_num = file_chars[..line_start_index].iter().filter(|&&c| c == '\n').count() + 1;
+    let col_num = error.index - line_start_index + 1;
+    let line = &file_chars[line_start_index..]
+        .iter()
+        .take_while(|&&c| c != '\n')
+        .collect::<String>();
+
+    eprintln!("{}: {}", "error", error);
+
+    let max_line_num_width = (line_num+1).to_string().len();
+    // if line_num > 1 {
+    //     write_source_code_line(&file_chars[line_start_index - line.len()..line_start_index], line_num - 1, max_line_num_width);
+    // }
+    write_source_code_line(line, line_num, max_line_num_width);
+    // let num_lines = file_chars.iter().filter(|&&c| c == '\n').count() + 1;
+    // if line_num < num_lines {
+    //     write_source_code_line(&file_chars[line_start_index + line.len()..], line_num + 1, max_line_num_width);
+    // }
+    eprintln!("in {}:{}:{}", source_path.as_ref().display(), line_num, col_num);
+}
+
+fn write_source_code_line(line: &str, line_num: usize, max_line_num_width: usize) {
+    eprintln!(" {:0>width$} │ {}", line_num, line, width = max_line_num_width);
 }
