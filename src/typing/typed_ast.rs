@@ -40,6 +40,36 @@ pub enum TypedStatement {
     If(TypedIf),
 }
 
+
+/// Returns true if any of the statements in the slice always return.
+pub fn some_statement_always_returns(statements: &[TypedStatement]) -> bool {
+    statements.iter().any(|stmt| stmt.always_returns())
+}
+
+
+impl TypedStatement {
+    /// Returns true if this statement always returns, no matter the control flow.
+    pub fn always_returns(&self) -> bool {
+        match self {
+            Self::VarDeclaration(_) | Self::Assignment(_) | Self::Call(_) => false,
+            Self::Return(_) => true,
+
+            Self::WhileLoop(while_loop) => some_statement_always_returns(&while_loop.body),
+
+            Self::If(if_stmt) => {
+                let then_always_returns = some_statement_always_returns(&if_stmt.then_body);
+                let else_always_returns = match if_stmt.else_body.as_ref() {
+                    Some(else_body) => some_statement_always_returns(else_body),
+                    None => true,
+                };
+        
+                then_always_returns && else_always_returns
+            }
+
+        }
+    }
+}
+
 /// A typed version of [VarDeclaration](crate::ast::VarDeclaration)
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TypedVarDeclaration {

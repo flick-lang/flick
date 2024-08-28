@@ -7,7 +7,7 @@ use crate::scope_manager::ScopeManager;
 use crate::typed_ast::{
     TypedAssignment, TypedBinary, TypedCall, TypedComparison, TypedExpr, TypedFuncDef,
     TypedGlobalStatement, TypedIdentifier, TypedIf, TypedIntLiteral, TypedProgram, TypedStatement,
-    TypedUnary, TypedVarDeclaration, TypedWhileLoop,
+    TypedUnary, TypedVarDeclaration, TypedWhileLoop, some_statement_always_returns,
 };
 use crate::types::IntType;
 use crate::Type;
@@ -117,6 +117,11 @@ impl Typer {
                 Some(TypedStatement::Return(_)) => {}
                 _ => func_body.push(TypedStatement::Return(None)),
             }
+        } 
+        
+        // Confirm that non-void functions always return a value
+        if Type::Void != *func_def.proto.return_type && !some_statement_always_returns(&func_body) {
+            panic!("Function '{}' does not always return a value", func_def.proto.name);
         }
 
         self.scope_manager.exit_scope();
@@ -510,6 +515,7 @@ mod tests {
     #[should_panic(expected = "No main function defined")]
     fn missing_main_function() {
         // pub fn not_main() i32 {
+        //   ret 0
         // }
 
         let program = Program {
@@ -520,7 +526,7 @@ mod tests {
                     params: vec![],
                     return_type: Box::new(Type::Int(IntType { width: 32, signed: true })),
                 },
-                body: vec![],
+                body: vec![Statement::Return(Some(Expr::IntLiteral("0".to_string())))],
             })],
         };
 
@@ -532,6 +538,7 @@ mod tests {
     #[should_panic(expected = "The 'main' function should return a u8")]
     fn invalid_main_ret_type() {
         // pub fn main() i32 {
+        //    ret 0
         // }
 
         let program = Program {
@@ -542,7 +549,7 @@ mod tests {
                     params: vec![],
                     return_type: Box::new(Type::Int(IntType { width: 32, signed: true })),
                 },
-                body: vec![],
+                body: vec![Statement::Return(Some(Expr::IntLiteral("0".to_string())))],
             })],
         };
 
@@ -554,6 +561,7 @@ mod tests {
     #[should_panic(expected = "The 'main' function should not accept any parameters")]
     fn invalid_main_params() {
         // pub fn main(i32 a) i32 {
+        //    ret 0
         // }
 
         let program = Program {
@@ -569,7 +577,7 @@ mod tests {
                     ],
                     return_type: Box::new(Type::Int(IntType { width: 32, signed: true })),
                 },
-                body: vec![],
+                body: vec![Statement::Return(Some(Expr::IntLiteral("0".to_string())))],
             })],
         };
 
@@ -783,5 +791,27 @@ mod tests {
         let mut typer = Typer::new();
         let actual_typed_program = typer.type_program(&program);
         assert_eq!(expected_typed_program, actual_typed_program);
+    }
+
+    #[test]
+    #[should_panic(expected = "Function 'main' does not always return a value")]
+    fn main_without_return() {
+        // pub fn main() u8 {
+        // }
+
+        let program = Program {
+            global_statements: vec![GlobalStatement::FuncDef(FuncDef {
+                proto: FuncProto {
+                    func_visibility: FuncVisibility::Public,
+                    name: "main".to_string(),
+                    params: vec![],
+                    return_type: Box::new(Type::Int(IntType { width: 8, signed: false })),
+                },
+                body: vec![],
+            })],
+        };
+
+        let mut typer = Typer::new();
+        let _ = typer.type_program(&program);
     }
 }
