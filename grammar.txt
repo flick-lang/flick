@@ -30,7 +30,7 @@ unary_expr       := unary_op unary_expr | primary_expr
 primary_expr     := atom | call | '(' expr ')'
                            ^^^^ will become call_and_index_expr
 
-unary_op     :=  '(' VARTYPE ')'   # In the future, we will add | '-' | '!', etc.
+unary_op     :=  '(' VARTYPE ')' | '-'
 
 // call_and_index_expr  := IDENTIFIER { [ '(' [args] ')' ] { '[' [index]  ']' } }
 call        := IDENTIFIER [ '(' [args] ')' ]

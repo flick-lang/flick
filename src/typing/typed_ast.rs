@@ -38,6 +38,42 @@ pub enum TypedStatement {
     Return(Option<TypedExpr>),
     Call(TypedCall),
     If(TypedIf),
+
+    /// Compiles to LLVM's UnreachableInst
+    /// 
+    /// The type checker places this at the end of functions that don't expliclty return on their final line,
+    /// but whose control flow analysis shows that they always return prior to the final line.
+    Unreachable,
+}
+
+
+/// Returns true if any of the statements in the slice always return.
+pub fn some_statement_always_returns(statements: &[TypedStatement]) -> bool {
+    statements.iter().any(|stmt| stmt.always_returns())
+}
+
+
+impl TypedStatement {
+    /// Returns true if this statement always returns, no matter the control flow.
+    pub fn always_returns(&self) -> bool {
+        match self {
+            Self::VarDeclaration(_) | Self::Assignment(_) | Self::Call(_) => false,
+            Self::Return(_) => true,
+
+            // While loops can't always return; their condition might be false
+            Self::WhileLoop(_) => false,
+
+            // Without an 'else' branch, an if statement doesn't always return
+            Self::If(TypedIf { else_body: None, .. }) => false,
+            // With an 'else' branch, it always returns if both branches always return
+            Self::If(TypedIf { else_body: Some(else_body), then_body, .. }) => {
+                some_statement_always_returns(else_body)
+                && some_statement_always_returns(&then_body)
+            },
+
+            Self::Unreachable => panic!("Unreachable statements should not be analyzed for always_returns"),
+        }
+    }
 }
 
 /// A typed version of [VarDeclaration](crate::ast::VarDeclaration)
