@@ -111,14 +111,18 @@ impl<'a> Lexer<'a> {
             ('}', _) => Token::RSquirly,
             ('\n', _) => Token::Newline,
 
-            (c, _) => return Err(FlickError {
-                index: self.cursor,
-                kind: ErrorKind::LexingError(LexingError::UnexpectedCharacter(*c)),
-            })
+            (c, _) => return Err(self.err(LexingError::UnexpectedCharacter(*c)))
         };
 
         self.skip_chars(peeked_token.get_char_count());
         Ok(peeked_token)
+    }
+
+    fn err(&self, kind: LexingError) -> FlickError {
+        FlickError {
+            index: self.cursor,
+            kind: ErrorKind::LexingError(kind),
+        }
     }
 
     /// Returns (and consumes) source code characters while `predicate` evaluates to `true`

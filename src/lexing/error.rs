@@ -6,7 +6,9 @@ pub enum LexingError {
 }
 
 impl fmt::Display for LexingError {
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UnexpectedCharacter(c) => write!(f, "unexpected character: '{}'", c),
+        }
     }
 }
