@@ -5,39 +5,19 @@ use crate::lexing::token::Token;
 use crate::types::IntType;
 use crate::types::Type;
 
-/// A struct that takes source code and converts it tokens (see [Token])
+use crate::error::{FlickError, ErrorKind};
+use super::error::LexingError;
+
+/// A struct that's used to convert source code into tokens (see [Token])
 ///
-/// Note that Lexer implements [Iterator][a], so using Lexer is simple.
+/// To use the lexer, see [Lexer::lex].
 ///
-/// First, create the lexer (`source_code` should be a `Vec<char>`)
-///
+/// # Examples
 /// ```
-/// # use flick::Lexer;
-/// # let source_code: Vec<_> = "foo(42)".to_string().chars().collect();
-/// let mut lexer = Lexer::new(&source_code);
+/// use flick::Lexer;
+/// let source_code: Vec<_> = "foo(42)".to_string().chars().collect();
+/// let mut tokens = Lexer::lex(&source_code);
 /// ```
-///
-/// Then, either collect the tokens:
-///
-/// ```
-/// # use flick::Lexer;
-/// # let source_code: Vec<_> = "foo(42)".to_string().chars().collect();
-/// # let mut lexer = Lexer::new(&source_code);
-/// let tokens: Vec<_> = lexer.collect();
-/// ```
-///
-/// or iterate through them:
-///
-/// ```
-/// # use flick::Lexer;
-/// # let source_code: Vec<_> = "foo(42)".to_string().chars().collect();
-/// # let mut lexer = Lexer::new(&source_code);
-/// for token in lexer {
-///     // ...
-/// }
-/// ```
-///
-/// [a]: #impl-Iterator-for-Lexer%3C'a%3E
 pub struct Lexer<'a> {
     /// Source code slice
     source_code: &'a [char],
@@ -50,12 +30,20 @@ pub struct Lexer<'a> {
 }
 
 impl<'a> Lexer<'a> {
-    /// Returns a lexer instance ready to lex the provided `source_code`.
-    pub fn new(source_code: &'a [char]) -> Self {
-        Self {
+    /// Converts the source code into a vector of tokens
+    /// 
+    /// Returns an `Err()` if lexing fails.
+    pub fn lex(source_code: &'a [char]) -> crate::Result<Vec<Token>> {
+        let mut lexer = Self {
             source_code,
             cursor: 0,
+        };
+
+        let mut tokens = Vec::new();
+        while lexer.cursor < lexer.source_code.len() {
+            tokens.push(lexer.next_token()?);
         }
+        Ok(tokens)
     }
 
     /// Returns (and consumes) a reference to the next character in the source code.
@@ -84,14 +72,19 @@ impl<'a> Lexer<'a> {
     ///
     /// Note: this function skips any initial whitespace (except for a newline, which is a
     /// token, namely [Token::Newline]).
-    pub fn next_token(&mut self) -> Option<Token> {
+    ///
+    /// # Assumptions
+    /// - There's at least one character of the source code left (`self.cursor < self.source_code`)
+    fn next_token(&mut self) -> crate::Result<Token> {
         self.skip_non_newline_whitespace();
 
+        let first_token = self.peek_char(1).expect("see assumptions in docstring");
+
         // Figure out what type the next token is and call handling function
-        let peeked_token = match (self.peek_char(1)?, self.peek_char(2)) {
-            ('a'..='z' | 'A'..='Z' | '_', _) => return Some(self.read_word()),
-            ('0'..='9', _) => return Some(self.read_int_literal()),
-            ('/', Some('/')) => return Some(self.read_comment()),
+        let peeked_token = match (first_token, self.peek_char(2)) {
+            ('a'..='z' | 'A'..='Z' | '_', _) => return Ok(self.read_word()),
+            ('0'..='9', _) => return Ok(self.read_int_literal()),
+            ('/', Some('/')) => return Ok(self.read_comment()),
 
             ('>', Some('=')) => Token::ComparatorSymbol(GreaterOrEqualTo),
             ('<', Some('=')) => Token::ComparatorSymbol(LessOrEqualTo),
@@ -118,11 +111,14 @@ impl<'a> Lexer<'a> {
             ('}', _) => Token::RSquirly,
             ('\n', _) => Token::Newline,
 
-            (c, _) => panic!("unexpected character: {:?}", c),
+            (c, _) => return Err(FlickError {
+                index: self.cursor,
+                kind: ErrorKind::LexingError(LexingError::UnexpectedCharacter(*c)),
+            })
         };
 
         self.skip_chars(peeked_token.get_char_count());
-        Some(peeked_token)
+        Ok(peeked_token)
     }
 
     /// Returns (and consumes) source code characters while `predicate` evaluates to `true`
@@ -219,15 +215,6 @@ impl<'a> Lexer<'a> {
     }
 }
 
-impl<'a> Iterator for Lexer<'a> {
-    type Item = Token;
-
-    /// This function is an alias for [Lexer::next_token()].
-    fn next(&mut self) -> Option<Self::Item> {
-        self.next_token()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -243,8 +230,7 @@ mod tests {
         ];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
-        let lexer = Lexer::new(&source_code_chars);
-        let received_tokens: Vec<_> = lexer.collect();
+        let received_tokens = Lexer::lex(&source_code_chars).unwrap();
 
         assert_eq!(received_tokens, expected_tokens);
     }
@@ -265,8 +251,7 @@ mod tests {
         ];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
-        let lexer = Lexer::new(&source_code_chars);
-        let received_tokens: Vec<_> = lexer.collect();
+        let received_tokens = Lexer::lex(&source_code_chars).unwrap();
 
         assert_eq!(received_tokens, expected_tokens);
     }
@@ -284,8 +269,7 @@ mod tests {
         ];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
-        let lexer = Lexer::new(&source_code_chars);
-        let received_tokens: Vec<_> = lexer.collect();
+        let received_tokens = Lexer::lex(&source_code_chars).unwrap();
 
         assert_eq!(received_tokens, expected_tokens);
     }
@@ -315,8 +299,7 @@ mod tests {
         ];
 
         let source_code_chars: Vec<_> = source_code.chars().collect();
-        let lexer = Lexer::new(&source_code_chars);
-        let received_tokens: Vec<_> = lexer.collect();
+        let received_tokens = Lexer::lex(&source_code_chars).unwrap();
 
         assert_eq!(received_tokens, expected_tokens);
     }

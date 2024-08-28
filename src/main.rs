@@ -85,11 +85,9 @@ fn main() -> Result<()> {
     file.read_to_string(&mut file_contents)?;
     let file_chars: Vec<_> = file_contents.chars().collect();
 
-    let lexer = Lexer::new(&file_chars);
-    let tokens: Vec<_> = lexer.collect();
+    let tokens = Lexer::lex(&file_chars)?;
 
-    let mut parser = Parser::new(&tokens);
-    let program = parser.parse_program();
+    let program = Parser::parse_program(&tokens);
 
     let mut typer = Typer::new();
     let typed_program = typer.type_program(&program);

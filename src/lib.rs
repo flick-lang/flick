@@ -21,7 +21,7 @@ pub mod types;
 /// Module to add types to [abstract syntax trees](ast)
 mod typing;
 /// Module to represent global Flick errors
-mod error;
+pub mod error;
 
 // TODO (Max): Should we remove pub use and just make users use absolute path (I kinda like the idea of that if we somehow make the paths nicer)
 pub use compilation::compiler::Compiler;
@@ -32,3 +32,4 @@ pub use parsing::parser::Parser;
 pub use scope_manager::ScopeManager;
 pub use typing::typed_ast;
 pub use typing::typer::Typer;
+pub use error::Result;

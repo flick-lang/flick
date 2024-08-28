@@ -13,9 +13,25 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    /// Returns a parsing instance ready to convert `tokens` into an [abstract syntax tree](crate::parsing::ast)
-    pub fn new(tokens: &'a [Token]) -> Self {
-        Self { tokens, cursor: 0 }
+    /// Parses as many global statements as possible and returns a [Program] containing them all.
+    pub fn parse_program(tokens: &'a [Token]) -> Program {
+        let mut parser = Self { 
+            tokens, 
+            cursor: 0 
+        };
+
+        let mut global_statements = Vec::new();
+
+        loop {
+            parser.skip_newlines_comments_and_docstrings();
+
+            match parser.parse_global_statement() {
+                Some(s) => global_statements.push(s),
+                None => break,
+            }
+        }
+
+        Program { global_statements }
     }
 
     /// Returns a reference to the next token and advances the cursor past it.
@@ -38,22 +54,6 @@ impl<'a> Parser<'a> {
     /// Advances the cursor past the next `n` tokens without returning anything.
     fn skip_token(&mut self) {
         self.cursor += 1;
-    }
-
-    /// Parses as many global statements as possible and returns a [Program] containing them all.
-    pub fn parse_program(&mut self) -> Program {
-        let mut global_statements = Vec::new();
-
-        loop {
-            self.skip_newlines_comments_and_docstrings();
-
-            match self.parse_global_statement() {
-                Some(s) => global_statements.push(s),
-                None => break,
-            }
-        }
-
-        Program { global_statements }
     }
 
     /// Parses a global statement, like an external function declaration or a function definition.
@@ -645,7 +645,7 @@ mod tests {
             var_value: Expr::IntLiteral("5".to_string()),
         }));
 
-        let mut parser = Parser::new(&tokens);
+        let mut parser = Parser { tokens: &tokens, cursor: 0 };
         let ast = parser.parse_statement();
 
         assert_eq!(expected, ast);
@@ -663,7 +663,7 @@ mod tests {
             value: Box::new(Expr::IntLiteral("10".to_string())),
         }));
 
-        let mut parser = Parser::new(&tokens);
+        let mut parser = Parser { tokens: &tokens, cursor: 0 };
         let ast = parser.parse_statement();
 
         assert_eq!(expected, ast);
@@ -688,7 +688,7 @@ mod tests {
             body: vec![],
         }));
 
-        let mut parser = Parser::new(&tokens);
+        let mut parser = Parser { tokens: &tokens, cursor: 0 };
         let ast = parser.parse_statement();
 
         assert_eq!(expected, ast);
@@ -731,7 +731,7 @@ mod tests {
             right: Box::new(Expr::IntLiteral("5".to_string())),
         });
 
-        let mut parser = Parser::new(&tokens);
+        let mut parser = Parser { tokens: &tokens, cursor: 0 };
         let ast = parser.parse_expr();
 
         assert_eq!(expected, ast);
@@ -758,7 +758,7 @@ mod tests {
             })),
         });
 
-        let mut parser = Parser::new(&tokens);
+        let mut parser = Parser { tokens: &tokens, cursor: 0 };
         let ast = parser.parse_expr();
 
         assert_eq!(expected, ast);
@@ -783,7 +783,7 @@ mod tests {
             value: Box::new(Expr::IntLiteral("2".to_string())),
         })];
 
-        let mut parser = Parser::new(&tokens);
+        let mut parser = Parser { tokens: &tokens, cursor: 0 };
         let ast = parser.parse_body();
 
         assert_eq!(expected, ast);
@@ -816,7 +816,7 @@ mod tests {
             ],
         });
 
-        let mut parser = Parser::new(&tokens);
+        let mut parser = Parser { tokens: &tokens, cursor: 0 };
         let ast = parser.parse_expr();
 
         assert_eq!(expected, ast);
@@ -851,8 +851,7 @@ mod tests {
             })],
         };
 
-        let mut parser = Parser::new(&tokens);
-        let ast = parser.parse_program();
+        let ast = Parser::parse_program(&tokens);
 
         assert_eq!(expected, ast);
     }
@@ -903,7 +902,7 @@ mod tests {
             ]),
         }));
 
-        let mut parser = Parser::new(&tokens);
+        let mut parser = Parser { tokens: &tokens, cursor: 0 };
         let ast = parser.parse_statement();
 
         assert_eq!(expected, ast);
@@ -923,7 +922,7 @@ mod tests {
             right: Box::new(Expr::IntLiteral("5".to_string())),
         }))));
 
-        let mut parser = Parser::new(&tokens);
+        let mut parser = Parser { tokens: &tokens, cursor: 0 };
         let ast = parser.parse_statement();
 
         assert_eq!(expected, ast);
@@ -945,7 +944,7 @@ mod tests {
             })),
         }));
 
-        let mut parser = Parser::new(&tokens);
+        let mut parser = Parser { tokens: &tokens, cursor: 0 };
         let ast = parser.parse_statement();
 
         assert_eq!(expected, ast);
@@ -1009,7 +1008,7 @@ mod tests {
             }))
         }));
 
-        let mut parser = Parser::new(&tokens);
+        let mut parser = Parser { tokens: &tokens, cursor: 0 };
         let ast = parser.parse_statement();
 
         assert_eq!(expected, ast);
@@ -1035,7 +1034,7 @@ mod tests {
             })),
         });
 
-        let mut parser = Parser::new(&tokens);
+        let mut parser = Parser { tokens: &tokens, cursor: 0 };
         let ast = parser.parse_expr();
 
         assert_eq!(expected, ast);
