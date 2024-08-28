@@ -293,7 +293,7 @@ impl Compiler {
             TypedStatement::Return(r) => self.compile_ret_statement(r),
             TypedStatement::Call(c) => _ = self.compile_call(c),
             TypedStatement::If(i) => self.compile_if_statement(i),
-            TypedStatement::Unreachable => { LLVMBuildUnreachable(self.builder); },
+            TypedStatement::Unreachable => self.compile_unreachable(),
         }
     }
 
@@ -671,6 +671,11 @@ impl Compiler {
             return None;
         }
         Some(cur_func)
+    }
+    
+    /// Compiles an unreachable instruction, terminating the current block.
+    unsafe fn compile_unreachable(&self) {
+        LLVMBuildUnreachable(self.builder);
     }
 }
 
