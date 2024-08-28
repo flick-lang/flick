@@ -56,16 +56,13 @@ impl TypedStatement {
 
             Self::WhileLoop(while_loop) => some_statement_always_returns(&while_loop.body),
 
-            Self::If(if_stmt) => {
-                let then_always_returns = some_statement_always_returns(&if_stmt.then_body);
-                let else_always_returns = match if_stmt.else_body.as_ref() {
-                    Some(else_body) => some_statement_always_returns(else_body),
-                    None => true,
-                };
-        
-                then_always_returns && else_always_returns
-            }
-
+            // Without an 'else' branch, an if statement doesn't always return
+            Self::If(TypedIf { else_body: None, .. }) => false,
+            // With an 'else' branch, it always returns if both branches always return
+            Self::If(TypedIf { else_body: Some(else_body), then_body, .. }) => {
+                some_statement_always_returns(else_body)
+                && some_statement_always_returns(&then_body)
+            },
         }
     }
 }

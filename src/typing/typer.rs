@@ -111,17 +111,17 @@ impl Typer {
 
         let mut func_body = self.type_body(&func_def.body, &func_def.proto.return_type);
 
-        // Implicitly return void at end of functions with void return type
         if Type::Void == *func_def.proto.return_type {
+            // Void functions: implicitly return to make sure the basic block is terminated
             match func_body.last() {
                 Some(TypedStatement::Return(_)) => {}
                 _ => func_body.push(TypedStatement::Return(None)),
             }
-        } 
-        
-        // Confirm that non-void functions always return a value
-        if Type::Void != *func_def.proto.return_type && !some_statement_always_returns(&func_body) {
-            panic!("Function '{}' does not always return a value", func_def.proto.name);
+        } else {
+            // Non-void functions: make sure all control paths lead to a return
+            if !some_statement_always_returns(&func_body) {
+                panic!("Function '{}' does not always return a value", func_def.proto.name);
+            }
         }
 
         self.scope_manager.exit_scope();
