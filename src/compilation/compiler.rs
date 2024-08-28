@@ -293,6 +293,7 @@ impl Compiler {
             TypedStatement::Return(r) => self.compile_ret_statement(r),
             TypedStatement::Call(c) => _ = self.compile_call(c),
             TypedStatement::If(i) => self.compile_if_statement(i),
+            TypedStatement::Unreachable => { LLVMBuildUnreachable(self.builder); },
         }
     }
 

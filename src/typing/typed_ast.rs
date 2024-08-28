@@ -38,6 +38,12 @@ pub enum TypedStatement {
     Return(Option<TypedExpr>),
     Call(TypedCall),
     If(TypedIf),
+
+    /// Compiles to LLVM's UnreachableInst
+    /// 
+    /// The type checker places this at the end of functions that don't expliclty return on their final line,
+    /// but whose control flow analysis shows that they always return prior to the final line.
+    Unreachable,
 }
 
 
@@ -63,6 +69,8 @@ impl TypedStatement {
                 some_statement_always_returns(else_body)
                 && some_statement_always_returns(&then_body)
             },
+
+            Self::Unreachable => panic!("Unreachable statements should not be analyzed for always_returns"),
         }
     }
 }

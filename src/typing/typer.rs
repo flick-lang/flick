@@ -122,6 +122,11 @@ impl Typer {
             if !some_statement_always_returns(&func_body) {
                 panic!("Function '{}' does not always return a value", func_def.proto.name);
             }
+
+            match func_body.last() {
+                Some(TypedStatement::Return(_)) => {}
+                _ => func_body.push(TypedStatement::Unreachable),
+            }
         }
 
         self.scope_manager.exit_scope();
