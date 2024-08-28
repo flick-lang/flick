@@ -76,15 +76,15 @@ pub enum TypedExpr {
 }
 
 impl TypedExpr {
-    /// Extracts the type of this typed expression
-    pub fn get_type(&self) -> Type {
+    /// Returns the type of this expression upon evaluation
+    pub fn get_result_type(&self) -> Type {
         match self {
             Self::Identifier(id) => id.id_type.clone(),
             Self::IntLiteral(int) => Type::Int(int.int_type),
             Self::BoolLiteral(_) => Type::Bool,
             Self::Binary(binary) => binary.result_type.clone(),
             Self::Comparison(_) => Type::Bool,
-            Self::Call(call) => Type::Func(call.function_proto.clone()),
+            Self::Call(call) => *call.function_proto.return_type.clone(),
             Self::Unary(unary) => unary.result_type.clone(),
         }
     }

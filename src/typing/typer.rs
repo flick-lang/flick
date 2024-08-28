@@ -282,7 +282,7 @@ impl Typer {
         };
 
         let typed_operand = self.type_expr(&unary.operand, desired_operand_type);
-        let operand_type = typed_operand.get_type();
+        let operand_type = typed_operand.get_result_type();
 
         // Now that we know the type of the operand, we can check if the unary operator is valid
         match &unary.operator {
@@ -354,8 +354,8 @@ impl Typer {
         let operator = binary_expr.operator;
         let right = self.type_expr(&binary_expr.right, desired_type);
 
-        let left_type = left.get_type();
-        let right_type = right.get_type();
+        let left_type = left.get_result_type();
+        let right_type = right.get_result_type();
         if left_type != right_type {
             panic!(
                 "Operator '{}' needs left-hand-side ({}) and right-hand-side ({}) to be the same type",
@@ -363,17 +363,11 @@ impl Typer {
             );
         }
 
-        let result_type = match left_type {
-            t @ Type::Int(_) => t,
-            Type::Func(f) => *f.return_type,
-            Type::Bool | Type::Void => panic!("Unsupported lhs and rhs types for binary expr; expected integer but got '{}'", left_type)
-        };
-
         TypedBinary {
             left: Box::new(left),
             operator,
             right: Box::new(right),
-            result_type,
+            result_type: left_type,  // since both types must be equal
         }
     }
 
@@ -395,8 +389,8 @@ impl Typer {
         let operator = comparison.operator;
         let right = self.type_expr(&comparison.right, None);
 
-        let left_type = left.get_type();
-        let right_type = right.get_type();
+        let left_type = left.get_result_type();
+        let right_type = right.get_result_type();
 
         if left_type != right_type {
             panic!(

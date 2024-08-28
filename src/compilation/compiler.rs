@@ -522,7 +522,7 @@ impl Compiler {
     /// Compiles a unary expression.
     unsafe fn compile_unary(&mut self, unary: &TypedUnary) -> LLVMValueRef {
         let operand = self.compile_expr(&unary.operand);
-        let source_type = &unary.operand.get_type();
+        let source_type = &unary.operand.get_result_type();
         match &unary.operator {
             UnaryOperator::Cast(cast_type) => self.compile_cast(operand, cast_type, source_type),
             UnaryOperator::Negate => self.compile_negation(operand, source_type),
