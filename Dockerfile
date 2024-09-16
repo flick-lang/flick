@@ -22,7 +22,7 @@ USER sandbox
 WORKDIR /sandbox
 
 # Get `flick` executable from the build image
-COPY --from=build /sandbox/flick/target/release/flick ./flick
+COPY --from=build /sandbox/target/release/flick ./flick
 
 ENTRYPOINT ["/bin/sh"]
 
