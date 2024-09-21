@@ -2,8 +2,12 @@ FROM rust AS build
 
 WORKDIR /sandbox
 
-RUN apt-get update && apt-get install -y lsb-release software-properties-common wget
-RUN wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && ./llvm.sh 18 all
+RUN apt-get update && apt-get install -y software-properties-common wget gnupg
+
+RUN wget https://apt.llvm.org/llvm.sh
+RUN chmod +x llvm.sh
+RUN ./llvm.sh 18 all
+RUN ln -s /usr/bin/llvm-config-18 /usr/bin/llvm-config
 
 COPY . .
 
@@ -25,4 +29,3 @@ WORKDIR /sandbox
 COPY --from=build /sandbox/target/release/flick ./flick
 
 ENTRYPOINT ["/bin/sh"]
-
