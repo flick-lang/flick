@@ -29,3 +29,11 @@ jobs:
       - name: Build Docker image
         run: nix build .#dockerImage
 
+      - name: Upload Docker image
+        uses: actions/upload-artifact@v7
+        with:
+          name: flick-image
+          path: result # symlink into the Nix store; followed on upload
+          compression-level: 0 # already gzipped
+          retention-days: 7
+
