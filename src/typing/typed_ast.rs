@@ -38,12 +38,6 @@ pub enum TypedStatement {
     Return(Option<TypedExpr>),
     Call(TypedCall),
     If(TypedIf),
-
-    /// Compiles to LLVM's UnreachableInst
-    /// 
-    /// The type checker places this at the end of functions that don't expliclty return on their final line,
-    /// but whose control flow analysis shows that they always return prior to the final line.
-    Unreachable,
 }
 
 
@@ -63,15 +57,7 @@ impl TypedStatement {
             // While loops can't always return; their condition might be false
             Self::WhileLoop(_) => false,
 
-            // Without an 'else' branch, an if statement doesn't always return
-            Self::If(TypedIf { else_body: None, .. }) => false,
-            // With an 'else' branch, it always returns if both branches always return
-            Self::If(TypedIf { else_body: Some(else_body), then_body, .. }) => {
-                some_statement_always_returns(else_body)
-                && some_statement_always_returns(&then_body)
-            },
-
-            Self::Unreachable => panic!("Unreachable statements should not be analyzed for always_returns"),
+            Self::If(if_statement) => if_statement.always_returns(),
         }
     }
 }
@@ -97,6 +83,21 @@ pub struct TypedIf {
     pub condition: TypedExpr,
     pub then_body: Vec<TypedStatement>,
     pub else_body: Option<Vec<TypedStatement>>,
+}
+
+impl TypedIf {
+    /// Returns true if both branches always return.
+    pub fn always_returns(&self) -> bool {
+        match &self.else_body {
+            // Without an 'else' branch, the condition might be false and skip the 'then' branch
+            None => false,
+            Some(else_body) => {
+                let then_body_returns = some_statement_always_returns(&self.then_body);
+                let else_body_returns = some_statement_always_returns(else_body);
+                then_body_returns && else_body_returns
+            }
+        }
+    }
 }
 
 /// A typed version of [Expr](crate::ast::Expr)

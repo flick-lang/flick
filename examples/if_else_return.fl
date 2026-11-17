@@ -1,0 +1,24 @@
+fn pick(u64 a) u64 {
+    if a > 1 {
+        ret 10
+    } else {
+        ret 20
+    }
+}
+
+fn first_over(u64 limit) u64 {
+    u64 i = 0
+    while i < 100 {
+        if i > limit {
+            ret i
+        } else {
+            i += 1
+        }
+    }
+    ret 0
+}
+
+pub fn main() u8 {
+    u64 s = pick(5) + first_over(3)
+    ret (u8)s
+}

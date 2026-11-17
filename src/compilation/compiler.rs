@@ -368,7 +368,6 @@ impl Compiler {
                 TypedStatement::Return(r) => self.compile_ret_statement(r),
                 TypedStatement::Call(c) => _ = self.compile_call(c),
                 TypedStatement::If(i) => self.compile_if_statement(i),
-                TypedStatement::Unreachable => self.compile_unreachable(),
             }
         }
     }
@@ -476,8 +475,9 @@ impl Compiler {
     }
 
     /// Compiles a function body, assuming the LLVM builder is building inside a function body.
-    /// 
-    /// Returns `true` if the body returns (contains a return statement), `false` otherwise.
+    ///
+    /// Returns `true` if the body always returns, in which case the current block is already
+    /// terminated.
     ///
     /// # Safety
     /// The input must be type-checked, with referenced values registered in scope.
@@ -489,22 +489,25 @@ impl Compiler {
             self.scope_manager.enter_scope();
             for statement in body {
                 self.compile_statement(statement);
-                // If we have a termination instruction, stop compiling statements
-                if let TypedStatement::Return(_) = statement {
+                // Anything after this is dead code, and the block is already terminated
+                if statement.always_returns() {
                     body_returns = true;
                     break;
-                 }
+                }
             }
             self.scope_manager.exit_scope();
             body_returns
         }
     }
 
-    /// This method compiles an typed if statementi.
-    /// 
+    /// This method compiles an typed if statement.
+    ///
     /// # Notes
-    /// - If `if_statement` has no else block, this method will still produce an empty else block;
-    ///   it will be optimized away during LLVM's optimization passes anyway.
+    /// - Without an 'else' branch, this still produces an empty else block; it will be optimized
+    ///   away during LLVM's optimization passes anyway.
+    /// - The merge block (where control continues after the if statement) only exists if some
+    ///   branch falls through. When both branches return, it would be an empty block without a
+    ///   terminator, which LLVM rejects.
     ///
     /// # Safety
     /// The input must be type-checked, with referenced values registered in scope.
@@ -517,47 +520,50 @@ impl Compiler {
                 None => panic!("Cannot compile if statement outside of a function"),
             };
 
+            const FALLS_THROUGH: &str = "a branch that falls through implies a merge block";
+
             let cond_block = LLVMAppendBasicBlockInContext(self.context, cur_func, cstr!("cond"));
-            // then_block will be appended once cond_block is built
+            // Each of these is appended once the block before it is built
             let then_block = LLVMCreateBasicBlockInContext(self.context, cstr!("then"));
-            // else_block will be appended once then_block is built
             let else_block = LLVMCreateBasicBlockInContext(self.context, cstr!("else"));
-            // merge_block will be appended once else_block is built
-            let merge_block = LLVMCreateBasicBlockInContext(self.context, cstr!("merge"));
+            let merge_block = if if_statement.always_returns() {
+                None
+            } else {
+                Some(LLVMCreateBasicBlockInContext(self.context, cstr!("merge")))
+            };
 
             LLVMBuildBr(self.builder, cond_block);
             LLVMPositionBuilderAtEnd(self.builder, cond_block);
 
             let condition = self.compile_expr(&if_statement.condition);
-
-            let target_else_block = match &if_statement.else_body {
-                Some(_) => else_block,
-                None => merge_block,
-            };
-            LLVMBuildCondBr(self.builder, condition, then_block, target_else_block);
+            LLVMBuildCondBr(self.builder, condition, then_block, else_block);
 
             // ------------------------ THEN BLOCK ------------------------------
-            // Start insertion in then_block.
             LLVMAppendExistingBasicBlock(cur_func, then_block);
             LLVMPositionBuilderAtEnd(self.builder, then_block);
-            if !self.compile_body(&if_statement.then_body) {
-                // Build branch to merge_block after if statement
-                LLVMBuildBr(self.builder, merge_block);
+            let then_body_returns = self.compile_body(&if_statement.then_body);
+            if !then_body_returns {
+                LLVMBuildBr(self.builder, merge_block.expect(FALLS_THROUGH));
             }
 
             // ------------------------ ELSE BLOCK ------------------------------
-            if let Some(else_body) = &if_statement.else_body {
-                LLVMAppendExistingBasicBlock(cur_func, else_block); // start building else block
-                LLVMPositionBuilderAtEnd(self.builder, else_block);
-                if !self.compile_body(else_body) {
-                    LLVMBuildBr(self.builder, merge_block);
-                }
+            // Without an 'else' branch, this block is empty and just falls through to the merge block
+            let else_body = match &if_statement.else_body {
+                Some(else_body) => else_body.as_slice(),
+                None => &[],
+            };
+            LLVMAppendExistingBasicBlock(cur_func, else_block);
+            LLVMPositionBuilderAtEnd(self.builder, else_block);
+            let else_body_returns = self.compile_body(else_body);
+            if !else_body_returns {
+                LLVMBuildBr(self.builder, merge_block.expect(FALLS_THROUGH));
             }
 
             // ------------------------ MERGE BLOCK ------------------------------
-
-            LLVMAppendExistingBasicBlock(cur_func, merge_block);
-            LLVMPositionBuilderAtEnd(self.builder, merge_block);
+            if let Some(merge_block) = merge_block {
+                LLVMAppendExistingBasicBlock(cur_func, merge_block);
+                LLVMPositionBuilderAtEnd(self.builder, merge_block);
+            }
         }
     }
 
@@ -871,17 +877,6 @@ impl Compiler {
                 return None;
             }
             Some(cur_func)
-        }
-    }
-    
-    /// Compiles an unreachable instruction, terminating the current block.
-    ///
-    /// # Safety
-    /// The builder must have a valid insertion point in an unterminated block.
-    unsafe fn compile_unreachable(&self) {
-        // SAFETY: The caller upholds the requirements above; LLVM handles belong to this compiler.
-        unsafe {
-            LLVMBuildUnreachable(self.builder);
         }
     }
 }
