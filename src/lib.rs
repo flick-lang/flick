@@ -12,7 +12,7 @@ mod compilation;
 mod lexing;
 /// Module to convert token streams into [abstract syntax trees](ast)
 mod parsing;
-/// This module is used by [Compiler](compiler::Compiler), because it manages namespaces/scopes.
+/// This module is used by [Compiler], because it manages namespaces/scopes.
 ///
 /// See [ScopeManager] for more details.
 mod scope_manager;

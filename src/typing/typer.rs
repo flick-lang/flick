@@ -175,10 +175,8 @@ impl Typer {
         }
     }
 
-    /// This method confirms that a given body (consisting of one or more [Statement][a]) 
+    /// This method confirms that a given body (consisting of one or more [Statement])
     /// is well-typed.
-    /// 
-    /// [a]: crate::ast::Statement
     fn type_body(&mut self, body: &[Statement], function_return_type: &Type) -> Vec<TypedStatement> {
         self.scope_manager.enter_scope();
         let typed_body: Vec<_> = body
