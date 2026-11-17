@@ -286,10 +286,6 @@ impl Compiler {
             let func_name = CString::new(func_proto.name.as_str()).unwrap();
             let func = LLVMAddFunction(self.module, func_name.as_ptr(), func_llvm_type);
 
-            if LLVMIsNull(func) == 1 {
-                panic!("Error defining function '{}'", func_proto.name);
-            }
-
             for (i, param) in func_proto.params.iter().enumerate() {
                 let param_value_ref = LLVMGetParam(func, i as c_uint);
                 let param_name = CString::new(param.param_name.as_str()).unwrap();
@@ -320,7 +316,7 @@ impl Compiler {
         unsafe {
             let func_name = CString::new(func_def.proto.name.as_str()).unwrap();
             let func = LLVMGetNamedFunction(self.module, func_name.as_ptr());
-            if LLVMIsNull(func) == 1 {
+            if func.is_null() {
                 panic!(
                     "The prototype for function '{}' has not been defined",
                     func_def.proto.name
@@ -865,17 +861,20 @@ impl Compiler {
         }
     }
 
-    /// Returns the function currently being built by the compiler.
-    ///
-    /// # Safety
-    /// The builder must have an insertion block attached to a live function.
-    unsafe fn get_cur_function(&self) -> Option<LLVMValueRef> {
-        // SAFETY: The caller upholds the requirements above; LLVM handles belong to this compiler.
+    /// Returns the function currently being built by the compiler, if any.
+    fn get_cur_function(&self) -> Option<LLVMValueRef> {
+        // SAFETY: The builder belongs to this compiler, and the block is only used if it exists.
         unsafe {
-            let cur_func = LLVMGetBasicBlockParent(LLVMGetInsertBlock(self.builder));
-            if LLVMIsNull(cur_func) == 1 {
+            let insert_block = LLVMGetInsertBlock(self.builder);
+            if insert_block.is_null() {
                 return None;
             }
+
+            let cur_func = LLVMGetBasicBlockParent(insert_block);
+            if cur_func.is_null() {
+                return None;
+            }
+
             Some(cur_func)
         }
     }
@@ -901,5 +900,16 @@ impl Drop for Compiler {
 impl Default for Compiler {
     fn default() -> Self {
         Compiler::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn no_current_function_before_building_one() {
+        let compiler = Compiler::new();
+        assert_eq!(compiler.get_cur_function(), None);
     }
 }
