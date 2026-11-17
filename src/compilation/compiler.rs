@@ -5,10 +5,10 @@ use std::path::Path;
 
 use llvm_sys::core::*;
 use llvm_sys::LLVMIntPredicate;
-use llvm_sys::error::LLVMGetErrorMessage;
+use llvm_sys::error::{LLVMDisposeErrorMessage, LLVMGetErrorMessage};
 use llvm_sys::prelude::*;
 use llvm_sys::target::{
-    LLVMSetModuleDataLayout, LLVM_InitializeNativeAsmParser, LLVM_InitializeNativeAsmPrinter,
+    LLVMDisposeTargetData, LLVMSetModuleDataLayout, LLVM_InitializeNativeAsmParser, LLVM_InitializeNativeAsmPrinter,
     LLVM_InitializeNativeTarget,
 };
 use llvm_sys::bit_writer::LLVMWriteBitcodeToFile;
@@ -117,8 +117,12 @@ impl Compiler {
                 LLVMCodeModelDefault,
             );
 
+            // The module and target machine keep their own copies
+            LLVMDisposeMessage(triple);
+
             let target_data_layout = LLVMCreateTargetDataLayout(target_machine);
             LLVMSetModuleDataLayout(module, target_data_layout);
+            LLVMDisposeTargetData(target_data_layout);
 
             // Configure pass manager
             let pass_builder = LLVMCreatePassBuilderOptions();
@@ -163,10 +167,13 @@ impl Compiler {
     pub fn optimize(&mut self) {
         unsafe {
             let passes = cstr!("default<O1>");
-            let res = LLVMRunPasses(self.module, passes, self.target_machine, self.pass_builder);
-            if !res.is_null() {
-                let error_string = CStr::from_ptr(LLVMGetErrorMessage(res));
-                panic!("Error running optimizations: {:?}", error_string);
+            let error = LLVMRunPasses(self.module, passes, self.target_machine, self.pass_builder);
+            if !error.is_null() {
+                // Consumes the error; the message must be freed with LLVMDisposeErrorMessage
+                let message = LLVMGetErrorMessage(error);
+                let owned = CStr::from_ptr(message).to_string_lossy().into_owned();
+                LLVMDisposeErrorMessage(message);
+                panic!("Error running optimizations: {owned}");
             }
         }
     }
