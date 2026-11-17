@@ -1,0 +1,31 @@
+name: Nix build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Determinate Nix
+        uses: DeterminateSystems/determinate-nix-action@v3
+
+      # Per-store-path binary cache backed by the repo's GitHub Actions cache.
+      - name: Set up Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v15
+        with:
+          use-flakehub: false
+
+      - name: Check flake.lock health
+        uses: DeterminateSystems/flake-checker-action@v14
+
+      - name: Build Docker image
+        run: nix build .#dockerImage
+

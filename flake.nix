@@ -31,16 +31,11 @@
         flick = final.callPackage ./nix/flick.nix { };
       };
 
-      packages = forEachSupportedSystem (
-        {
-          pkgs,
-          ...
-        }:
-        {
-          inherit (pkgs) flick;
-          default = pkgs.flick;
-        }
-      );
+      packages = forEachSupportedSystem (pkgs: {
+        inherit (pkgs) flick;
+        dockerImage = pkgs.callPackage ./nix/docker-image.nix { };
+        default = pkgs.flick;
+      });
 
       devShells = forEachSupportedSystem (pkgs: {
         default = pkgs.mkShell {
