@@ -1,7 +1,6 @@
 use llvm_sys::analysis::LLVMVerifierFailureAction::LLVMPrintMessageAction;
 use llvm_sys::analysis::LLVMVerifyFunction;
 use std::ffi::{c_char, c_uint, CStr, CString};
-use std::mem::MaybeUninit;
 use std::path::Path;
 
 use llvm_sys::core::*;
@@ -12,7 +11,8 @@ use llvm_sys::target::{
     LLVMSetModuleDataLayout, LLVM_InitializeNativeAsmParser, LLVM_InitializeNativeAsmPrinter,
     LLVM_InitializeNativeTarget,
 };
-use llvm_sys::target_machine::LLVMCodeGenFileType::LLVMObjectFile;
+use llvm_sys::bit_writer::LLVMWriteBitcodeToFile;
+use llvm_sys::target_machine::LLVMCodeGenFileType::{self, LLVMAssemblyFile, LLVMObjectFile};
 use llvm_sys::target_machine::LLVMCodeGenOptLevel::LLVMCodeGenLevelDefault;
 use llvm_sys::target_machine::LLVMCodeModel::LLVMCodeModelDefault;
 use llvm_sys::target_machine::LLVMRelocMode::LLVMRelocDefault;
@@ -34,6 +34,24 @@ macro_rules! cstr {
     ($str_literal:expr) => {
         concat!($str_literal, "\0").as_ptr() as *const _
     };
+}
+
+/// Converts a path into the null-terminated string LLVM expects.
+fn path_to_cstring(path: &Path) -> CString {
+    CString::new(path.to_string_lossy().into_owned()).expect("path contains a null byte")
+}
+
+/// Copies an error message that LLVM allocated for an `ErrorMessage` out-parameter, then frees it.
+///
+/// # Safety
+/// `message` must come from such an out-parameter after a call that reported failure.
+unsafe fn take_message(message: *mut c_char) -> String {
+    // SAFETY: Upheld by the caller; LLVM requires these messages to be freed with LLVMDisposeMessage.
+    unsafe {
+        let owned = CStr::from_ptr(message).to_string_lossy().into_owned();
+        LLVMDisposeMessage(message);
+        owned
+    }
 }
 
 /// A struct that takes an [abstract syntax tree][a] and converts it into LLVM code.
@@ -124,12 +142,9 @@ impl Compiler {
         // SAFETY: The caller upholds the requirements above; LLVM handles belong to this compiler.
         unsafe {
             let mut target = std::ptr::null_mut();
-            let mut err_str = MaybeUninit::uninit();
-            if LLVMGetTargetFromTriple(triple, &mut target, err_str.as_mut_ptr()) != 0 {
-                panic!(
-                    "Error getting target from triple ({:?})",
-                    err_str.assume_init()
-                );
+            let mut err_str = std::ptr::null_mut();
+            if LLVMGetTargetFromTriple(triple, &mut target, &mut err_str) != 0 {
+                panic!("Error getting target from triple ({})", take_message(err_str));
             }
             target
         }
@@ -156,32 +171,63 @@ impl Compiler {
         }
     }
 
-    /// This function dumps to a file the LLVM IR generated so far (via methods like [compile][a]).
+    /// This function writes the code generated so far (via methods like [compile][a]) to an object file.
     ///
     /// [a]: Compiler::compile
     pub fn to_file(&self, path: &impl AsRef<Path>) {
-        unsafe {
-            let mut path_cchars: Vec<_> = path
-                .as_ref()
-                .to_string_lossy()
-                .chars()
-                .map(|b| b as c_char)
-                .collect();
-            path_cchars.push(0); // Null character
+        self.emit_machine_code(path.as_ref(), LLVMObjectFile);
+    }
 
-            let mut err_str = MaybeUninit::uninit();
+    /// This function writes the code generated so far (via methods like [compile][a]) to a target
+    /// assembly `.s` file.
+    ///
+    /// [a]: Compiler::compile
+    pub fn asm_to_file(&self, path: &impl AsRef<Path>) {
+        self.emit_machine_code(path.as_ref(), LLVMAssemblyFile);
+    }
+
+    fn emit_machine_code(&self, path: &Path, file_type: LLVMCodeGenFileType) {
+        let path = path_to_cstring(path);
+        let mut err_str = std::ptr::null_mut();
+        // SAFETY: LLVM handles belong to this compiler, and LLVM only sets err_str on failure.
+        unsafe {
             let result = LLVMTargetMachineEmitToFile(
                 self.target_machine,
                 self.module,
-                path_cchars.as_mut_ptr(),
-                LLVMObjectFile,
-                err_str.as_mut_ptr(),
+                path.as_ptr(),
+                file_type,
+                &mut err_str,
             );
-
             if result == 1 {
-                // TODO: Actually print error
-                panic!("Error emitting object file ({:?})", err_str.assume_init());
+                panic!("Error emitting machine code ({})", take_message(err_str));
             }
+        }
+    }
+
+    /// This function writes the LLVM IR generated so far (via methods like [compile][a]) to a
+    /// textual `.ll` file.
+    ///
+    /// [a]: Compiler::compile
+    pub fn ir_to_file(&self, path: &impl AsRef<Path>) {
+        let path = path_to_cstring(path.as_ref());
+        let mut err_str = std::ptr::null_mut();
+        // SAFETY: LLVM handles belong to this compiler, and LLVM only sets err_str on failure.
+        unsafe {
+            if LLVMPrintModuleToFile(self.module, path.as_ptr(), &mut err_str) == 1 {
+                panic!("Error emitting LLVM IR ({})", take_message(err_str));
+            }
+        }
+    }
+
+    /// This function writes the LLVM IR generated so far (via methods like [compile][a]) to a
+    /// binary `.bc` bitcode file.
+    ///
+    /// [a]: Compiler::compile
+    pub fn bitcode_to_file(&self, path: &impl AsRef<Path>) {
+        let path = path_to_cstring(path.as_ref());
+        // SAFETY: LLVM handles belong to this compiler.
+        if unsafe { LLVMWriteBitcodeToFile(self.module, path.as_ptr()) } != 0 {
+            panic!("Error emitting LLVM bitcode to {}", path.to_string_lossy());
         }
     }
 

@@ -4,7 +4,8 @@ use std::path::{PathBuf, Path};
 use std::process::Command;
 
 use anyhow::{Context, Result};
-use clap::Parser as ClapParser;
+use clap::error::ErrorKind;
+use clap::{CommandFactory, Parser as ClapParser, ValueEnum};
 
 use flick::{error::FlickError, Compiler, Lexer, Parser, Typer};
 
@@ -15,57 +16,60 @@ struct Cli {
     /// Input path for source code
     source_path: PathBuf,
 
-    /// Whether to print LLVM intermediate representation during compilation
-    #[arg(short, long)]
-    emit_ir: bool,
+    /// What to produce
+    #[arg(long, value_enum, default_value_t = Emit::Link)]
+    emit: Emit,
 
-    /// Output path for the executable
+    /// Output path (default: the source path with the extension for `--emit`, e.g. `test`, `test.o`, `test.s`, `test.ll` or `test.bc`)
     #[arg(short, long)]
     output_path: Option<PathBuf>,
-
-    /// Output path for the object file
-    #[arg(long)]
-    object_output_path: Option<PathBuf>,
 
     /// Path to linker (default: 'cc')
     #[arg(long)]
     linker_path: Option<PathBuf>,
 
-    /// Whether to just compile without running the linker to generate an executable
-    #[arg(long)]
-    no_link: bool,
-
     /// Link a static executable, which needs no shared libraries at runtime (passes `-static` to the linker)
-    #[arg(long, conflicts_with = "no_link")]
+    #[arg(long)]
     r#static: bool,
 }
 
-impl Cli {
-    /// Retrieves the provided executable output path (returns a default if none provided)
-    ///
-    /// Note that the default executable output path for a file like `test.fl` is `test`.
-    fn get_executable_output_path(&self) -> PathBuf {
-        match &self.output_path {
-            Some(path) => path.clone(),
-            None => {
-                let mut path = self.source_path.clone();
-                path.set_extension("");
-                path
-            }
+/// The kinds of output the compiler can produce, named after rustc's `--emit` kinds
+#[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum Emit {
+    /// An executable, linked by running the linker on an object file
+    Link,
+    /// An object file
+    Obj,
+    /// Target assembly
+    Asm,
+    /// Textual LLVM IR, after optimization
+    LlvmIr,
+    /// Binary LLVM IR (bitcode), after optimization
+    LlvmBc,
+}
+
+impl Emit {
+    /// The file extension for this kind of output
+    fn extension(self) -> &'static str {
+        match self {
+            Emit::Link => "",
+            Emit::Obj => "o",
+            Emit::Asm => "s",
+            Emit::LlvmIr => "ll",
+            Emit::LlvmBc => "bc",
         }
     }
+}
 
-    /// Retrieves the provided object output path (returns a default if none provided)
+impl Cli {
+    /// Retrieves the provided output path (returns a default if none provided)
     ///
-    /// Note that the default object output path for a file like `test.fl` is `test.o`.
-    fn get_object_output_path(&self) -> PathBuf {
-        match &self.object_output_path {
+    /// Note that the default output path for a file like `test.fl` is `test`, `test.o`, `test.s`, `test.ll` or `test.bc`, depending on
+    /// `--emit`.
+    fn get_output_path(&self) -> PathBuf {
+        match &self.output_path {
             Some(path) => path.clone(),
-            None => {
-                let mut path = self.source_path.clone();
-                path.set_extension("o");
-                path
-            }
+            None => self.source_path.with_extension(self.emit.extension()),
         }
     }
 
@@ -83,6 +87,11 @@ impl Cli {
 /// Runs the command line interface for the compiler; see [Cli] for details
 fn main() -> Result<()> {
     let cli = Cli::parse();
+    if cli.r#static && cli.emit != Emit::Link {
+        Cli::command()
+            .error(ErrorKind::ArgumentConflict, "--static only applies to `--emit link`")
+            .exit();
+    }
 
     let mut file = File::open(&cli.source_path)?;
     let mut file_contents = String::new();
@@ -104,41 +113,39 @@ fn main() -> Result<()> {
 
     let mut compiler = Compiler::new();
     compiler.compile(&typed_program);
-
-    if cli.emit_ir {
-        println!("\nIR before optimization:");
-        compiler.print_ir();
-    }
-
     compiler.optimize();
 
-    if cli.emit_ir {
-        println!("\nIR after optimization:");
-        compiler.print_ir();
+    let output_path = cli.get_output_path();
+    match cli.emit {
+        Emit::Link => link(&cli, &compiler, &output_path)?,
+        Emit::Obj => compiler.to_file(&output_path),
+        Emit::Asm => compiler.asm_to_file(&output_path),
+        Emit::LlvmIr => compiler.ir_to_file(&output_path),
+        Emit::LlvmBc => compiler.bitcode_to_file(&output_path),
     }
 
-    let object_output_path = cli.get_object_output_path();
-    compiler.to_file(&object_output_path);
+    Ok(())
+}
 
-    if cli.no_link {
-        return Ok(());
-    }
+/// Writes an object file and runs the linker on it to produce the executable at `output_path`
+fn link(cli: &Cli, compiler: &Compiler, output_path: &Path) -> Result<()> {
+    // Only an intermediate for the linker, so it can't clobber a `test.o` made
+    // with `--emit obj`. A private temp dir rather than a fixed name in the
+    // shared one, which other users could pre-create as a symlink.
+    let object_dir = tempfile::tempdir().context("failed to create a temporary directory")?;
+    let object_path = object_dir.path().join("flick.o");
+    compiler.to_file(&object_path);
 
-    let executable_output_path = cli.get_executable_output_path();
     let linker_path = cli.get_linker_path();
     let status = Command::new(&linker_path)
-        .arg(&object_output_path)
+        .arg(&object_path)
         .arg("-o")
-        .arg(&executable_output_path)
+        .arg(output_path)
         .args(cli.r#static.then_some("-static"))
         .status()
         .with_context(|| format!("failed to run linker '{}'", linker_path.display()))?;
     if !status.success() {
         anyhow::bail!("linker '{}' failed ({status})", linker_path.display());
-    }
-
-    if cli.object_output_path.is_none() {
-        std::fs::remove_file(&object_output_path)?;
     }
 
     Ok(())

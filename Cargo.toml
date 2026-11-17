@@ -18,10 +18,11 @@ debug = "line-tables-only"
 codegen-units = 1
 
 [dependencies]
+llvm-sys = "231"
 anyhow = { version = "1.0.104", optional = true }
 clap = { version = "4.6.8", features = ["derive"], optional = true }
-llvm-sys = "231"
+tempfile = { version = "3.27.0", optional = true }
 
 [features]
 default = ["binary"]
-binary = ["anyhow", "clap"]
+binary = ["anyhow", "clap", "tempfile"]
