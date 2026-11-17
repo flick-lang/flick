@@ -34,6 +34,10 @@ struct Cli {
     /// Whether to just compile without running the linker to generate an executable
     #[arg(long)]
     no_link: bool,
+
+    /// Link a static executable, which needs no shared libraries at runtime (passes `-static` to the linker)
+    #[arg(long, conflicts_with = "no_link")]
+    r#static: bool,
 }
 
 impl Cli {
@@ -126,6 +130,7 @@ fn main() -> Result<()> {
         .arg(&object_output_path)
         .arg("-o")
         .arg(&executable_output_path)
+        .args(cli.r#static.then_some("-static"))
         .status()
         .with_context(|| format!("failed to run linker '{}'", linker_path.display()))?;
     if !status.success() {
