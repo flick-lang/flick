@@ -8,7 +8,7 @@ use llvm_sys::LLVMIntPredicate;
 use llvm_sys::error::{LLVMDisposeErrorMessage, LLVMGetErrorMessage};
 use llvm_sys::prelude::*;
 use llvm_sys::target::{
-    LLVMDisposeTargetData, LLVMSetModuleDataLayout, LLVM_InitializeNativeAsmParser, LLVM_InitializeNativeAsmPrinter,
+    LLVMDisposeTargetData, LLVMSetModuleDataLayout, LLVM_InitializeNativeAsmPrinter,
     LLVM_InitializeNativeTarget,
 };
 use llvm_sys::bit_writer::LLVMWriteBitcodeToFile;
@@ -110,9 +110,6 @@ impl Compiler {
             // TODO: make this an option for the compiler to choose which target to initialize
             if LLVM_InitializeNativeTarget() == 1 {
                 panic!("Error initializing native target")
-            }
-            if LLVM_InitializeNativeAsmParser() == 1 {
-                panic!("Error initializing native ASM Parser")
             }
             if LLVM_InitializeNativeAsmPrinter() == 1 {
                 panic!("Error initializing native ASM printer")
