@@ -15,7 +15,7 @@ use llvm_sys::bit_writer::LLVMWriteBitcodeToFile;
 use llvm_sys::target_machine::LLVMCodeGenFileType::{self, LLVMAssemblyFile, LLVMObjectFile};
 use llvm_sys::target_machine::LLVMCodeGenOptLevel::LLVMCodeGenLevelDefault;
 use llvm_sys::target_machine::LLVMCodeModel::LLVMCodeModelDefault;
-use llvm_sys::target_machine::LLVMRelocMode::LLVMRelocDefault;
+use llvm_sys::target_machine::LLVMRelocMode::LLVMRelocPIC;
 use llvm_sys::target_machine::{
     LLVMCreateTargetDataLayout, LLVMCreateTargetMachine, LLVMDisposeTargetMachine,
     LLVMGetDefaultTargetTriple, LLVMGetTargetFromTriple, LLVMTarget, LLVMTargetMachineEmitToFile,
@@ -138,7 +138,7 @@ impl Compiler {
                 cpu,
                 features,
                 LLVMCodeGenLevelDefault,
-                LLVMRelocDefault,
+                LLVMRelocPIC,
                 LLVMCodeModelDefault,
             );
 
