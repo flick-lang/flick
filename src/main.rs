@@ -89,7 +89,7 @@ fn main() -> Result<()> {
         Ok(tokens) => tokens,
         Err(err) => {
             print_error(&cli.source_path, &file_chars, err);
-            return Ok(());
+            std::process::exit(1);
         }
     };
 
