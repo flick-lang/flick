@@ -21,6 +21,7 @@ jobs:
       - name: Set up Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@v15
         with:
+          use-gha-cache: true
           use-flakehub: false
 
       - name: Check flake.lock health
