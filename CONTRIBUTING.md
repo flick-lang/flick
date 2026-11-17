@@ -1,5 +1,7 @@
 ## Setting up a development environment
 
+You can run `nix develop` to get a shell with Rust, LLVM, and the tooling the build needs.
+
 In order to make sure you never accidentally commit code that doesn't
 compile and pass tests, you should install our git hooks:
 

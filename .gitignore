@@ -1,3 +1,7 @@
+# Nix build output
+result
+
+# Examples
 examples/*
 !examples/*.fl
 !examples/README.md
@@ -167,7 +171,6 @@ flycheck_*.el
 
 # Icon must end with two \r
 Icon
-
 
 # Thumbnails
 ._*
