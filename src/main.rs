@@ -3,7 +3,7 @@ use std::io::Read;
 use std::path::{PathBuf, Path};
 use std::process::Command;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Parser as ClapParser;
 
 use flick::{error::FlickError, Compiler, Lexer, Parser, Typer};
@@ -122,11 +122,15 @@ fn main() -> Result<()> {
 
     let executable_output_path = cli.get_executable_output_path();
     let linker_path = cli.get_linker_path();
-    Command::new(linker_path)
+    let status = Command::new(&linker_path)
         .arg(&object_output_path)
         .arg("-o")
         .arg(&executable_output_path)
-        .output()?;
+        .status()
+        .with_context(|| format!("failed to run linker '{}'", linker_path.display()))?;
+    if !status.success() {
+        anyhow::bail!("linker '{}' failed ({status})", linker_path.display());
+    }
 
     if cli.object_output_path.is_none() {
         std::fs::remove_file(&object_output_path)?;
