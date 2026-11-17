@@ -29,13 +29,6 @@ use crate::typed_ast::*;
 use crate::types::{Type, IntType};
 use crate::ScopeManager;
 
-/// Converts a `&str`, like `"hi"`, into a pointer to a null-terminated C-style str.
-macro_rules! cstr {
-    ($str_literal:expr) => {
-        concat!($str_literal, "\0").as_ptr() as *const _
-    };
-}
-
 /// The oldest macOS that compiled programs run on, unless `MACOSX_DEPLOYMENT_TARGET` overrides it.
 /// macOS 11 is the first to run on Apple Silicon, and also runs on Intel.
 const DEFAULT_MACOS_DEPLOYMENT_TARGET: &str = "11.0";
@@ -110,7 +103,7 @@ impl Compiler {
     pub fn new() -> Self {
         unsafe {
             let context = LLVMContextCreate();
-            let module = LLVMModuleCreateWithNameInContext(cstr!("module"), context);
+            let module = LLVMModuleCreateWithNameInContext(c"module".as_ptr(), context);
             let builder = LLVMCreateBuilderInContext(context);
             let scope_manager = ScopeManager::new();
 
@@ -129,8 +122,8 @@ impl Compiler {
             let triple = target_triple();
             LLVMSetTarget(module, triple.as_ptr());
 
-            let cpu = cstr!("generic");
-            let features = cstr!("");
+            let cpu = c"generic".as_ptr();
+            let features = c"".as_ptr();
             let target = Self::get_target_from_triple(&triple);
             let target_machine = LLVMCreateTargetMachine(
                 target,
@@ -185,7 +178,7 @@ impl Compiler {
     /// [a]: Compiler::compile
     pub fn optimize(&mut self) {
         unsafe {
-            let passes = cstr!("default<O1>");
+            let passes = c"default<O1>".as_ptr();
             let error = LLVMRunPasses(self.module, passes, self.target_machine, self.pass_builder);
             if !error.is_null() {
                 // Consumes the error; the message must be freed with LLVMDisposeErrorMessage
@@ -349,7 +342,7 @@ impl Compiler {
                 );
             }
 
-            let entry_block = LLVMAppendBasicBlockInContext(self.context, func, cstr!("entry"));
+            let entry_block = LLVMAppendBasicBlockInContext(self.context, func, c"entry".as_ptr());
             LLVMPositionBuilderAtEnd(self.builder, entry_block);
 
             self.scope_manager.enter_scope();
@@ -429,10 +422,10 @@ impl Compiler {
                 Some(func) => func,
                 None => panic!("Cannot compile while declaration outside of a function"),
             };
-            let cond_block = LLVMAppendBasicBlockInContext(self.context, cur_func, cstr!("cond"));
-            let loop_block = LLVMCreateBasicBlockInContext(self.context, cstr!("loop"));
+            let cond_block = LLVMAppendBasicBlockInContext(self.context, cur_func, c"cond".as_ptr());
+            let loop_block = LLVMCreateBasicBlockInContext(self.context, c"loop".as_ptr());
             // Build block to go to after loop is done executing
-            let after_block = LLVMCreateBasicBlockInContext(self.context, cstr!("after"));
+            let after_block = LLVMCreateBasicBlockInContext(self.context, c"after".as_ptr());
 
             LLVMBuildBr(self.builder, cond_block);
             LLVMPositionBuilderAtEnd(self.builder, cond_block);
@@ -544,14 +537,14 @@ impl Compiler {
 
             const FALLS_THROUGH: &str = "a branch that falls through implies a merge block";
 
-            let cond_block = LLVMAppendBasicBlockInContext(self.context, cur_func, cstr!("cond"));
+            let cond_block = LLVMAppendBasicBlockInContext(self.context, cur_func, c"cond".as_ptr());
             // Each of these is appended once the block before it is built
-            let then_block = LLVMCreateBasicBlockInContext(self.context, cstr!("then"));
-            let else_block = LLVMCreateBasicBlockInContext(self.context, cstr!("else"));
+            let then_block = LLVMCreateBasicBlockInContext(self.context, c"then".as_ptr());
+            let else_block = LLVMCreateBasicBlockInContext(self.context, c"else".as_ptr());
             let merge_block = if if_statement.always_returns() {
                 None
             } else {
-                Some(LLVMCreateBasicBlockInContext(self.context, cstr!("merge")))
+                Some(LLVMCreateBasicBlockInContext(self.context, c"merge".as_ptr()))
             };
 
             LLVMBuildBr(self.builder, cond_block);
@@ -680,17 +673,17 @@ impl Compiler {
             };
 
             match bin_expr.operator {
-                Add => LLVMBuildAdd(self.builder, lhs, rhs, cstr!("add")),
-                Subtract => LLVMBuildSub(self.builder, lhs, rhs, cstr!("sub")),
-                Multiply => LLVMBuildMul(self.builder, lhs, rhs, cstr!("mul")),
+                Add => LLVMBuildAdd(self.builder, lhs, rhs, c"add".as_ptr()),
+                Subtract => LLVMBuildSub(self.builder, lhs, rhs, c"sub".as_ptr()),
+                Multiply => LLVMBuildMul(self.builder, lhs, rhs, c"mul".as_ptr()),
                 // TODO: signed-ints: Signed vs unsigned division
                 Divide => match int_type {
-                    IntType { signed: true, .. } => LLVMBuildSDiv(self.builder, lhs, rhs, cstr!("sdiv")),
-                    IntType { signed: false, .. } => LLVMBuildUDiv(self.builder, lhs, rhs, cstr!("udiv")),
+                    IntType { signed: true, .. } => LLVMBuildSDiv(self.builder, lhs, rhs, c"sdiv".as_ptr()),
+                    IntType { signed: false, .. } => LLVMBuildUDiv(self.builder, lhs, rhs, c"udiv".as_ptr()),
                 },
                 Remainder => match int_type {
-                    IntType { signed: true, .. } => LLVMBuildSRem(self.builder, lhs, rhs, cstr!("srem")),
-                    IntType { signed: false, .. } => LLVMBuildURem(self.builder, lhs, rhs, cstr!("urem")),
+                    IntType { signed: true, .. } => LLVMBuildSRem(self.builder, lhs, rhs, c"srem".as_ptr()),
+                    IntType { signed: false, .. } => LLVMBuildURem(self.builder, lhs, rhs, c"urem".as_ptr()),
                 }
             }
         }
@@ -729,12 +722,12 @@ impl Compiler {
             };
 
             if cast_int_type.width < source_int_type.width {
-                LLVMBuildTrunc(self.builder, operand, self.to_llvm_type(cast_type), cstr!("trunc"))
+                LLVMBuildTrunc(self.builder, operand, self.to_llvm_type(cast_type), c"trunc".as_ptr())
             } else if cast_int_type.width > source_int_type.width {
                 if cast_int_type.signed {
-                    LLVMBuildSExt(self.builder, operand, self.to_llvm_type(cast_type), cstr!("sext"))
+                    LLVMBuildSExt(self.builder, operand, self.to_llvm_type(cast_type), c"sext".as_ptr())
                 } else {
-                    LLVMBuildZExt(self.builder, operand, self.to_llvm_type(cast_type), cstr!("zext"))
+                    LLVMBuildZExt(self.builder, operand, self.to_llvm_type(cast_type), c"zext".as_ptr())
                 }
             } else {
                 // Width is the same. No need to cast.
@@ -753,7 +746,7 @@ impl Compiler {
         // SAFETY: The caller upholds the requirements above; LLVM handles belong to this compiler.
         unsafe {
             match source_type {
-                Type::Int(IntType { signed: true, .. }) => LLVMBuildNeg(self.builder, operand, cstr!("neg")),
+                Type::Int(IntType { signed: true, .. }) => LLVMBuildNeg(self.builder, operand, c"neg".as_ptr()),
                 _ => panic!("Unsupported type for negation, can only handle integers; this should have been handled by typer"),
             }
         }
@@ -775,7 +768,7 @@ impl Compiler {
             }
 
             match comparison.operand_type {
-                Type::Int(int_type) => LLVMBuildICmp(self.builder, self.comparison_int_op(comparison.operator, int_type), lhs, rhs, cstr!("")),
+                Type::Int(int_type) => LLVMBuildICmp(self.builder, self.comparison_int_op(comparison.operator, int_type), lhs, rhs, c"".as_ptr()),
                 _ => panic!("Unsupported lhs and rhs types for comparison; can only handle integers"),
             }
         }
@@ -844,7 +837,7 @@ impl Compiler {
                 func,
                 arg_values.as_mut_ptr(),
                 arg_values.len() as c_uint,
-                cstr!(""),
+                c"".as_ptr(),
             )
         }
     }
