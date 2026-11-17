@@ -27,7 +27,7 @@ struct Cli {
     #[arg(long)]
     object_output_path: Option<PathBuf>,
 
-    /// Path to linker (default: 'gcc')
+    /// Path to linker (default: 'cc')
     #[arg(long)]
     linker_path: Option<PathBuf>,
 
@@ -67,11 +67,11 @@ impl Cli {
 
     /// Retrieves the provided linker path (returns a default if none provided)
     ///
-    /// Note that the default linker path is `gcc`.
+    /// Note that the default linker path is `cc`.
     fn get_linker_path(&self) -> PathBuf {
         match &self.linker_path {
             Some(path) => path.clone(),
-            None => PathBuf::from("gcc"),
+            None => PathBuf::from("cc"),
         }
     }
 }
