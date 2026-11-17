@@ -1,5 +1,6 @@
 {
   dockerTools,
+  buildEnv,
   runCommand,
   removeReferencesTo,
   writeShellScriptBin,
@@ -23,14 +24,18 @@ let
       ${musl}/lib/crt1.o ${musl}/lib/crti.o "$@" -L${musl}/lib -lc ${musl}/lib/crtn.o
   '';
 in
-dockerTools.buildLayeredImage {
+dockerTools.buildImage {
   name = "flick";
   tag = "latest";
-  contents = [
-    flickStaticLLVM
-    cc
-    bashNonInteractive
-  ];
+  copyToRoot = buildEnv {
+    name = "flick-image-root";
+    paths = [
+      flickStaticLLVM
+      cc
+      bashNonInteractive
+    ];
+    pathsToLink = [ "/bin" ];
+  };
   extraCommands = "mkdir -m 1777 tmp workspace";
   config = {
     User = "1000:1000";
