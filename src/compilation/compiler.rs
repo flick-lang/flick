@@ -36,15 +36,20 @@ macro_rules! cstr {
     };
 }
 
+/// The oldest macOS that compiled programs run on, unless `MACOSX_DEPLOYMENT_TARGET` overrides it.
+/// macOS 11 is the first to run on Apple Silicon, and also runs on Intel.
+const DEFAULT_MACOS_DEPLOYMENT_TARGET: &str = "11.0";
+
 /// Converts a path into the null-terminated string LLVM expects.
 fn path_to_cstring(path: &Path) -> CString {
     CString::new(path.to_string_lossy().into_owned()).expect("path contains a null byte")
 }
 
-/// Copies an error message that LLVM allocated for an `ErrorMessage` out-parameter, then frees it.
+/// Copies a string that LLVM allocated and documents as freed with `LLVMDisposeMessage` (such as
+/// an `ErrorMessage` out-parameter after a call that reported failure), then frees it.
 ///
 /// # Safety
-/// `message` must come from such an out-parameter after a call that reported failure.
+/// `message` must be such a string, and must not be used afterwards.
 unsafe fn take_message(message: *mut c_char) -> String {
     // SAFETY: Upheld by the caller; LLVM requires these messages to be freed with LLVMDisposeMessage.
     unsafe {
@@ -52,6 +57,26 @@ unsafe fn take_message(message: *mut c_char) -> String {
         LLVMDisposeMessage(message);
         owned
     }
+}
+
+/// Returns the triple to compile for, which is the computer flick itself was built for.
+///
+/// On macOS this is built the way rustc does it. LLVM's default triple contains the running OS
+/// version (e.g. `arm64-apple-darwin25.6.0`), and LLVM records a triple's OS version as the minimum
+/// OS the output runs on, so instead this uses `MACOSX_DEPLOYMENT_TARGET` if set, and otherwise
+/// [DEFAULT_MACOS_DEPLOYMENT_TARGET].
+fn target_triple() -> CString {
+    let triple = if cfg!(target_os = "macos") {
+        let arch = std::env::consts::ARCH;
+        let deployment_target = std::env::var("MACOSX_DEPLOYMENT_TARGET")
+            .unwrap_or_else(|_| DEFAULT_MACOS_DEPLOYMENT_TARGET.to_string());
+        format!("{arch}-apple-macosx{deployment_target}")
+    } else {
+        // SAFETY: LLVM allocates the default triple for us to free with LLVMDisposeMessage.
+        unsafe { take_message(LLVMGetDefaultTargetTriple()) }
+    };
+
+    CString::new(triple).expect("target triple contains a null byte")
 }
 
 /// A struct that takes an [abstract syntax tree][a] and converts it into LLVM code.
@@ -101,24 +126,21 @@ impl Compiler {
             }
 
             // Configure module
-            let triple = LLVMGetDefaultTargetTriple(); // this computer's OS triple
-            LLVMSetTarget(module, triple);
+            let triple = target_triple();
+            LLVMSetTarget(module, triple.as_ptr());
 
             let cpu = cstr!("generic");
             let features = cstr!("");
-            let target = Self::get_target_from_triple(triple);
+            let target = Self::get_target_from_triple(&triple);
             let target_machine = LLVMCreateTargetMachine(
                 target,
-                triple,
+                triple.as_ptr(),
                 cpu,
                 features,
                 LLVMCodeGenLevelDefault,
                 LLVMRelocDefault,
                 LLVMCodeModelDefault,
             );
-
-            // The module and target machine keep their own copies
-            LLVMDisposeMessage(triple);
 
             let target_data_layout = LLVMCreateTargetDataLayout(target_machine);
             LLVMSetModuleDataLayout(module, target_data_layout);
@@ -139,15 +161,12 @@ impl Compiler {
     }
 
     /// Converts a string like `x86_64-unknown-freebsd` into the corresponding [LLVMTarget].
-    ///
-    /// # Safety
-    /// The triple must point to a live, null-terminated C string.
-    unsafe fn get_target_from_triple(triple: *const c_char) -> *mut LLVMTarget {
-        // SAFETY: The caller upholds the requirements above; LLVM handles belong to this compiler.
+    fn get_target_from_triple(triple: &CStr) -> *mut LLVMTarget {
+        // SAFETY: The triple is a valid C string, and LLVM only sets err_str on failure.
         unsafe {
             let mut target = std::ptr::null_mut();
             let mut err_str = std::ptr::null_mut();
-            if LLVMGetTargetFromTriple(triple, &mut target, &mut err_str) != 0 {
+            if LLVMGetTargetFromTriple(triple.as_ptr(), &mut target, &mut err_str) != 0 {
                 panic!("Error getting target from triple ({})", take_message(err_str));
             }
             target
