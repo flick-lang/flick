@@ -8,7 +8,7 @@
 }:
 
 let
-  root = ./.;
+  root = ../.;
   cargoToml = lib.importTOML (root + "/Cargo.toml");
 
   # llvm-sys versions encode LLVM's major.minor, e.g. "231" is LLVM 23.1

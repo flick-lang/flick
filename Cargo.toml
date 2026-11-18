@@ -26,3 +26,8 @@ tempfile = { version = "3.27.0", optional = true }
 [features]
 default = ["binary"]
 binary = ["anyhow", "clap", "tempfile"]
+
+[[bin]]
+name = "flick"
+path = "src/main.rs"
+required-features = ["binary"]

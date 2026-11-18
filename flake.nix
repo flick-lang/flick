@@ -28,7 +28,7 @@
     in
     {
       overlays.default = final: prev: {
-        flick = final.callPackage ./package.nix { };
+        flick = final.callPackage ./nix/flick.nix { };
       };
 
       packages = forEachSupportedSystem (pkgs: {
@@ -54,24 +54,10 @@
       });
 
       checks = forEachSupportedSystem (pkgs: {
-        examples = pkgs.runCommandCC "flick-example-check" { nativeBuildInputs = [ pkgs.flick ]; } ''
-          cp -r --no-preserve=mode ${./examples} examples && cd examples
-          for source in *.fl; do
-            flick "$source"
-          done
-          for source in errors/*.fl; do
-            if flick "$source"; then
-              echo "Expected compilation to fail: $source" >&2
-              exit 1
-            fi
-          done
-          ./hello_world > "$out"
-          grep -q 'Hello' "$out"
-
-          for kind in obj asm llvm-ir llvm-bc; do
-            flick --emit "$kind" hello_world.fl
-          done
-        '';
+        package = pkgs.flick;
+        formatting = pkgs.callPackage ./nix/check-formatting.nix { };
+        library = pkgs.callPackage ./nix/check-library.nix { };
+        examples = pkgs.callPackage ./nix/check-examples.nix { };
       });
     };
 }
