@@ -28,12 +28,11 @@
     in
     {
       overlays.default = final: prev: {
-        flick = final.callPackage ./nix/flick.nix { };
+        flick = final.callPackage ./package.nix { };
       };
 
       packages = forEachSupportedSystem (pkgs: {
         inherit (pkgs) flick;
-        dockerImage = pkgs.callPackage ./nix/docker-image.nix { };
         default = pkgs.flick;
       });
 
