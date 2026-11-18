@@ -1,17 +1,17 @@
 use llvm_sys::analysis::LLVMVerifierFailureAction::LLVMPrintMessageAction;
 use llvm_sys::analysis::LLVMVerifyFunction;
-use std::ffi::{c_char, c_uint, CStr, CString};
+use std::ffi::{CStr, CString, c_char, c_uint};
 use std::path::Path;
 
+use llvm_sys::LLVMLinkage::{LLVMExternalLinkage, LLVMInternalLinkage};
+use llvm_sys::bit_writer::LLVMWriteBitcodeToFile;
 use llvm_sys::core::*;
-use llvm_sys::{LLVMIntPredicate, LLVMTypeKind};
 use llvm_sys::error::{LLVMDisposeErrorMessage, LLVMGetErrorMessage};
 use llvm_sys::prelude::*;
 use llvm_sys::target::{
-    LLVMDisposeTargetData, LLVMSetModuleDataLayout, LLVM_InitializeNativeAsmPrinter,
-    LLVM_InitializeNativeTarget,
+    LLVM_InitializeNativeAsmPrinter, LLVM_InitializeNativeTarget, LLVMDisposeTargetData,
+    LLVMSetModuleDataLayout,
 };
-use llvm_sys::bit_writer::LLVMWriteBitcodeToFile;
 use llvm_sys::target_machine::LLVMCodeGenFileType::{self, LLVMAssemblyFile, LLVMObjectFile};
 use llvm_sys::target_machine::LLVMCodeGenOptLevel::LLVMCodeGenLevelDefault;
 use llvm_sys::target_machine::LLVMCodeModel::LLVMCodeModelDefault;
@@ -22,12 +22,12 @@ use llvm_sys::target_machine::{
     LLVMTargetMachineRef,
 };
 use llvm_sys::transforms::pass_builder::*;
-use llvm_sys::LLVMLinkage::{LLVMExternalLinkage, LLVMInternalLinkage};
+use llvm_sys::{LLVMIntPredicate, LLVMTypeKind};
 
+use crate::ScopeManager;
 use crate::ast::*;
 use crate::typed_ast::*;
-use crate::types::{Type, IntType};
-use crate::ScopeManager;
+use crate::types::{IntType, Type};
 
 /// The oldest macOS that compiled programs run on, unless `MACOSX_DEPLOYMENT_TARGET` overrides it.
 /// macOS 11 is the first to run on Apple Silicon, and also runs on Intel.
@@ -188,7 +188,10 @@ impl Compiler {
             let mut target = std::ptr::null_mut();
             let mut err_str = std::ptr::null_mut();
             if LLVMGetTargetFromTriple(triple.as_ptr(), &mut target, &mut err_str) != 0 {
-                panic!("Error getting target from triple ({})", take_message(err_str));
+                panic!(
+                    "Error getting target from triple ({})",
+                    take_message(err_str)
+                );
             }
             target
         }
@@ -298,7 +301,7 @@ impl Compiler {
             // TODO: In the future when we have additional global statements, maybe move this into a new function called 'preprocess_global_statement' or something like that
             match global_statement {
                 TypedGlobalStatement::Extern(p) => self.compile_func_proto(p),
-                TypedGlobalStatement::FuncDef(f) => self.compile_func_proto(&f.proto)
+                TypedGlobalStatement::FuncDef(f) => self.compile_func_proto(&f.proto),
             }
         }
         for global_statement in program.global_statements.iter() {
@@ -432,7 +435,8 @@ impl Compiler {
         let cur_func = self.expect_cur_function("compile a while loop");
         // SAFETY: See the invariants on [Compiler].
         unsafe {
-            let cond_block = LLVMAppendBasicBlockInContext(self.context, cur_func, c"cond".as_ptr());
+            let cond_block =
+                LLVMAppendBasicBlockInContext(self.context, cur_func, c"cond".as_ptr());
             let loop_block = LLVMCreateBasicBlockInContext(self.context, c"loop".as_ptr());
             // Build block to go to after loop is done executing
             let after_block = LLVMCreateBasicBlockInContext(self.context, c"after".as_ptr());
@@ -526,14 +530,18 @@ impl Compiler {
         // SAFETY: See the invariants on [Compiler]. Each block is appended to the current function
         // exactly once, before the function is verified.
         unsafe {
-            let cond_block = LLVMAppendBasicBlockInContext(self.context, cur_func, c"cond".as_ptr());
+            let cond_block =
+                LLVMAppendBasicBlockInContext(self.context, cur_func, c"cond".as_ptr());
             // Each of these is appended once the block before it is built
             let then_block = LLVMCreateBasicBlockInContext(self.context, c"then".as_ptr());
             let else_block = LLVMCreateBasicBlockInContext(self.context, c"else".as_ptr());
             let merge_block = if if_statement.always_returns() {
                 None
             } else {
-                Some(LLVMCreateBasicBlockInContext(self.context, c"merge".as_ptr()))
+                Some(LLVMCreateBasicBlockInContext(
+                    self.context,
+                    c"merge".as_ptr(),
+                ))
             };
 
             LLVMBuildBr(self.builder, cond_block);
@@ -616,7 +624,7 @@ impl Compiler {
     }
 
     /// Compiles an integer literal expression.
-    /// 
+    ///
     /// This function converts a `TypedIntLiteral` into an LLVM constant integer value.
     /// If `int_literal.negative` is true, the value is negated.
     fn compile_int_literal(&self, int_literal: &TypedIntLiteral) -> LLVMValueRef {
@@ -659,13 +667,21 @@ impl Compiler {
                 Multiply => LLVMBuildMul(self.builder, lhs, rhs, c"mul".as_ptr()),
                 // TODO: signed-ints: Signed vs unsigned division
                 Divide => match int_type {
-                    IntType { signed: true, .. } => LLVMBuildSDiv(self.builder, lhs, rhs, c"sdiv".as_ptr()),
-                    IntType { signed: false, .. } => LLVMBuildUDiv(self.builder, lhs, rhs, c"udiv".as_ptr()),
+                    IntType { signed: true, .. } => {
+                        LLVMBuildSDiv(self.builder, lhs, rhs, c"sdiv".as_ptr())
+                    }
+                    IntType { signed: false, .. } => {
+                        LLVMBuildUDiv(self.builder, lhs, rhs, c"udiv".as_ptr())
+                    }
                 },
                 Remainder => match int_type {
-                    IntType { signed: true, .. } => LLVMBuildSRem(self.builder, lhs, rhs, c"srem".as_ptr()),
-                    IntType { signed: false, .. } => LLVMBuildURem(self.builder, lhs, rhs, c"urem".as_ptr()),
-                }
+                    IntType { signed: true, .. } => {
+                        LLVMBuildSRem(self.builder, lhs, rhs, c"srem".as_ptr())
+                    }
+                    IntType { signed: false, .. } => {
+                        LLVMBuildURem(self.builder, lhs, rhs, c"urem".as_ptr())
+                    }
+                },
             }
         }
     }
@@ -684,7 +700,10 @@ impl Compiler {
         let cast_int_type = match (cast_type, &source_type) {
             (Type::Int(cast), Type::Int(_)) => cast,
             (cast, source) => {
-                panic!("Unsupported cast from {} to {} should've been handled by the typer", source, cast)
+                panic!(
+                    "Unsupported cast from {} to {} should've been handled by the typer",
+                    source, cast
+                )
             }
         };
 
@@ -715,8 +734,13 @@ impl Compiler {
 
     /// Compiles a negation expression.
     fn compile_negation(&mut self, operand: &TypedExpr) -> LLVMValueRef {
-        if !matches!(operand.get_result_type(), Type::Int(IntType { signed: true, .. })) {
-            panic!("Unsupported type for negation, can only handle integers; this should have been handled by typer");
+        if !matches!(
+            operand.get_result_type(),
+            Type::Int(IntType { signed: true, .. })
+        ) {
+            panic!(
+                "Unsupported type for negation, can only handle integers; this should have been handled by typer"
+            );
         }
 
         let operand = self.compile_int_expr(operand);
@@ -737,15 +761,27 @@ impl Compiler {
             }
 
             match comparison.operand_type {
-                Type::Int(int_type) => LLVMBuildICmp(self.builder, self.comparison_int_op(comparison.operator, int_type), lhs, rhs, c"".as_ptr()),
-                _ => panic!("Unsupported lhs and rhs types for comparison; can only handle integers"),
+                Type::Int(int_type) => LLVMBuildICmp(
+                    self.builder,
+                    self.comparison_int_op(comparison.operator, int_type),
+                    lhs,
+                    rhs,
+                    c"".as_ptr(),
+                ),
+                _ => {
+                    panic!("Unsupported lhs and rhs types for comparison; can only handle integers")
+                }
             }
         }
     }
 
-    fn comparison_int_op(&mut self, operator: ComparisonOperator, result_type: IntType) -> LLVMIntPredicate {
+    fn comparison_int_op(
+        &mut self,
+        operator: ComparisonOperator,
+        result_type: IntType,
+    ) -> LLVMIntPredicate {
         use LLVMIntPredicate::*;
-        
+
         match operator {
             ComparisonOperator::NotEqualTo => LLVMIntNE,
             ComparisonOperator::EqualTo => LLVMIntEQ,
@@ -925,14 +961,20 @@ mod tests {
     // input LLVM can't handle safely panics instead of reaching LLVM.
 
     fn uint(width: u32) -> IntType {
-        IntType { signed: false, width }
+        IntType {
+            signed: false,
+            width,
+        }
     }
 
     fn proto(name: &str, params: &[Type], return_type: Type) -> FuncProto {
         let params = params
             .iter()
             .enumerate()
-            .map(|(i, param_type)| FuncParam { param_type: param_type.clone(), param_name: format!("p{i}") })
+            .map(|(i, param_type)| FuncParam {
+                param_type: param_type.clone(),
+                param_name: format!("p{i}"),
+            })
             .collect();
         FuncProto {
             func_visibility: FuncVisibility::Public,
@@ -943,12 +985,18 @@ mod tests {
     }
 
     fn literal(value: &str, int_type: IntType) -> TypedExpr {
-        TypedExpr::IntLiteral(TypedIntLiteral { int_value: value.to_string(), int_type })
+        TypedExpr::IntLiteral(TypedIntLiteral {
+            int_value: value.to_string(),
+            int_type,
+        })
     }
 
     /// `pub fn main() u8 { <body> }`, after the given externs
     fn program(externs: Vec<FuncProto>, body: Vec<TypedStatement>) -> TypedProgram {
-        let mut global_statements: Vec<_> = externs.into_iter().map(TypedGlobalStatement::Extern).collect();
+        let mut global_statements: Vec<_> = externs
+            .into_iter()
+            .map(TypedGlobalStatement::Extern)
+            .collect();
         global_statements.push(TypedGlobalStatement::FuncDef(TypedFuncDef {
             proto: proto("main", &[], Type::Int(uint(8))),
             body,
@@ -957,7 +1005,11 @@ mod tests {
     }
 
     fn declare(name: &str, var_type: Type, var_value: TypedExpr) -> TypedStatement {
-        TypedStatement::VarDeclaration(TypedVarDeclaration { var_name: name.to_string(), var_type, var_value })
+        TypedStatement::VarDeclaration(TypedVarDeclaration {
+            var_name: name.to_string(),
+            var_type,
+            var_value,
+        })
     }
 
     fn ret_zero() -> TypedStatement {
@@ -973,7 +1025,10 @@ mod tests {
     #[test]
     #[should_panic(expected = "Integer widths must be between 1 and 8388608, not 0")]
     fn rejects_zero_width_integers() {
-        let body = vec![declare("x", Type::Int(uint(0)), literal("0", uint(0))), ret_zero()];
+        let body = vec![
+            declare("x", Type::Int(uint(0)), literal("0", uint(0))),
+            ret_zero(),
+        ];
         Compiler::new().compile(&program(vec![], body));
     }
 
@@ -981,7 +1036,10 @@ mod tests {
     #[should_panic(expected = "Integer widths must be between 1 and 8388608, not 8388609")]
     fn rejects_integers_wider_than_llvm_allows() {
         let width = MAX_INT_WIDTH + 1;
-        let body = vec![declare("x", Type::Int(uint(width)), literal("0", uint(width))), ret_zero()];
+        let body = vec![
+            declare("x", Type::Int(uint(width)), literal("0", uint(width))),
+            ret_zero(),
+        ];
         Compiler::new().compile(&program(vec![], body));
     }
 
@@ -1002,8 +1060,14 @@ mod tests {
     #[test]
     #[should_panic(expected = "'void' can't be the type of a value")]
     fn rejects_loading_void_identifiers() {
-        let void_x = TypedExpr::Identifier(TypedIdentifier { name: "x".to_string(), id_type: Type::Void });
-        let body = vec![declare("x", Type::Int(uint(8)), literal("0", uint(8))), TypedStatement::Return(Some(void_x))];
+        let void_x = TypedExpr::Identifier(TypedIdentifier {
+            name: "x".to_string(),
+            id_type: Type::Void,
+        });
+        let body = vec![
+            declare("x", Type::Int(uint(8)), literal("0", uint(8))),
+            TypedStatement::Return(Some(void_x)),
+        ];
         Compiler::new().compile(&program(vec![], body));
     }
 
@@ -1011,7 +1075,11 @@ mod tests {
     #[should_panic(expected = "Expected an integer value")]
     fn rejects_storing_a_void_call_result() {
         let nothing = proto("nothing", &[], Type::Void);
-        let call = TypedExpr::Call(TypedCall { function_name: "nothing".to_string(), function_proto: nothing.clone(), args: vec![] });
+        let call = TypedExpr::Call(TypedCall {
+            function_name: "nothing".to_string(),
+            function_proto: nothing.clone(),
+            args: vec![],
+        });
         let body = vec![declare("x", Type::Int(uint(8)), call), ret_zero()];
         Compiler::new().compile(&program(vec![nothing], body));
     }
@@ -1021,7 +1089,11 @@ mod tests {
     fn rejects_calls_whose_prototype_doesnt_match_the_callee() {
         let takes_u8 = proto("takes_u8", &[Type::Int(uint(8))], Type::Void);
         let claimed = proto("takes_u8", &[Type::Int(uint(16))], Type::Void);
-        let call = TypedCall { function_name: "takes_u8".to_string(), function_proto: claimed, args: vec![literal("1", uint(16))] };
+        let call = TypedCall {
+            function_name: "takes_u8".to_string(),
+            function_proto: claimed,
+            args: vec![literal("1", uint(16))],
+        };
         let body = vec![TypedStatement::Call(call), ret_zero()];
         Compiler::new().compile(&program(vec![takes_u8], body));
     }
@@ -1073,7 +1145,10 @@ mod tests {
         // be reached directly
         let mut compiler = Compiler::new();
         compiler.compile_func_proto(&proto("f", &[Type::Int(uint(8))], Type::Void));
-        let definition = TypedFuncDef { proto: proto("f", &[], Type::Void), body: vec![TypedStatement::Return(None)] };
+        let definition = TypedFuncDef {
+            proto: proto("f", &[], Type::Void),
+            body: vec![TypedStatement::Return(None)],
+        };
         compiler.compile_func_def(&definition);
     }
 
@@ -1086,7 +1161,10 @@ mod tests {
     #[test]
     #[should_panic(expected = "Cannot load a variable outside of a function")]
     fn rejects_loading_outside_a_function() {
-        let id = TypedIdentifier { name: "x".to_string(), id_type: Type::Int(uint(8)) };
+        let id = TypedIdentifier {
+            name: "x".to_string(),
+            id_type: Type::Int(uint(8)),
+        };
         Compiler::new().compile_identifier(&id);
     }
 }

@@ -1,7 +1,6 @@
 use crate::ast::{
     Assignment, Binary, Call, Comparison, Expr, FuncDef, FuncProto, FuncVisibility,
-    GlobalStatement, If, Program, Statement, Unary, UnaryOperator, VarDeclaration,
-    WhileLoop,
+    GlobalStatement, If, Program, Statement, Unary, UnaryOperator, VarDeclaration, WhileLoop,
 };
 use crate::scope_manager::ScopeManager;
 use crate::typed_ast::{
@@ -57,8 +56,11 @@ impl Typer {
     fn check_valid_main_func(&self) {
         let func_proto = match self.scope_manager.get("main") {
             Some(Type::Func(proto)) => proto,
-            Some(t) => panic!("Expected 'main' to be a function; found 'main' to be of type {}", t),
-            None => panic!("No main function defined")
+            Some(t) => panic!(
+                "Expected 'main' to be a function; found 'main' to be of type {}",
+                t
+            ),
+            None => panic!("No main function defined"),
         };
 
         if func_proto.func_visibility != FuncVisibility::Public {
@@ -69,7 +71,12 @@ impl Typer {
             panic!("The 'main' function should not accept any parameters");
         }
 
-        if *func_proto.return_type != Type::Int(IntType { width: 8, signed: false }) {
+        if *func_proto.return_type
+            != Type::Int(IntType {
+                width: 8,
+                signed: false,
+            })
+        {
             panic!("The 'main' function should return a u8");
         }
     }
@@ -91,7 +98,10 @@ impl Typer {
         self.scope_manager.set(func_name, func_type);
     }
 
-    fn type_global_statement(&mut self, global_statement: &GlobalStatement) -> TypedGlobalStatement {
+    fn type_global_statement(
+        &mut self,
+        global_statement: &GlobalStatement,
+    ) -> TypedGlobalStatement {
         match global_statement {
             GlobalStatement::Extern(proto) => TypedGlobalStatement::Extern(proto.clone()),
             GlobalStatement::FuncDef(f) => TypedGlobalStatement::FuncDef(self.type_func_def(f)),
@@ -120,7 +130,10 @@ impl Typer {
         } else {
             // Non-void functions: make sure all control paths lead to a return
             if !some_statement_always_returns(&func_body) {
-                panic!("Function '{}' does not always return a value", func_def.proto.name);
+                panic!(
+                    "Function '{}' does not always return a value",
+                    func_def.proto.name
+                );
             }
         }
 
@@ -177,7 +190,11 @@ impl Typer {
 
     /// This method confirms that a given body (consisting of one or more [Statement])
     /// is well-typed.
-    fn type_body(&mut self, body: &[Statement], function_return_type: &Type) -> Vec<TypedStatement> {
+    fn type_body(
+        &mut self,
+        body: &[Statement],
+        function_return_type: &Type,
+    ) -> Vec<TypedStatement> {
         self.scope_manager.enter_scope();
         let typed_body: Vec<_> = body
             .iter()
@@ -192,8 +209,15 @@ impl Typer {
     fn type_if_statement(&mut self, if_statement: &If, function_return_type: &Type) -> TypedIf {
         let condition = self.type_expr(&if_statement.condition, Some(&Type::Bool));
         let then_body = self.type_body(&if_statement.then_body, function_return_type);
-        let else_body = if_statement.else_body.as_ref().map(|body| self.type_body(body, function_return_type));
-        TypedIf { condition, then_body, else_body }
+        let else_body = if_statement
+            .else_body
+            .as_ref()
+            .map(|body| self.type_body(body, function_return_type));
+        TypedIf {
+            condition,
+            then_body,
+            else_body,
+        }
     }
 
     /// This method checks that a while loop has a *boolean* condition and a collection of body
@@ -234,12 +258,15 @@ impl Typer {
         function_return_type: &Type,
     ) -> Option<TypedExpr> {
         match (ret, function_return_type) {
-            (Some(_), Type::Void) => panic!("Expected function to return nothing, but found 'ret' with a value"),
+            (Some(_), Type::Void) => {
+                panic!("Expected function to return nothing, but found 'ret' with a value")
+            }
             (Some(expr), desired) => Some(self.type_expr(expr, Some(desired))),
             (None, Type::Void) => None,
             (None, _) => panic!(
-                "Expected function to return a '{}', but found 'ret' without a value", function_return_type
-            )
+                "Expected function to return a '{}', but found 'ret' without a value",
+                function_return_type
+            ),
         }
     }
 
@@ -267,7 +294,7 @@ impl Typer {
     }
 
     /// Checks that the unary expression is of the correct type, and wraps it as a `TypedUnary`.
-    /// 
+    ///
     /// For example, if the unary operator is a cast, then the operand must be castable to the
     /// desired type.
     fn type_unary_expr(&mut self, unary: &Unary, desired_type: Option<&Type>) -> TypedUnary {
@@ -278,17 +305,22 @@ impl Typer {
             (UnaryOperator::Cast(cast_type), Some(desired)) => {
                 panic!(
                     "Expected expression of type '{}', but found a cast to type '{}'",
-                    desired,
-                    cast_type
+                    desired, cast_type
                 )
             }
 
-            (UnaryOperator::Negate, None) => Some(&Type::Int(IntType { signed: true, width: 64 })),
+            (UnaryOperator::Negate, None) => Some(&Type::Int(IntType {
+                signed: true,
+                width: 64,
+            })),
             (UnaryOperator::Negate, Some(t @ Type::Int(IntType { signed: false, .. }))) => {
-               panic!("Expected an unsigned expression of type '{}', but found a negation", t)
-            },
+                panic!(
+                    "Expected an unsigned expression of type '{}', but found a negation",
+                    t
+                )
+            }
             (UnaryOperator::Negate, Some(t @ Type::Int(_))) => Some(t),
-            (UnaryOperator::Negate, Some(t )) => panic!("Cannot negate a non-integer type '{}'", t),
+            (UnaryOperator::Negate, Some(t)) => panic!("Cannot negate a non-integer type '{}'", t),
         };
 
         let typed_operand = self.type_expr(&unary.operand, desired_operand_type);
@@ -297,7 +329,7 @@ impl Typer {
         // Now that we know the type of the operand, we can check if the unary operator is valid
         match &unary.operator {
             UnaryOperator::Cast(cast_type) => Self::check_valid_cast(&cast_type, &operand_type),
-            UnaryOperator::Negate => Self::check_valid_negation(&operand_type)
+            UnaryOperator::Negate => Self::check_valid_negation(&operand_type),
         }
 
         let result_type = match &unary.operator {
@@ -347,7 +379,10 @@ impl Typer {
                     int_literal, t
                 )
             }
-            None => IntType { signed: false, width: 64 },
+            None => IntType {
+                signed: false,
+                width: 64,
+            },
         };
 
         // TODO: Ensure that the int_literal.value fits within the desired width
@@ -359,7 +394,11 @@ impl Typer {
     }
 
     /// Types a binary expression; see [Typer::type_expr] for details.
-    fn type_binary_expr(&mut self, binary_expr: &Binary, desired_type: Option<&Type>) -> TypedBinary {
+    fn type_binary_expr(
+        &mut self,
+        binary_expr: &Binary,
+        desired_type: Option<&Type>,
+    ) -> TypedBinary {
         let left = self.type_expr(&binary_expr.left, desired_type);
         let operator = binary_expr.operator;
         let right = self.type_expr(&binary_expr.right, desired_type);
@@ -377,7 +416,7 @@ impl Typer {
             left: Box::new(left),
             operator,
             right: Box::new(right),
-            result_type: left_type,  // since both types must be equal
+            result_type: left_type, // since both types must be equal
         }
     }
 
@@ -495,8 +534,10 @@ impl Typer {
     fn check_valid_negation(operand_type: &Type) {
         match operand_type {
             Type::Int(IntType { signed: true, .. }) => (),
-            Type::Int(IntType { signed: false, .. }) => panic!("Cannot negate an unsigned type: '{}'", operand_type),
-            t => panic!("Cannot negate a non-integer type '{}'", t)
+            Type::Int(IntType { signed: false, .. }) => {
+                panic!("Cannot negate an unsigned type: '{}'", operand_type)
+            }
+            t => panic!("Cannot negate a non-integer type '{}'", t),
         }
     }
 }
@@ -529,7 +570,10 @@ mod tests {
                     func_visibility: FuncVisibility::Public,
                     name: "not_main".to_string(),
                     params: vec![],
-                    return_type: Box::new(Type::Int(IntType { width: 32, signed: true })),
+                    return_type: Box::new(Type::Int(IntType {
+                        width: 32,
+                        signed: true,
+                    })),
                 },
                 body: vec![Statement::Return(Some(Expr::IntLiteral("0".to_string())))],
             })],
@@ -552,7 +596,10 @@ mod tests {
                     func_visibility: FuncVisibility::Public,
                     name: "main".to_string(),
                     params: vec![],
-                    return_type: Box::new(Type::Int(IntType { width: 32, signed: true })),
+                    return_type: Box::new(Type::Int(IntType {
+                        width: 32,
+                        signed: true,
+                    })),
                 },
                 body: vec![Statement::Return(Some(Expr::IntLiteral("0".to_string())))],
             })],
@@ -574,13 +621,17 @@ mod tests {
                 proto: FuncProto {
                     func_visibility: FuncVisibility::Public,
                     name: "main".to_string(),
-                    params: vec![
-                        FuncParam {
-                            param_type: Type::Int(IntType { width: 32, signed: true }),
-                            param_name: "a".to_string()
-                        }
-                    ],
-                    return_type: Box::new(Type::Int(IntType { width: 32, signed: true })),
+                    params: vec![FuncParam {
+                        param_type: Type::Int(IntType {
+                            width: 32,
+                            signed: true,
+                        }),
+                        param_name: "a".to_string(),
+                    }],
+                    return_type: Box::new(Type::Int(IntType {
+                        width: 32,
+                        signed: true,
+                    })),
                 },
                 body: vec![Statement::Return(Some(Expr::IntLiteral("0".to_string())))],
             })],
@@ -605,23 +656,35 @@ mod tests {
                     func_visibility: FuncVisibility::Public,
                     name: "main".to_string(),
                     params: vec![],
-                    return_type: Box::new(Type::Int(IntType { width: 32, signed: true })),
+                    return_type: Box::new(Type::Int(IntType {
+                        width: 32,
+                        signed: true,
+                    })),
                 },
                 body: vec![
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "a".to_string(),
                         var_value: Expr::IntLiteral("3".to_string()),
-                        var_type: Type::Int(IntType { signed: true, width: 64 }),
+                        var_type: Type::Int(IntType {
+                            signed: true,
+                            width: 64,
+                        }),
                     }),
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "b".to_string(),
                         var_value: Expr::Identifier("a".to_string()),
-                        var_type: Type::Int(IntType { signed: true, width: 64 }),
+                        var_type: Type::Int(IntType {
+                            signed: true,
+                            width: 64,
+                        }),
                     }),
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "c".to_string(),
                         var_value: Expr::Identifier("b".to_string()), // this should panic, since b (i64) can't be in c (i32)
-                        var_type: Type::Int(IntType { width: 32, signed: true }),
+                        var_type: Type::Int(IntType {
+                            width: 32,
+                            signed: true,
+                        }),
                     }),
                 ],
             })],
@@ -645,18 +708,27 @@ mod tests {
                     func_visibility: FuncVisibility::Public,
                     name: "main".to_string(),
                     params: vec![],
-                    return_type: Box::new(Type::Int(IntType { width: 8, signed: false })),
+                    return_type: Box::new(Type::Int(IntType {
+                        width: 8,
+                        signed: false,
+                    })),
                 },
                 body: vec![
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "a".to_string(),
                         var_value: Expr::IntLiteral("3".to_string()),
-                        var_type: Type::Int(IntType { width: 8, signed: false }),
+                        var_type: Type::Int(IntType {
+                            width: 8,
+                            signed: false,
+                        }),
                     }),
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "b".to_string(),
                         var_value: Expr::Identifier("a".to_string()),
-                        var_type: Type::Int(IntType { width: 8, signed: false }),
+                        var_type: Type::Int(IntType {
+                            width: 8,
+                            signed: false,
+                        }),
                     }),
                     Statement::Return(Some(Expr::Identifier("b".to_string()))),
                 ],
@@ -669,28 +741,46 @@ mod tests {
                     func_visibility: FuncVisibility::Public,
                     name: "main".to_string(),
                     params: vec![],
-                    return_type: Box::new(Type::Int(IntType { width: 8, signed: false })),
+                    return_type: Box::new(Type::Int(IntType {
+                        width: 8,
+                        signed: false,
+                    })),
                 },
                 body: vec![
                     TypedStatement::VarDeclaration(TypedVarDeclaration {
                         var_name: "a".to_string(),
                         var_value: TypedExpr::IntLiteral(TypedIntLiteral {
                             int_value: "3".to_string(),
-                            int_type: IntType { width: 8, signed: false },
+                            int_type: IntType {
+                                width: 8,
+                                signed: false,
+                            },
                         }),
-                        var_type: Type::Int(IntType { width: 8, signed: false }),
+                        var_type: Type::Int(IntType {
+                            width: 8,
+                            signed: false,
+                        }),
                     }),
                     TypedStatement::VarDeclaration(TypedVarDeclaration {
                         var_name: "b".to_string(),
-                        var_type: Type::Int(IntType { width: 8, signed: false }),
+                        var_type: Type::Int(IntType {
+                            width: 8,
+                            signed: false,
+                        }),
                         var_value: TypedExpr::Identifier(TypedIdentifier {
                             name: "a".to_string(),
-                            id_type: Type::Int(IntType { width: 8, signed: false }),
+                            id_type: Type::Int(IntType {
+                                width: 8,
+                                signed: false,
+                            }),
                         }),
                     }),
                     TypedStatement::Return(Some(TypedExpr::Identifier(TypedIdentifier {
                         name: "b".to_string(),
-                        id_type: Type::Int(IntType { width: 8, signed: false }),
+                        id_type: Type::Int(IntType {
+                            width: 8,
+                            signed: false,
+                        }),
                     }))),
                 ],
             })],
@@ -715,16 +805,25 @@ mod tests {
                     func_visibility: FuncVisibility::Public,
                     name: "main".to_string(),
                     params: vec![],
-                    return_type: Box::new(Type::Int(IntType { width: 8, signed: false })),
+                    return_type: Box::new(Type::Int(IntType {
+                        width: 8,
+                        signed: false,
+                    })),
                 },
                 body: vec![
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "a".to_string(),
                         var_value: Expr::IntLiteral("3".to_string()),
-                        var_type: Type::Int(IntType { width: 32, signed: true }),
+                        var_type: Type::Int(IntType {
+                            width: 32,
+                            signed: true,
+                        }),
                     }),
                     Statement::Return(Some(Expr::Unary(Unary {
-                        operator: UnaryOperator::Cast(Type::Int(IntType { width: 8, signed: false })),
+                        operator: UnaryOperator::Cast(Type::Int(IntType {
+                            width: 8,
+                            signed: false,
+                        })),
                         operand: Box::new(Expr::Identifier("a".to_string())),
                     }))),
                 ],
@@ -732,7 +831,7 @@ mod tests {
         };
 
         let mut typer = Typer::new();
-        let _ = typer.type_program(&program);  // should panic
+        let _ = typer.type_program(&program); // should panic
     }
 
     #[test]
@@ -748,16 +847,25 @@ mod tests {
                     func_visibility: FuncVisibility::Public,
                     name: "main".to_string(),
                     params: vec![],
-                    return_type: Box::new(Type::Int(IntType { width: 8, signed: false })),
+                    return_type: Box::new(Type::Int(IntType {
+                        width: 8,
+                        signed: false,
+                    })),
                 },
                 body: vec![
                     Statement::VarDeclaration(VarDeclaration {
                         var_name: "a".to_string(),
                         var_value: Expr::IntLiteral("3".to_string()),
-                        var_type: Type::Int(IntType { width: 32, signed: false }),
+                        var_type: Type::Int(IntType {
+                            width: 32,
+                            signed: false,
+                        }),
                     }),
                     Statement::Return(Some(Expr::Unary(Unary {
-                        operator: UnaryOperator::Cast(Type::Int(IntType { width: 8, signed: false })),
+                        operator: UnaryOperator::Cast(Type::Int(IntType {
+                            width: 8,
+                            signed: false,
+                        })),
                         operand: Box::new(Expr::Identifier("a".to_string())),
                     }))),
                 ],
@@ -770,24 +878,42 @@ mod tests {
                     func_visibility: FuncVisibility::Public,
                     name: "main".to_string(),
                     params: vec![],
-                    return_type: Box::new(Type::Int(IntType { width: 8, signed: false })),
+                    return_type: Box::new(Type::Int(IntType {
+                        width: 8,
+                        signed: false,
+                    })),
                 },
                 body: vec![
                     TypedStatement::VarDeclaration(TypedVarDeclaration {
                         var_name: "a".to_string(),
                         var_value: TypedExpr::IntLiteral(TypedIntLiteral {
                             int_value: "3".to_string(),
-                            int_type: IntType { width: 32, signed: false },
+                            int_type: IntType {
+                                width: 32,
+                                signed: false,
+                            },
                         }),
-                        var_type: Type::Int(IntType { width: 32, signed: false }),
+                        var_type: Type::Int(IntType {
+                            width: 32,
+                            signed: false,
+                        }),
                     }),
                     TypedStatement::Return(Some(TypedExpr::Unary(TypedUnary {
-                        operator: UnaryOperator::Cast(Type::Int(IntType { width: 8, signed: false })),
+                        operator: UnaryOperator::Cast(Type::Int(IntType {
+                            width: 8,
+                            signed: false,
+                        })),
                         operand: Box::new(TypedExpr::Identifier(TypedIdentifier {
                             name: "a".to_string(),
-                            id_type: Type::Int(IntType { width: 32, signed: false }),
+                            id_type: Type::Int(IntType {
+                                width: 32,
+                                signed: false,
+                            }),
                         })),
-                        result_type: Type::Int(IntType { width: 8, signed: false }),
+                        result_type: Type::Int(IntType {
+                            width: 8,
+                            signed: false,
+                        }),
                     }))),
                 ],
             })],
@@ -810,7 +936,10 @@ mod tests {
                     func_visibility: FuncVisibility::Public,
                     name: "main".to_string(),
                     params: vec![],
-                    return_type: Box::new(Type::Int(IntType { width: 8, signed: false })),
+                    return_type: Box::new(Type::Int(IntType {
+                        width: 8,
+                        signed: false,
+                    })),
                 },
                 body: vec![],
             })],

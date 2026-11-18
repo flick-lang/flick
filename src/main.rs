@@ -1,13 +1,13 @@
 use std::fs::File;
 use std::io::Read;
-use std::path::{PathBuf, Path};
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{Context, Result};
 use clap::error::ErrorKind;
 use clap::{CommandFactory, Parser as ClapParser, ValueEnum};
 
-use flick::{error::FlickError, Compiler, Lexer, Parser, Typer};
+use flick::{Compiler, Lexer, Parser, Typer, error::FlickError};
 
 /// A command line interface using [clap]
 #[derive(ClapParser)]
@@ -89,7 +89,10 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     if cli.r#static && cli.emit != Emit::Link {
         Cli::command()
-            .error(ErrorKind::ArgumentConflict, "--static only applies to `--emit link`")
+            .error(
+                ErrorKind::ArgumentConflict,
+                "--static only applies to `--emit link`",
+            )
             .exit();
     }
 
@@ -151,7 +154,6 @@ fn link(cli: &Cli, compiler: &Compiler, output_path: &Path) -> Result<()> {
     Ok(())
 }
 
-
 fn print_error(source_path: impl AsRef<Path>, file_chars: &[char], error: FlickError) {
     // TODO: Write to string then print string to stderr instead of printing to stderr directly
 
@@ -159,8 +161,13 @@ fn print_error(source_path: impl AsRef<Path>, file_chars: &[char], error: FlickE
         .iter()
         .take(error.index)
         .take_while(|c: &&char| **c != '\n')
-        .count() + 1;
-    let line_num = file_chars[..line_start_index].iter().filter(|&&c| c == '\n').count() + 1;
+        .count()
+        + 1;
+    let line_num = file_chars[..line_start_index]
+        .iter()
+        .filter(|&&c| c == '\n')
+        .count()
+        + 1;
     let col_num = error.index - line_start_index + 1;
     let line = &file_chars[line_start_index..]
         .iter()
@@ -169,7 +176,7 @@ fn print_error(source_path: impl AsRef<Path>, file_chars: &[char], error: FlickE
 
     eprintln!("{}: {}", "error", error);
 
-    let max_line_num_width = (line_num+1).to_string().len();
+    let max_line_num_width = (line_num + 1).to_string().len();
     // if line_num > 1 {
     //     write_source_code_line(&file_chars[line_start_index - line.len()..line_start_index], line_num - 1, max_line_num_width);
     // }
@@ -178,9 +185,19 @@ fn print_error(source_path: impl AsRef<Path>, file_chars: &[char], error: FlickE
     // if line_num < num_lines {
     //     write_source_code_line(&file_chars[line_start_index + line.len()..], line_num + 1, max_line_num_width);
     // }
-    eprintln!("in {}:{}:{}", source_path.as_ref().display(), line_num, col_num);
+    eprintln!(
+        "in {}:{}:{}",
+        source_path.as_ref().display(),
+        line_num,
+        col_num
+    );
 }
 
 fn write_source_code_line(line: &str, line_num: usize, max_line_num_width: usize) {
-    eprintln!(" {:0>width$} │ {}", line_num, line, width = max_line_num_width);
+    eprintln!(
+        " {:0>width$} │ {}",
+        line_num,
+        line,
+        width = max_line_num_width
+    );
 }

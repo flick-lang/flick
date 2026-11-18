@@ -12,7 +12,7 @@ pub struct TypedProgram {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum TypedGlobalStatement {
     Extern(FuncProto),
-    FuncDef(TypedFuncDef)
+    FuncDef(TypedFuncDef),
 }
 
 /// A typed version of [crate::ast::FuncDef]
@@ -40,12 +40,10 @@ pub enum TypedStatement {
     If(TypedIf),
 }
 
-
 /// Returns true if any of the statements in the slice always return.
 pub fn some_statement_always_returns(statements: &[TypedStatement]) -> bool {
     statements.iter().any(|stmt| stmt.always_returns())
 }
-
 
 impl TypedStatement {
     /// Returns true if this statement always returns, no matter the control flow.
@@ -180,7 +178,6 @@ pub struct TypedIdentifier {
     pub name: String,
     pub id_type: Type,
 }
-
 
 /// A typed version of [Unary](crate::ast::Unary).
 #[derive(Debug, PartialEq, Eq, Clone)]

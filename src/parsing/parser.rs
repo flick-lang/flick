@@ -15,10 +15,7 @@ pub struct Parser<'a> {
 impl<'a> Parser<'a> {
     /// Parses as many global statements as possible and returns a [Program] containing them all.
     pub fn parse_program(tokens: &'a [Token]) -> Program {
-        let mut parser = Self { 
-            tokens, 
-            cursor: 0 
-        };
+        let mut parser = Self { tokens, cursor: 0 };
 
         let mut global_statements = Vec::new();
 
@@ -69,7 +66,9 @@ impl<'a> Parser<'a> {
     /// Advances the cursor past all newline, comment, and docstring tokens.
     fn skip_newlines_comments_and_docstrings(&mut self) {
         // todo take into account the fact that docstring CAN appear in parse tree
-        while let Some(Token::Newline | Token::Comment(_) | Token::Docstring(_)) = self.peek_token(1) {
+        while let Some(Token::Newline | Token::Comment(_) | Token::Docstring(_)) =
+            self.peek_token(1)
+        {
             self.skip_token();
         }
     }
@@ -92,14 +91,14 @@ impl<'a> Parser<'a> {
         if func_visibility != FuncVisibility::Private {
             self.skip_token(); // skip the 'extern' / 'pub' in 'extern fn' / 'pub fn'
         }
-        self.skip_token();  // skip the 'fn'
+        self.skip_token(); // skip the 'fn'
 
         let name = self.parse_identifier();
         let params = self.parse_func_params();
 
         let return_type = match self.peek_token(1) {
-            Some(Token::LSquirly) => Type::Void,  // implicit void ret-type omitted before body opened
-            Some(Token::Newline) => Type::Void,   // implicit void ret-type omitted but no '{' because, e.g., extern fn
+            Some(Token::LSquirly) => Type::Void, // implicit void ret-type omitted before body opened
+            Some(Token::Newline) => Type::Void, // implicit void ret-type omitted but no '{' because, e.g., extern fn
             Some(Token::Type(_)) => self.parse_type(),
             Some(t) => panic!(
                 "Expected return type for function '{}' but received {:?}",
@@ -203,7 +202,9 @@ impl<'a> Parser<'a> {
         };
 
         match self.next_token() {
-            Some(Token::Newline | Token::Comment(_) | Token::Docstring(_)) | None => Some(statement),
+            Some(Token::Newline | Token::Comment(_) | Token::Docstring(_)) | None => {
+                Some(statement)
+            }
             Some(token) => panic!("Expected newline or EOF but received {}", token),
         }
     }
@@ -312,20 +313,27 @@ impl<'a> Parser<'a> {
 
         let else_body = match self.peek_token(1) {
             Some(&Token::Else) => Some(self.parse_else_statement()),
-            _ => None
+            _ => None,
         };
 
-        If { condition, then_body, else_body }
+        If {
+            condition,
+            then_body,
+            else_body,
+        }
     }
-    
+
     fn parse_else_statement(&mut self) -> Vec<Statement> {
         self.assert_next_token(Token::Else);
 
         match self.peek_token(1) {
             Some(Token::If) => vec![Statement::If(self.parse_if_statement())],
             Some(Token::LSquirly) => self.parse_body(),
-            Some(t) => panic!("Unexpected token '{}' after 'else'; expected 'else {{' or 'else if'", t),
-            None => panic!("Unexpected end of file after 'else'; expected 'else {{' or 'else if'")
+            Some(t) => panic!(
+                "Unexpected token '{}' after 'else'; expected 'else {{' or 'else if'",
+                t
+            ),
+            None => panic!("Unexpected end of file after 'else'; expected 'else {{' or 'else if'"),
         }
     }
 
@@ -475,7 +483,8 @@ impl<'a> Parser<'a> {
     fn parse_mul_div_rem_expr(&mut self) -> Expr {
         let mut left_expr_so_far = self.parse_unary_expr();
 
-        while let Some(Token::OperatorSymbol(s @ (Asterisk | Slash | Modulo))) = self.peek_token(1) {
+        while let Some(Token::OperatorSymbol(s @ (Asterisk | Slash | Modulo))) = self.peek_token(1)
+        {
             let operator = BinaryOperator::from(*s);
             self.skip_token();
             let right = self.parse_unary_expr();
@@ -538,14 +547,14 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Parses expressions like `foo()` or `bar(7, 2)`; see [Parser::parse_expr] for 
+    /// Parses expressions like `foo()` or `bar(7, 2)`; see [Parser::parse_expr] for
     /// expression-parsing details.
     fn parse_call(&mut self) -> Call {
         let function_name = self.parse_identifier();
         let args = self.parse_func_args();
         Call {
             function_name,
-            args
+            args,
         }
     }
 
@@ -596,7 +605,6 @@ impl<'a> Parser<'a> {
             (Some(Token::True | Token::False), _) => Expr::BoolLiteral(self.parse_bool_literal()),
 
             // todo Some(Token::StrLiteral())
-
             (Some(token), _) => panic!("Expected identifier or literal but received '{}'", token),
             (None, _) => panic!("Expected identifier or literal but file ended"),
         }
@@ -611,7 +619,9 @@ impl<'a> Parser<'a> {
         // The next token should be an integer literal.
         match self.next_token() {
             Some(Token::IntLiteral(n)) => n.clone(),
-            _ => unreachable!("This function is called from parse_atom, which already checks the next token")
+            _ => unreachable!(
+                "This function is called from parse_atom, which already checks the next token"
+            ),
         }
     }
 
@@ -619,11 +629,12 @@ impl<'a> Parser<'a> {
         match self.next_token() {
             Some(Token::True) => true,
             Some(Token::False) => false,
-            _ => unreachable!("This function is called from parse_atom, which already checks the next token")
+            _ => unreachable!(
+                "This function is called from parse_atom, which already checks the next token"
+            ),
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -634,18 +645,27 @@ mod tests {
     #[test]
     fn var_declaration() {
         let tokens = vec![
-            Token::Type(Type::Int(IntType { signed: true, width: 64 })),
+            Token::Type(Type::Int(IntType {
+                signed: true,
+                width: 64,
+            })),
             Token::Identifier("x".to_string()),
             Token::AssignmentSymbol(Eq),
             Token::IntLiteral("5".to_string()),
         ];
         let expected = Some(Statement::VarDeclaration(VarDeclaration {
             var_name: "x".to_string(),
-            var_type: Type::Int(IntType { signed: true, width: 64 }),
+            var_type: Type::Int(IntType {
+                signed: true,
+                width: 64,
+            }),
             var_value: Expr::IntLiteral("5".to_string()),
         }));
 
-        let mut parser = Parser { tokens: &tokens, cursor: 0 };
+        let mut parser = Parser {
+            tokens: &tokens,
+            cursor: 0,
+        };
         let ast = parser.parse_statement();
 
         assert_eq!(expected, ast);
@@ -663,7 +683,10 @@ mod tests {
             value: Box::new(Expr::IntLiteral("10".to_string())),
         }));
 
-        let mut parser = Parser { tokens: &tokens, cursor: 0 };
+        let mut parser = Parser {
+            tokens: &tokens,
+            cursor: 0,
+        };
         let ast = parser.parse_statement();
 
         assert_eq!(expected, ast);
@@ -688,7 +711,10 @@ mod tests {
             body: vec![],
         }));
 
-        let mut parser = Parser { tokens: &tokens, cursor: 0 };
+        let mut parser = Parser {
+            tokens: &tokens,
+            cursor: 0,
+        };
         let ast = parser.parse_statement();
 
         assert_eq!(expected, ast);
@@ -731,7 +757,10 @@ mod tests {
             right: Box::new(Expr::IntLiteral("5".to_string())),
         });
 
-        let mut parser = Parser { tokens: &tokens, cursor: 0 };
+        let mut parser = Parser {
+            tokens: &tokens,
+            cursor: 0,
+        };
         let ast = parser.parse_expr();
 
         assert_eq!(expected, ast);
@@ -758,7 +787,10 @@ mod tests {
             })),
         });
 
-        let mut parser = Parser { tokens: &tokens, cursor: 0 };
+        let mut parser = Parser {
+            tokens: &tokens,
+            cursor: 0,
+        };
         let ast = parser.parse_expr();
 
         assert_eq!(expected, ast);
@@ -783,7 +815,10 @@ mod tests {
             value: Box::new(Expr::IntLiteral("2".to_string())),
         })];
 
-        let mut parser = Parser { tokens: &tokens, cursor: 0 };
+        let mut parser = Parser {
+            tokens: &tokens,
+            cursor: 0,
+        };
         let ast = parser.parse_body();
 
         assert_eq!(expected, ast);
@@ -816,7 +851,10 @@ mod tests {
             ],
         });
 
-        let mut parser = Parser { tokens: &tokens, cursor: 0 };
+        let mut parser = Parser {
+            tokens: &tokens,
+            cursor: 0,
+        };
         let ast = parser.parse_expr();
 
         assert_eq!(expected, ast);
@@ -829,10 +867,16 @@ mod tests {
             Token::Fn,
             Token::Identifier("test".to_string()),
             Token::LParen,
-            Token::Type(Type::Int(IntType { signed: true, width: 64 })),
+            Token::Type(Type::Int(IntType {
+                signed: true,
+                width: 64,
+            })),
             Token::Identifier("a".to_string()),
             Token::RParen,
-            Token::Type(Type::Int(IntType { signed: true, width: 64 })),
+            Token::Type(Type::Int(IntType {
+                signed: true,
+                width: 64,
+            })),
             Token::LSquirly,
             Token::RSquirly,
         ];
@@ -842,10 +886,16 @@ mod tests {
                     func_visibility: FuncVisibility::Public,
                     name: "test".to_string(),
                     params: vec![FuncParam {
-                        param_type: Type::Int(IntType { signed: true, width: 64 }),
+                        param_type: Type::Int(IntType {
+                            signed: true,
+                            width: 64,
+                        }),
                         param_name: "a".to_string(),
                     }],
-                    return_type: Box::new(Type::Int(IntType { signed: true, width: 64 })),
+                    return_type: Box::new(Type::Int(IntType {
+                        signed: true,
+                        width: 64,
+                    })),
                 },
                 body: vec![],
             })],
@@ -882,27 +932,28 @@ mod tests {
             Token::Newline,
             Token::RSquirly,
         ];
-        let expected = Some(Statement::If(If { 
-            condition: Expr::Comparison(Comparison { 
-                left: Box::new(Expr::Identifier("x".to_string())), 
-                operator: ComparisonOperator::LessOrEqualTo, 
-                right: Box::new(Expr::IntLiteral("5".to_string())) ,
-            }), 
-            then_body: vec![Statement::Return(None)], 
-            else_body: Some(vec![
-                Statement::If(If { 
-                    condition: Expr::Comparison(Comparison { 
-                        left: Box::new(Expr::Identifier("x".to_string())), 
-                        operator: ComparisonOperator::LessOrEqualTo, 
-                        right: Box::new(Expr::IntLiteral("10".to_string())) ,
-                    }),
-                    then_body: vec![Statement::Return(None)],
-                    else_body: Some(vec![Statement::Return(None)]),
-                })
-            ]),
+        let expected = Some(Statement::If(If {
+            condition: Expr::Comparison(Comparison {
+                left: Box::new(Expr::Identifier("x".to_string())),
+                operator: ComparisonOperator::LessOrEqualTo,
+                right: Box::new(Expr::IntLiteral("5".to_string())),
+            }),
+            then_body: vec![Statement::Return(None)],
+            else_body: Some(vec![Statement::If(If {
+                condition: Expr::Comparison(Comparison {
+                    left: Box::new(Expr::Identifier("x".to_string())),
+                    operator: ComparisonOperator::LessOrEqualTo,
+                    right: Box::new(Expr::IntLiteral("10".to_string())),
+                }),
+                then_body: vec![Statement::Return(None)],
+                else_body: Some(vec![Statement::Return(None)]),
+            })]),
         }));
 
-        let mut parser = Parser { tokens: &tokens, cursor: 0 };
+        let mut parser = Parser {
+            tokens: &tokens,
+            cursor: 0,
+        };
         let ast = parser.parse_statement();
 
         assert_eq!(expected, ast);
@@ -922,7 +973,10 @@ mod tests {
             right: Box::new(Expr::IntLiteral("5".to_string())),
         }))));
 
-        let mut parser = Parser { tokens: &tokens, cursor: 0 };
+        let mut parser = Parser {
+            tokens: &tokens,
+            cursor: 0,
+        };
         let ast = parser.parse_statement();
 
         assert_eq!(expected, ast);
@@ -944,7 +998,10 @@ mod tests {
             })),
         }));
 
-        let mut parser = Parser { tokens: &tokens, cursor: 0 };
+        let mut parser = Parser {
+            tokens: &tokens,
+            cursor: 0,
+        };
         let ast = parser.parse_statement();
 
         assert_eq!(expected, ast);
@@ -978,37 +1035,40 @@ mod tests {
 
         let expected = Some(Statement::Assignment(Assignment {
             name: "x".to_string(),
-            value: Box::new(Expr::Binary(Binary { 
-                left: Box::new(Expr::Binary(Binary { 
-                    left: Box::new(Expr::Binary(Binary { 
-                        left: Box::new(Expr::Binary(Binary { 
-                            left: Box::new(Expr::Binary(Binary { 
-                                left: Box::new(Expr::Binary(Binary { 
-                                    left: Box::new(Expr::Identifier("a".to_string())), 
-                                    operator: BinaryOperator::Add, 
-                                    right: Box::new(Expr::IntLiteral("3".to_string())) 
-                                })), 
-                                operator: BinaryOperator::Divide, 
-                                right: Box::new(Expr::IntLiteral("4".to_string())) 
-                            })), 
-                            operator: BinaryOperator::Multiply, 
-                            right: Box::new(Expr::IntLiteral("5".to_string())) 
-                        })), 
-                        operator: BinaryOperator::Remainder, 
-                        right: Box::new(Expr::IntLiteral("3".to_string())) 
-                    })), 
-                    operator: BinaryOperator::Multiply, 
+            value: Box::new(Expr::Binary(Binary {
+                left: Box::new(Expr::Binary(Binary {
+                    left: Box::new(Expr::Binary(Binary {
+                        left: Box::new(Expr::Binary(Binary {
+                            left: Box::new(Expr::Binary(Binary {
+                                left: Box::new(Expr::Binary(Binary {
+                                    left: Box::new(Expr::Identifier("a".to_string())),
+                                    operator: BinaryOperator::Add,
+                                    right: Box::new(Expr::IntLiteral("3".to_string())),
+                                })),
+                                operator: BinaryOperator::Divide,
+                                right: Box::new(Expr::IntLiteral("4".to_string())),
+                            })),
+                            operator: BinaryOperator::Multiply,
+                            right: Box::new(Expr::IntLiteral("5".to_string())),
+                        })),
+                        operator: BinaryOperator::Remainder,
+                        right: Box::new(Expr::IntLiteral("3".to_string())),
+                    })),
+                    operator: BinaryOperator::Multiply,
                     right: Box::new(Expr::Unary(Unary {
-                        operator: UnaryOperator::Negate, 
-                        operand: Box::new(Expr::IntLiteral("2".to_string()))
-                    }))
-                })), 
-                operator: BinaryOperator::Subtract, 
-                right: Box::new(Expr::IntLiteral("2".to_string()))
-            }))
+                        operator: UnaryOperator::Negate,
+                        operand: Box::new(Expr::IntLiteral("2".to_string())),
+                    })),
+                })),
+                operator: BinaryOperator::Subtract,
+                right: Box::new(Expr::IntLiteral("2".to_string())),
+            })),
         }));
 
-        let mut parser = Parser { tokens: &tokens, cursor: 0 };
+        let mut parser = Parser {
+            tokens: &tokens,
+            cursor: 0,
+        };
         let ast = parser.parse_statement();
 
         assert_eq!(expected, ast);
@@ -1018,7 +1078,10 @@ mod tests {
     fn unary_cast_of_call() {
         let tokens = vec![
             Token::LParen,
-            Token::Type(Type::Int(IntType { width: 64, signed: true })),
+            Token::Type(Type::Int(IntType {
+                width: 64,
+                signed: true,
+            })),
             Token::RParen,
             Token::Identifier("foo".to_string()),
             Token::LParen,
@@ -1027,14 +1090,20 @@ mod tests {
         ];
 
         let expected = Expr::Unary(Unary {
-            operator: UnaryOperator::Cast(Type::Int(IntType { width: 64, signed: true })),
+            operator: UnaryOperator::Cast(Type::Int(IntType {
+                width: 64,
+                signed: true,
+            })),
             operand: Box::new(Expr::Call(Call {
                 function_name: "foo".to_string(),
                 args: vec![Expr::IntLiteral("1".to_string())],
             })),
         });
 
-        let mut parser = Parser { tokens: &tokens, cursor: 0 };
+        let mut parser = Parser {
+            tokens: &tokens,
+            cursor: 0,
+        };
         let ast = parser.parse_expr();
 
         assert_eq!(expected, ast);

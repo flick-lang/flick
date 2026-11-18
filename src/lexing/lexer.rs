@@ -5,8 +5,8 @@ use crate::lexing::token::Token;
 use crate::types::IntType;
 use crate::types::Type;
 
-use crate::error::{FlickError, ErrorKind};
 use super::error::LexingError;
+use crate::error::{ErrorKind, FlickError};
 
 /// A struct that's used to convert source code into tokens (see [Token])
 ///
@@ -31,7 +31,7 @@ pub struct Lexer<'a> {
 
 impl<'a> Lexer<'a> {
     /// Converts the source code into a vector of tokens
-    /// 
+    ///
     /// Returns an `Err()` if lexing fails.
     pub fn lex(source_code: &'a [char]) -> crate::Result<Vec<Token>> {
         let mut lexer = Self {
@@ -111,7 +111,7 @@ impl<'a> Lexer<'a> {
             ('}', _) => Token::RSquirly,
             ('\n', _) => Token::Newline,
 
-            (c, _) => return Err(self.err(LexingError::UnexpectedCharacter(*c)))
+            (c, _) => return Err(self.err(LexingError::UnexpectedCharacter(*c))),
         };
 
         self.skip_chars(peeked_token.get_char_count());
@@ -169,12 +169,25 @@ impl<'a> Lexer<'a> {
     fn read_word(&mut self) -> Token {
         let s = self.take_chars_while(|&c| c.is_ascii_alphanumeric() || c == '_');
 
-        if (s.starts_with('u') || s.starts_with('i')) && s.len() > 1 && s.chars().skip(1).all(|c| c.is_ascii_digit()) {
+        if (s.starts_with('u') || s.starts_with('i'))
+            && s.len() > 1
+            && s.chars().skip(1).all(|c| c.is_ascii_digit())
+        {
             let num: String = s.chars().skip(1).collect();
             let width: u32 = num.parse().unwrap();
             match s.chars().next().unwrap() {
-                'u' => return Token::Type(Type::Int(IntType { width, signed: false })),
-                'i' => return Token::Type(Type::Int(IntType { width, signed: true })),
+                'u' => {
+                    return Token::Type(Type::Int(IntType {
+                        width,
+                        signed: false,
+                    }));
+                }
+                'i' => {
+                    return Token::Type(Type::Int(IntType {
+                        width,
+                        signed: true,
+                    }));
+                }
                 _ => unreachable!(),
             }
         }
@@ -243,12 +256,18 @@ mod tests {
     fn variables() {
         let source_code = "i64 this_is_a_LONG_VARIABLE_NAME = 5\ni64 shortInt = 5";
         let expected_tokens = vec![
-            Token::Type(Type::Int(IntType { signed: true, width: 64 })),
+            Token::Type(Type::Int(IntType {
+                signed: true,
+                width: 64,
+            })),
             Token::Identifier("this_is_a_LONG_VARIABLE_NAME".to_string()),
             Token::AssignmentSymbol(Eq),
             Token::IntLiteral("5".to_string()),
             Token::Newline,
-            Token::Type(Type::Int(IntType { signed: true, width: 64 })),
+            Token::Type(Type::Int(IntType {
+                signed: true,
+                width: 64,
+            })),
             Token::Identifier("shortInt".to_string()),
             Token::AssignmentSymbol(Eq),
             Token::IntLiteral("5".to_string()),

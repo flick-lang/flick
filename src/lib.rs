@@ -8,6 +8,8 @@
 ///
 /// [a]: llvm_sys::prelude::LLVMValueRef
 mod compilation;
+/// Module to represent global Flick errors
+pub mod error;
 /// Module to convert source files into token streams
 mod lexing;
 /// Module to convert token streams into [abstract syntax trees](ast)
@@ -20,11 +22,10 @@ mod scope_manager;
 pub mod types;
 /// Module to add types to [abstract syntax trees](ast)
 mod typing;
-/// Module to represent global Flick errors
-pub mod error;
 
 // TODO (Max): Should we remove pub use and just make users use absolute path (I kinda like the idea of that if we somehow make the paths nicer)
 pub use compilation::compiler::Compiler;
+pub use error::Result;
 pub use lexing::lexer::Lexer;
 pub use lexing::token;
 pub use parsing::ast;
@@ -32,4 +33,3 @@ pub use parsing::parser::Parser;
 pub use scope_manager::ScopeManager;
 pub use typing::typed_ast;
 pub use typing::typer::Typer;
-pub use error::Result;

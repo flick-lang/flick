@@ -1,5 +1,5 @@
-use std::fmt;
 use crate::ast::FuncProto;
+use std::fmt;
 
 /// An enum to store the built-in Flick types, like `void`
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -37,5 +37,3 @@ impl fmt::Display for IntType {
         }
     }
 }
-
-
