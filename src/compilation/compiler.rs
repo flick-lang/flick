@@ -2,6 +2,7 @@ use llvm_sys::analysis::LLVMVerifierFailureAction::LLVMPrintMessageAction;
 use llvm_sys::analysis::LLVMVerifyFunction;
 use std::ffi::{CStr, CString, c_char, c_uint};
 use std::path::Path;
+use std::sync::Once;
 
 use llvm_sys::LLVMLinkage::{LLVMExternalLinkage, LLVMInternalLinkage};
 use llvm_sys::bit_writer::LLVMWriteBitcodeToFile;
@@ -138,13 +139,18 @@ impl Compiler {
             let builder = LLVMCreateBuilderInContext(context);
             let scope_manager = ScopeManager::new();
 
+            // LLVM's target registry is process-global and registering into it isn't thread-safe:
+            // concurrent registration can add a target twice, making every lookup ambiguous.
             // TODO: make this an option for the compiler to choose which target to initialize
-            if LLVM_InitializeNativeTarget() == 1 {
-                panic!("Error initializing native target")
-            }
-            if LLVM_InitializeNativeAsmPrinter() == 1 {
-                panic!("Error initializing native ASM printer")
-            }
+            static INIT_NATIVE_TARGET: Once = Once::new();
+            INIT_NATIVE_TARGET.call_once(|| {
+                if LLVM_InitializeNativeTarget() == 1 {
+                    panic!("Error initializing native target")
+                }
+                if LLVM_InitializeNativeAsmPrinter() == 1 {
+                    panic!("Error initializing native ASM printer")
+                }
+            });
 
             // Configure module
             let triple = target_triple();
