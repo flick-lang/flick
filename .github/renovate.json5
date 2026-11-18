@@ -3,6 +3,9 @@
   "extends": ["config:recommended"],
   "timezone": "America/New_York",
   "minimumReleaseAge": "7 days",
+  "nix": {
+    "enabled": true
+  },
   "vulnerabilityAlerts": {
     "minimumReleaseAge": null
   },
