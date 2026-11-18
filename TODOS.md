@@ -79,10 +79,6 @@
 - [x] Take all lexer tokens, parsing trees, etc. as references instead of owning
 - [x] Either use () in structs or use { } in struct properties
 
-### Nix
-
-- [ ] (Future) Use musl instead of gcc in `dockerImage` to save ~30-50 MiB uncompressed
-
 ### Maybe one day...
 
 - [ ] Write a syntax highlighting extension for code editors

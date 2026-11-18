@@ -17,7 +17,6 @@ try writing Flick code in our [sandbox](https://github.com/flick-lang/flick-sand
 * [Installing the compiler](#installing-the-compiler)
     * [With Nix (preferred)](#with-nix-preferred)
     * [With Homebrew](#with-homebrew)
-    * [Docker image](#docker-image)
 * [Using the compiler](#using-the-compiler)
 
 <!-- TOC -->
@@ -107,20 +106,6 @@ example, corresponds to the environment variable `LLVM_SYS_172_PREFIX`. The vers
 version in `Cargo.toml`.)_
 
 Either way, Flick links executables by calling `cc`, so you will need a C compiler on your `PATH`.
-
-### Docker image
-
-You can also build a minimal Docker image containing `flick`, a linker and `/bin/bash`, with `/workspace` as the
-working directory:
-
-```shell
-nix build .#dockerImage
-docker load < result
-```
-
-Inside the image, `flick --static` links against musl, so programs compiled there can be copied to other Linux
-machines. To build an image for another system (e.g. `linux/amd64` for Vercel Sandbox), build
-`.#packages.x86_64-linux.dockerImage` on (or with a builder for) `x86_64-linux`.
 
 ## Using the compiler
 
